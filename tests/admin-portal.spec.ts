@@ -93,10 +93,12 @@ test.describe('Admin Authentication & Portal Security QA', () => {
     await expect(returnLink).toBeVisible();
     await expect(returnLink).toHaveAttribute('href', '/about');
 
-    // Verify zero private CMS content or draft resources leaked
+    // Verify zero private CMS content, email, or draft resources leaked
     const bodyText = await page.textContent('body');
     expect(bodyText).not.toContain('004');
     expect(bodyText).not.toContain('Advanced M&A Due Diligence Checklist');
+    expect(bodyText).not.toContain('aakashdas.photo@gmail.com');
+    expect(bodyText).toContain('Access is protected by Google authentication and Firebase security.');
   });
 
   test('5. Clicking Sign in on /about navigates to /admin', async ({ page }) => {

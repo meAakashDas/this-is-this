@@ -131,8 +131,7 @@ export const AdminLoginCard: React.FC<AdminLoginCardProps> = ({
           {/* Security footnote */}
           <div className="pt-2 border-t border-border/60 text-center">
             <p className="text-[11px] text-muted-foreground/60 leading-normal m-0">
-              Access is protected by Google OAuth and Firebase Security Rules.
-              Only verified administrator account <code className="font-mono text-muted-foreground">aakashdas.photo@gmail.com</code> is granted access.
+              Access is protected by Google authentication and Firebase security.
             </p>
           </div>
         </div>

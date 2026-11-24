@@ -193,7 +193,8 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
       '/downloads/starter-budget-template-001.docx'
     );
     expect(docxRes.status()).toBe(200);
-    expect(Number(docxRes.headers()['content-length'])).toBeGreaterThan(1000);
+    const docxBuffer = await docxRes.body();
+    expect(docxBuffer.length).toBeGreaterThan(1000);
 
     // Removed complicated buttons: Open in New Tab, Hide Preview, Preview Download
     const previewText = (await previewSection.textContent()) || '';

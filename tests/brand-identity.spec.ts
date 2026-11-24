@@ -76,7 +76,8 @@ test.describe('Brand Identity — Favicon, Browser Title & URL Architecture', ()
     for (const asset of assets) {
       const res = await request.get(asset);
       expect(res.status(), `Asset ${asset} should return HTTP 200`).toBe(200);
-      expect(res.headers()['content-length']).toBeDefined();
+      const body = await res.body();
+      expect(body.length).toBeGreaterThan(0);
     }
   });
 });

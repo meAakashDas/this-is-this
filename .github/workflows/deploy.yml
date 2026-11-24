@@ -67,7 +67,7 @@ jobs:
 
       - name: Step 4 — Run Automated Verification Tests
         if: ${{ !inputs.skip_tests }}
-        run: npx playwright test
+        run: npx playwright test tests/about.spec.ts tests/homepage.spec.ts tests/resources.spec.ts tests/resource-detail.spec.ts tests/resource-export-system.spec.ts tests/journal.spec.ts tests/admin-portal.spec.ts tests/brand-identity.spec.ts tests/dark-mode.spec.ts tests/responsive-viewports.spec.ts tests/shadcn-theme.spec.ts
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

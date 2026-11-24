@@ -29,10 +29,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # =========================================================================
+  # Build Job: Compiles static site, generates exports, runs tests & uploads
+  # =========================================================================
+  build:
+    name: Build Website & Artifact
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -69,6 +70,13 @@ jobs:
         if: ${{ !inputs.skip_tests }}
         run: npx playwright test tests/about.spec.ts tests/homepage.spec.ts tests/resources.spec.ts tests/resource-detail.spec.ts tests/resource-export-system.spec.ts tests/journal.spec.ts tests/admin-portal.spec.ts tests/brand-identity.spec.ts tests/dark-mode.spec.ts tests/responsive-viewports.spec.ts tests/shadcn-theme.spec.ts
 
+      - name: Verify Production Build Output
+        run: |
+          test -d ./dist || { echo "Error: ./dist output directory does not exist!"; exit 1; }
+          test -f ./dist/index.html || { echo "Error: ./dist/index.html was not generated!"; exit 1; }
+          test -f ./dist/CNAME || { echo "Error: ./dist/CNAME was not copied!"; exit 1; }
+          echo "Production build output verified successfully ($(ls -1 ./dist | wc -l) files/directories in ./dist)."
+
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
@@ -77,6 +85,20 @@ jobs:
         with:
           path: './dist'
 
+  # =========================================================================
+  # Deploy Job: Runs ONLY after build succeeds, querying the completed artifact
+  # =========================================================================
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages (https://aakashdas.live)
         id: deployment
         uses: actions/deploy-pages@v4

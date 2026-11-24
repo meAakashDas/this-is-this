@@ -1,0 +1,189 @@
+---
+import { getPublicSiteConfig } from '../lib/cms/contentLoader';
+import Icon from './Icon.astro';
+
+const siteConfig = getPublicSiteConfig();
+
+interface Props {
+  currentPath?: string;
+}
+
+const { currentPath = '/' } = Astro.props;
+---
+
+<header class="site-header sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-colors">
+  <div class="page-container header-inner max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
+    <!-- Brand -->
+    <div class="brand flex items-center gap-6 sm:gap-8">
+      <a href="/" class="brand-link inline-flex items-center group text-foreground no-underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md" aria-label="Aakash Das — Home">
+        <span class="brand-name font-semibold text-[15px] tracking-tight text-foreground transition-colors group-hover:text-foreground/80">
+          {siteConfig.name}
+        </span>
+      </a>
+
+      <!-- Desktop Navigation — Clean Apple Editorial style -->
+      <nav class="desktop-nav hidden sm:flex items-center gap-6" aria-label="Primary Navigation">
+        <ul class="nav-list flex items-center gap-5 md:gap-6 list-none m-0 p-0">
+          {siteConfig.navItems.map((item) => {
+            const isActive =
+              currentPath === item.href ||
+              (item.href !== '/' && currentPath.startsWith(item.href));
+            return (
+              <li>
+                <a
+                  href={item.href}
+                  class={`nav-link text-[15px] tracking-tight transition-colors no-underline ${
+                    isActive
+                      ? 'nav-link-active text-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground font-medium'
+                  }`}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <span>{item.label}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="header-actions flex items-center gap-2">
+      <!-- Direct Contact CTA -->
+      <a
+        class="header-contact-link hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+        href={`mailto:${siteConfig.email}`}
+      >
+        <span>Say hello</span>
+        <Icon name="arrow-up-right" size={12} class="text-muted-foreground" />
+      </a>
+
+      <!-- Theme Switcher (Instant & Persistent) -->
+      <button
+        type="button"
+        id="theme-toggle-btn"
+        data-theme-toggle
+        class="theme-toggle-btn inline-flex items-center justify-center h-8.5 w-8.5 rounded-md border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        aria-label="Toggle theme"
+      >
+        <span class="dark:hidden flex items-center justify-center">
+          <Icon name="moon" size={14} />
+        </span>
+        <span class="hidden dark:flex items-center justify-center">
+          <Icon name="sun" size={14} />
+        </span>
+      </button>
+
+      <!-- Mobile Navigation Toggle -->
+      <button
+        type="button"
+        id="mobile-nav-toggle"
+        class="mobile-menu-btn sm:hidden inline-flex items-center justify-center h-8.5 w-8.5 rounded-md border border-input bg-background text-foreground hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+        aria-label="Toggle navigation menu"
+        aria-expanded="false"
+        aria-controls="mobile-nav-drawer"
+      >
+        <span class="menu-icon-open flex items-center justify-center">
+          <Icon name="menu" size={16} />
+        </span>
+        <span class="menu-icon-close flex items-center justify-center" style="display: none;">
+          <Icon name="x" size={16} />
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Drawer -->
+  <div id="mobile-nav-drawer" class="mobile-drawer border-b border-border bg-background shadow-sm sm:hidden" hidden>
+    <div class="page-container mobile-drawer-inner max-w-5xl mx-auto px-4 py-4">
+      <nav aria-label="Mobile Navigation">
+        <ul class="mobile-nav-list flex flex-col gap-1 list-none m-0 p-0">
+          {siteConfig.navItems.map((item) => {
+            const isActive =
+              currentPath === item.href ||
+              (item.href !== '/' && currentPath.startsWith(item.href));
+            return (
+              <li>
+                <a
+                  href={item.href}
+                  class={`mobile-nav-link flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors no-underline ${
+                    isActive
+                      ? 'mobile-nav-link-active bg-secondary text-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+                  }`}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <span>{item.label}</span>
+                </a>
+              </li>
+            );
+          })}
+          <li class="pt-2 mt-2 border-t border-border">
+            <a
+              href={`mailto:${siteConfig.email}`}
+              class="mobile-nav-link mobile-nav-contact flex items-center justify-between px-3 py-2.5 text-sm font-medium text-foreground rounded-md hover:bg-secondary transition-colors no-underline"
+            >
+              <span>Say hello</span>
+              <span class="text-xs font-mono text-muted-foreground">{siteConfig.email}</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<script>
+  function setupHeader() {
+    // Theme toggle setup
+    const toggleBtns = document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]');
+    toggleBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        btn.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} mode`);
+      });
+    });
+
+    // Mobile nav drawer setup
+    const toggleBtn = document.getElementById('mobile-nav-toggle');
+    const drawer = document.getElementById('mobile-nav-drawer');
+    if (!toggleBtn || !drawer) return;
+
+    const openIcon = toggleBtn.querySelector('.menu-icon-open') as HTMLElement;
+    const closeIcon = toggleBtn.querySelector('.menu-icon-close') as HTMLElement;
+
+    function toggleMenu(isOpen?: boolean) {
+      const willOpen = isOpen !== undefined ? isOpen : drawer.hasAttribute('hidden');
+      if (willOpen) {
+        drawer.removeAttribute('hidden');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+        if (openIcon) openIcon.style.display = 'none';
+        if (closeIcon) closeIcon.style.display = 'inline-block';
+      } else {
+        drawer.setAttribute('hidden', '');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        if (openIcon) openIcon.style.display = 'inline-block';
+        if (closeIcon) closeIcon.style.display = 'none';
+      }
+    }
+
+    toggleBtn.addEventListener('click', () => toggleMenu());
+
+    const drawerLinks = drawer.querySelectorAll('.mobile-nav-link');
+    drawerLinks.forEach((link) => {
+      link.addEventListener('click', () => toggleMenu(false));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !drawer.hasAttribute('hidden')) {
+        toggleMenu(false);
+        toggleBtn.focus();
+      }
+    });
+  }
+
+  setupHeader();
+  document.addEventListener('astro:page-load', setupHeader);
+</script>

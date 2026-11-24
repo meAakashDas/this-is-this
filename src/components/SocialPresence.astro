@@ -1,0 +1,57 @@
+---
+import { getPublicSiteConfig, getPublicHomePage } from '../lib/cms/contentLoader';
+import Icon from './Icon.astro';
+
+const siteConfig = getPublicSiteConfig();
+const home = getPublicHomePage();
+const contactHeading = home.sections?.contact?.heading || 'Get in Touch';
+const contactDesc = home.sections?.contact?.description || 'Feel free to reach out directly via email or connect on social platforms.';
+const showEmail = home.sections?.contact?.showEmail !== false;
+const showSocial = home.sections?.contact?.showSocial !== false;
+
+const getDisplayName = (platform: string) => {
+  if (platform.includes('X') || platform.includes('Twitter')) return 'X';
+  return platform;
+};
+---
+
+<section class="social-section" aria-labelledby="contact-heading">
+  <div class="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <h2 id="contact-heading" class="section-title text-xl sm:text-[22px] font-semibold tracking-tight text-foreground m-0">
+          {contactHeading}
+        </h2>
+        <p class="text-xs sm:text-sm text-muted-foreground mt-1">
+          {contactDesc}
+        </p>
+      </div>
+      {showEmail && (
+        <a
+          href={`mailto:${siteConfig.email}`}
+          class="email-cta-btn btn btn-primary inline-flex items-center gap-2 h-9 px-3.5 text-xs font-mono font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline"
+        >
+          <Icon name="mail" size={14} />
+          <span>{siteConfig.email}</span>
+        </a>
+      )}
+    </div>
+
+    {showSocial && siteConfig.socialLinks.length > 0 && (
+      <div class="social-links-pills flex items-center gap-2 flex-wrap pt-3 border-t border-border" aria-label="Social Channels">
+        {siteConfig.socialLinks.map((social) => (
+          <a
+            href={social.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="social-channel-pill inline-flex items-center gap-1.5 h-8.5 px-3 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+            aria-label={`${social.platform} (@${social.handle})`}
+          >
+            <span>{getDisplayName(social.platform)}</span>
+            <Icon name="arrow-up-right" size={11} class="external-arrow text-muted-foreground/70" />
+          </a>
+        ))}
+      </div>
+    )}
+  </div>
+</section>

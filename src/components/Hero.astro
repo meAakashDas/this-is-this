@@ -1,0 +1,105 @@
+---
+import Icon from './Icon.astro';
+import { getPublicHomePage } from '../lib/cms/contentLoader';
+
+interface Props {
+  headline?: string;
+  rolePrefix?: string;
+  roleBrand?: string;
+  roleUrl?: string;
+  tagline?: string;
+  photoUrl?: string;
+  photoAlt?: string;
+  primaryCtaText?: string;
+  primaryCtaUrl?: string;
+  primaryCtaVisible?: boolean;
+  secondaryCtaText?: string;
+  secondaryCtaUrl?: string;
+  secondaryCtaVisible?: boolean;
+}
+
+const home = getPublicHomePage();
+
+const {
+  headline = home.heroHeadline || "I'm Aakash Das.",
+  rolePrefix = home.heroRolePrefix || 'Founder of',
+  roleBrand = home.heroRoleBrand || 'RisePaisa',
+  roleUrl = home.heroRoleUrl || 'https://risepaisa.com',
+  tagline = home.heroTagline || 'I love learning, building, and sharing.',
+  photoUrl = home.heroPhotoUrl || '/images/aakash-das.webp',
+  photoAlt = home.heroPhotoAlt || 'Aakash Das',
+  primaryCtaText = home.primaryCta?.text || 'Explore free resources',
+  primaryCtaUrl = home.primaryCta?.url || '/resources',
+  primaryCtaVisible = home.primaryCta?.visible !== false,
+  secondaryCtaText = home.secondaryCta?.text || 'About me',
+  secondaryCtaUrl = home.secondaryCta?.url || '/about',
+  secondaryCtaVisible = home.secondaryCta?.visible !== false,
+} = Astro.props;
+---
+
+<section class="hero-section pt-4 pb-1 sm:pt-6 sm:pb-2 md:pt-8 md:pb-2 flex flex-col items-center justify-center text-center max-w-4xl mx-auto" aria-labelledby="hero-title">
+  <!-- Photograph: positioned ABOVE heading for mobile & desktop consistency (refined ~120–135px on desktop) -->
+  <div class="hero-portrait-wrap flex justify-center mb-4 sm:mb-5">
+    <div class="relative w-28 h-28 sm:w-32 sm:h-32 md:w-[132px] md:h-[132px] rounded-full p-1 border border-border bg-card shadow-xs hover:border-border-strong transition-all">
+      <div class="w-full h-full rounded-full overflow-hidden bg-secondary">
+        <img
+          src={photoUrl}
+          alt={photoAlt}
+          class="hero-portrait-img w-full h-full object-cover object-[center_20%] grayscale-[6%] contrast-[1.02] hover:grayscale-0 transition-all duration-300 block"
+          width="760"
+          height="760"
+          fetchpriority="high"
+          decoding="async"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-content flex flex-col items-center text-center space-y-2.5 sm:space-y-3 max-w-3xl">
+    <!-- Main Headline with calibrated Apple-inspired display scale (52-56px desktop) -->
+    <h1 id="hero-title" class="hero-title type-display text-foreground text-balance text-center m-0">
+      {headline}
+    </h1>
+
+    <!-- Role (Refined typographic relationship between 'Founder of' and 'RisePaisa') -->
+    <p class="hero-role text-[17px] sm:text-xl md:text-[1.375rem] tracking-tight text-center m-0 leading-snug">
+      <span class="font-light text-muted-foreground/80">{rolePrefix}</span>{' '}
+      <a
+        href={roleUrl}
+        target={roleUrl.startsWith('http') ? '_blank' : undefined}
+        rel={roleUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
+        class="hero-brand-link font-medium text-foreground underline decoration-border/80 underline-offset-4 hover:decoration-foreground transition-colors"
+        aria-label={`${roleBrand} (opens in a new tab)`}
+      >{roleBrand}</a><span class="text-muted-foreground/60">.</span>
+    </p>
+
+    <!-- Personal Statement (Subtle, authentic, understated) -->
+    <p class="hero-tagline text-[15px] sm:text-[16.5px] text-muted-foreground max-w-xl text-center font-normal leading-relaxed m-0">
+      {tagline}
+    </p>
+
+    <!-- Action Buttons (Explore free resources + About me) -->
+    {(primaryCtaVisible || secondaryCtaVisible) && (
+      <div class="hero-actions pt-3.5 sm:pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-3.5 w-full sm:w-auto">
+        {primaryCtaVisible && (
+          <a
+            href={primaryCtaUrl}
+            class="btn btn-primary hero-btn hero-btn-primary inline-flex items-center justify-center gap-2 h-12 px-6 text-[15px] font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring no-underline group w-full sm:w-auto"
+          >
+            <span>{primaryCtaText}</span>
+            <Icon name="arrow-right" size={14} class="hero-btn-arrow transition-transform group-hover:translate-x-0.5" />
+          </a>
+        )}
+        {secondaryCtaVisible && (
+          <a
+            href={secondaryCtaUrl}
+            class="btn btn-secondary hero-btn hero-btn-secondary inline-flex items-center justify-center gap-2 h-12 px-6 text-[15px] font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground shadow-xs transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring no-underline group w-full sm:w-auto"
+          >
+            <span>{secondaryCtaText}</span>
+            <Icon name="arrow-right" size={14} class="hero-btn-arrow transition-transform group-hover:translate-x-0.5" />
+          </a>
+        )}
+      </div>
+    )}
+  </div>
+</section>

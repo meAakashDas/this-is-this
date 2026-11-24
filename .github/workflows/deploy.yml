@@ -1,0 +1,82 @@
+name: Deploy Website to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      force_snapshot:
+        description: 'Force live Firestore content snapshot retrieval'
+        required: false
+        type: boolean
+        default: true
+      skip_tests:
+        description: 'Skip Playwright automated verification'
+        required: false
+        type: boolean
+        default: false
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers & Dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Step 1 — Fetch CMS Content Snapshot
+        env:
+          PUBLIC_FIREBASE_API_KEY: ${{ secrets.PUBLIC_FIREBASE_API_KEY }}
+          PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.PUBLIC_FIREBASE_PROJECT_ID || 'aakashdas-live' }}
+          PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          PUBLIC_FIREBASE_APP_ID: ${{ secrets.PUBLIC_FIREBASE_APP_ID }}
+        run: node scripts/fetch-cms-snapshot.mjs
+
+      - name: Step 2 — Generate Educational Resource Exports (PDF & DOCX)
+        run: node scripts/generate-all-documents.mjs
+
+      - name: Step 3 — Compile Static Astro Site (SSG)
+        run: npx astro build
+
+      - name: Step 4 — Run Automated Verification Tests
+        if: ${{ !inputs.skip_tests }}
+        run: npx playwright test
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Static Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages (https://aakashdas.live)
+        id: deployment
+        uses: actions/deploy-pages@v4

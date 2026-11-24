@@ -1,0 +1,59 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import { getPublicSiteConfig, getPublicJournalArticles } from '../../lib/cms/contentLoader';
+
+const siteConfig = getPublicSiteConfig();
+const articles = getPublicJournalArticles();
+---
+
+<BaseLayout
+  title={`Journal — ${siteConfig.name}`}
+  description="I write about what I'm learning, what I'm building, and the ideas that make me think."
+  currentPath="/journal"
+>
+  <div class="page-container journal-page max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 sm:pt-12 sm:pb-24 space-y-8 sm:space-y-10">
+    <!-- Header -->
+    <header class="journal-header space-y-2.5 sm:space-y-3">
+      <h1 class="journal-title type-h1 text-foreground m-0">
+        Journal
+      </h1>
+      <p class="journal-subtitle text-base sm:text-[17px] md:text-[18px] font-normal text-muted-foreground max-w-xl leading-relaxed m-0">
+        I write about what I'm learning, what I'm building, and the ideas that make me think.
+      </p>
+    </header>
+
+    <!-- Editorial List -->
+    <section class="journal-entries-section" aria-label="Journal Entries">
+      <div class="journal-list divide-y divide-border border-t border-b border-border" role="feed">
+        {articles.map((article) => (
+          <article class="journal-entry-item py-7 sm:py-8.5 group transition-colors" role="article">
+            <a
+              href={`/journal/${article.slug}`}
+              class="entry-link block no-underline text-inherit focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-lg"
+              aria-label={`Read entry: ${article.title}`}
+            >
+              <!-- Title -->
+              <h2 class="entry-title text-xl sm:text-[22px] font-semibold tracking-tight text-foreground group-hover:text-foreground/80 transition-colors m-0 mb-2.5 leading-snug">
+                {article.title}
+              </h2>
+
+              <!-- Excerpt -->
+              <p class="entry-excerpt text-sm sm:text-[15px] font-normal text-muted-foreground leading-relaxed m-0 mb-4 max-w-2xl">
+                {article.excerpt}
+              </p>
+
+              <!-- Action Link -->
+              <div class="entry-action flex items-center text-xs sm:text-[13px] font-medium text-foreground">
+                <span class="inline-flex items-center gap-1.5 group-hover:translate-x-1 transition-transform">
+                  <span>Read entry</span>
+                  <Icon name="arrow-right" size={13} class="entry-arrow text-muted-foreground group-hover:text-foreground transition-colors" />
+                </span>
+              </div>
+            </a>
+          </article>
+        ))}
+      </div>
+    </section>
+  </div>
+</BaseLayout>

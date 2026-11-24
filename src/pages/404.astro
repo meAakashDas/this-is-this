@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../data/siteConfig';
+import Icon from '../components/Icon.astro';
+---
+
+<BaseLayout
+  title={`Page Not Found — ${siteConfig.name}`}
+  description="The requested page could not be located."
+  currentPath="/404"
+>
+  <div class="page-container page-content py-16 sm:py-24 flex items-center justify-center">
+    <div class="error-card rounded-xl border border-border bg-card text-card-foreground p-6 sm:p-10 shadow-xs max-w-lg w-full text-center space-y-4">
+      <div class="error-code font-mono text-5xl sm:text-6xl font-bold text-muted-foreground/50 tracking-tighter">
+        404
+      </div>
+      <h1 class="error-title text-2xl sm:text-[28px] font-semibold tracking-tight text-foreground m-0">
+        Page or Resource Not Found
+      </h1>
+      <p class="error-desc text-sm sm:text-base text-muted-foreground leading-relaxed m-0 max-w-md mx-auto">
+        The link you followed may be outdated, or the specific resource number
+        is currently being authored for the archive.
+      </p>
+
+      <div class="error-actions flex items-center justify-center gap-3 pt-4 flex-wrap">
+        <a href="/" class="btn btn-primary inline-flex items-center justify-center gap-2 h-10 px-5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm no-underline">
+          <Icon
+            name="arrow-right"
+            size={14}
+            class="rotate-180"
+          />
+          <span>Return to Homepage</span>
+        </a>
+        <a href="/resources" class="btn btn-secondary inline-flex items-center justify-center gap-2 h-10 px-5 text-sm font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline">
+          <Icon name="search" size={14} class="text-muted-foreground" />
+          <span>Look Up a Resource</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,0 +1,102 @@
+---
+import { getPublicSiteConfig } from '../lib/cms/contentLoader';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { Toaster } from '../components/ui/sonner';
+import '../styles/global.css';
+
+const siteConfig = getPublicSiteConfig();
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  currentPath?: string;
+}
+
+const {
+  title = siteConfig.title,
+  description = siteConfig.description,
+  image = '/images/aakash-das.webp',
+  currentPath = Astro.url.pathname,
+} = Astro.props;
+
+const cleanPath = Astro.url.pathname === '/' ? '/' : Astro.url.pathname.replace(/\/+$/, '');
+const canonicalURL = new URL(cleanPath, siteConfig.url);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- Browser Tab Title: Strictly "Aakash Das" across all pages -->
+    <title>Aakash Das</title>
+    <meta name="title" content={title || "Aakash Das"} />
+    <meta name="description" content={description} />
+    <meta name="author" content={siteConfig.name} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title || "Aakash Das"} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(image, siteConfig.url)} />
+    <meta property="og:site_name" content={siteConfig.name} />
+
+    <!-- Twitter / X -->
+    <meta property="twitter:card" content="summary" />
+    <meta property="twitter:url" content={canonicalURL} />
+    <meta property="twitter:title" content={title || "Aakash Das"} />
+    <meta property="twitter:description" content={description} />
+    <meta property="twitter:creator" content="@me_aakashdas" />
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <link rel="shortcut icon" href="/favicon.ico?v=2" />
+
+    <!-- Theme Initialization Script (Prevent FOUC) -->
+    <script is:inline>
+      (function () {
+        try {
+          const stored = localStorage.getItem('theme');
+          if (stored === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else if (stored === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            // Respect system dark mode only if user hasn't explicitly set preference
+            // document.documentElement.classList.add('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen bg-background text-foreground antialiased selection:bg-muted selection:text-foreground">
+    <a href="#main-content" class="skip-link">
+      Skip to main content
+    </a>
+
+    <Header currentPath={currentPath} />
+
+    <main id="main-content" class="site-main flex-1">
+      <slot />
+    </main>
+
+    <Footer />
+    <Toaster client:load />
+  </body>
+</html>

@@ -20,3 +20,9 @@ Consult these guides before working on related tasks:
 - [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
 - [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
 - [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+
+## Design & Review Guidelines
+
+For visual design, styling, and design-review tasks, consult the installed **Apple Design Skill** located at `.agents/skills/apple-design/`.
+Before making Apple-inspired design decisions or recommendations, read the relevant Human Interface Guidelines (HIG) in `.agents/skills/apple-design/references/hig/` (always loading core references: `accessibility.md`, `layout.md`, `typography.md`, `color.md`, and relevant component/pattern files) to ensure authentic craft and platform alignment.
+

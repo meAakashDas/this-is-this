@@ -1,0 +1,449 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import ResourceContentRenderer from '../../components/ResourceContentRenderer.astro';
+import YouTubeEmbed from '../../components/YouTubeEmbed.astro';
+import {
+  getPublicSiteConfig,
+  getPublicResourceByNumber,
+  getAllPublicResourceNumbers,
+  getAdjacentPublicResources,
+} from '../../lib/cms/contentLoader';
+import { getResourceExportFilename } from '../../utils/documentExport';
+
+export function getStaticPaths() {
+  const published = getAllPublicResourceNumbers();
+  const allRoutes = Array.from(new Set([...published, '004']));
+
+  return allRoutes.map((id) => ({
+    params: { id },
+  }));
+}
+
+const siteConfig = getPublicSiteConfig();
+const { id } = Astro.params;
+const resource = id ? getPublicResourceByNumber(id) : undefined;
+const isPublished = Boolean(resource && resource.published);
+
+if (!isPublished) {
+  Astro.response.status = 404;
+}
+const adjacent = id
+  ? getAdjacentPublicResources(id)
+  : { prev: undefined, next: undefined };
+
+const pageTitle = isPublished
+  ? `Resource #${resource!.resourceNumber}: ${resource!.title} — ${siteConfig.name}`
+  : `Resource #${id} Not Available — ${siteConfig.name}`;
+
+const pageDesc = isPublished
+  ? resource!.description
+  : `Resource #${id} is not available in the public educational archive.`;
+
+const permanentUrl = `${siteConfig.url}/resources/${id}`;
+
+const pdfDownloadFilename = isPublished
+  ? getResourceExportFilename(resource!.resourceNumber, resource!.title, 'pdf')
+  : '';
+const docxDownloadFilename = isPublished
+  ? getResourceExportFilename(resource!.resourceNumber, resource!.title, 'docx')
+  : '';
+
+function getFileExtension(format?: string, url?: string): string {
+  const lowerFormat = (format || '').toLowerCase();
+  const lowerUrl = (url || '').toLowerCase();
+  if (lowerFormat.includes('pdf') || lowerUrl.endsWith('.pdf')) return 'PDF';
+  if (lowerFormat.includes('csv') || lowerUrl.endsWith('.csv')) return 'CSV';
+  if (
+    lowerFormat.includes('xlsx') ||
+    lowerFormat.includes('excel') ||
+    lowerFormat.includes('spreadsheet') ||
+    lowerUrl.endsWith('.xlsx')
+  )
+    return 'XLSX';
+  if (
+    lowerFormat.includes('docx') ||
+    lowerFormat.includes('word') ||
+    lowerUrl.endsWith('.docx')
+  )
+    return 'DOCX';
+  if (lowerFormat.includes('notion')) return 'NOTION';
+  return 'FILE';
+}
+---
+
+<BaseLayout title={pageTitle} description={pageDesc} currentPath="/resources">
+  <div class="page-container resource-detail-page max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 pb-24">
+    {isPublished ? (
+      /* =======================================================================
+         Published Resource View
+         ======================================================================= */
+      <article class="resource-article space-y-8 sm:space-y-10">
+        <!-- 1. Breadcrumb Navigation -->
+        <nav class="resource-nav-crumb flex items-center gap-2 text-xs text-muted-foreground" aria-label="Breadcrumb">
+          <a href="/resources" class="crumb-link inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors no-underline">
+            <Icon name="arrow-right" size={13} class="crumb-arrow-back rotate-180" />
+            <span>All Resources</span>
+          </a>
+          <span class="crumb-sep text-border-strong text-muted-foreground/60" aria-hidden="true">
+            /
+          </span>
+          <span class="crumb-current font-mono text-xs text-muted-foreground">
+            Resource #{resource!.resourceNumber}
+          </span>
+        </nav>
+
+        <!-- 2, 3, 4, 5. Header: Resource Number, Title, Published Date, Action Buttons -->
+        <header class="resource-detail-header space-y-3 sm:space-y-3.5">
+          <div class="resource-num-row">
+            <span class="resource-num-badge inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono font-medium border border-border bg-secondary text-muted-foreground">
+              NO. {resource!.resourceNumber}
+            </span>
+          </div>
+
+          <h1 class="resource-detail-title resource-title text-2xl sm:text-3xl lg:text-[34px] font-semibold tracking-tight text-foreground m-0 text-balance">
+            {resource!.title}
+          </h1>
+
+          {resource!.publishedAt && (
+            <div class="resource-date-row">
+              <time datetime={resource!.publishedAt} class="resource-date text-xs font-mono text-muted-foreground">
+                Published {resource!.publishedAt}
+              </time>
+            </div>
+          )}
+
+          <!-- Action Buttons below Publication Date -->
+          <div class="resource-top-actions flex items-center gap-2.5 pt-2 flex-wrap" aria-label="Resource actions">
+            <a
+              href={resource!.pdfPreviewUrl || resource!.downloadUrl}
+              download={pdfDownloadFilename}
+              class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+              aria-label={`Save ${resource!.title} as PDF`}
+            >
+              <Icon name="download" size={13} />
+              <span>Save as PDF</span>
+            </a>
+
+            {resource!.docxUrl && (
+              <a
+                href={resource!.docxUrl}
+                download={docxDownloadFilename}
+                class="action-btn btn-save-docx btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+                aria-label={`Save ${resource!.title} as DOCX`}
+              >
+                <Icon name="file-text" size={13} />
+                <span>Save as DOCX</span>
+              </a>
+            )}
+
+            <a
+              href="#view-as-pdf"
+              class="action-btn btn-view-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+              data-scroll-to-preview
+              aria-label="View embedded PDF preview"
+            >
+              <Icon name="eye" size={13} />
+              <span>View as PDF</span>
+            </a>
+
+            <button
+              type="button"
+              class="action-btn btn-share-resource btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs cursor-pointer"
+              data-share-btn
+              data-title={resource!.title}
+              data-url={permanentUrl}
+              aria-label="Share resource"
+            >
+              <Icon name="share" size={13} />
+              <span data-share-label>Share</span>
+            </button>
+
+            <span
+              data-share-feedback
+              class="share-feedback-msg text-xs font-medium text-emerald-600 dark:text-emerald-400 transition-opacity duration-200"
+              style="display: none;"
+              role="status"
+              aria-live="polite"
+            >
+              Link copied to clipboard
+            </span>
+          </div>
+        </header>
+
+        <!-- Divider -->
+        <div class="h-px bg-border w-full" role="separator"></div>
+
+        <!-- 2. Downloadable Resources (Immediately below header & divider) -->
+        {resource!.attachments && resource!.attachments.length > 0 && (
+          <section
+            class="resource-section attachments-section space-y-4"
+            aria-labelledby="attachments-section-heading"
+          >
+            <div class="section-header">
+              <h2 id="attachments-section-heading" class="section-heading text-xl sm:text-[22px] font-semibold tracking-tight text-foreground m-0">
+                Download Resources
+              </h2>
+            </div>
+
+            <div class="attachments-list flex flex-col gap-3">
+              {resource!.attachments.map((att) => {
+                const fileType = getFileExtension(att.format, att.url);
+                return (
+                  <div class="attachment-item-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
+                    <div class="attachment-info flex flex-col gap-1.5">
+                      <h3 class="attachment-name text-sm font-semibold tracking-tight text-foreground m-0">{att.name}</h3>
+                      <div class="attachment-meta">
+                        <span class="file-type-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border border-border bg-secondary text-muted-foreground">{fileType}</span>
+                      </div>
+                    </div>
+                    <a
+                      href={att.url}
+                      download
+                      class="attachment-download-link btn btn-primary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline"
+                      aria-label={`Download ${att.name}`}
+                    >
+                      <span>Download</span>
+                      <Icon name="arrow-right" size={13} class="download-arrow" />
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <!-- 3. Written Resource Content (Immediately below downloadable attachments) -->
+        {(resource!.blocknoteHtml || (resource!.blocknoteJson && resource!.blocknoteJson.length > 0) || resource!.contentHtml || (resource!.contentBlocks && resource!.contentBlocks.length > 0)) && (
+          <section class="resource-section written-content-section space-y-6" aria-label="Resource written content">
+            <div class="main-educational-content space-y-6">
+              <ResourceContentRenderer
+                blocknoteHtml={resource!.blocknoteHtml}
+                blocknoteJson={resource!.blocknoteJson}
+                contentHtml={resource!.contentHtml}
+                blocks={resource!.contentBlocks}
+              />
+
+              {resource!.youtubeEmbed && (
+                <div class="video-section video-embed-container pt-4">
+                  <YouTubeEmbed
+                    data={resource!.youtubeEmbed}
+                    permanentUrl={permanentUrl}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        <!-- 10. View as PDF Section -->
+        {resource!.pdfPreviewUrl && (
+          <section id="view-as-pdf" class="resource-section pdf-preview-section rounded-xl border border-border bg-card overflow-hidden shadow-xs scroll-mt-20" aria-labelledby="pdf-preview-heading">
+            <div class="preview-header flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border bg-secondary/50 flex-wrap">
+              <h2 id="pdf-preview-heading" class="section-heading text-base sm:text-lg font-semibold tracking-tight text-foreground m-0">
+                View as PDF
+              </h2>
+
+              <div class="preview-actions-bar flex items-center gap-2 flex-wrap">
+                <a
+                  href={resource!.pdfPreviewUrl}
+                  download={pdfDownloadFilename}
+                  class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+                  aria-label={`Download ${resource!.title} PDF`}
+                >
+                  <Icon name="download" size={13} />
+                  <span>Download PDF</span>
+                </a>
+
+                {resource!.docxUrl && (
+                  <a
+                    href={resource!.docxUrl}
+                    download={docxDownloadFilename}
+                    class="preview-action-btn btn-save-docx btn btn-primary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline"
+                    aria-label={`Save ${resource!.title} as DOCX`}
+                  >
+                    <Icon name="file-text" size={13} />
+                    <span>Save as DOCX</span>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+              <object
+                data={resource!.pdfPreviewUrl}
+                type="application/pdf"
+                class="pdf-object w-full h-full border-0 block"
+                aria-label={`PDF document preview of ${resource!.title}`}
+              >
+                <iframe
+                  src={resource!.pdfPreviewUrl}
+                  title={`PDF Preview: ${resource!.title}`}
+                  class="pdf-iframe w-full h-full border-0"
+                  loading="lazy"
+                >
+                  <p class="pdf-fallback-msg p-6 text-center text-sm text-muted-foreground m-0">
+                    Your browser does not support inline PDF viewing.{' '}
+                    <a href={resource!.pdfPreviewUrl} download class="underline text-foreground">
+                      Click here to download the PDF directly
+                    </a>
+                    .
+                  </p>
+                </iframe>
+              </object>
+            </div>
+          </section>
+        )}
+
+        <!-- Adjacent Resource Navigation -->
+        {(adjacent.prev || adjacent.next) && (
+          <nav class="resource-adjacent-nav pt-8 mt-12 border-t border-border" aria-label="Adjacent resources">
+            <div class="adjacent-links-row flex items-stretch justify-between gap-4 flex-col sm:flex-row">
+              {adjacent.prev ? (
+                <a
+                  href={`/resources/${adjacent.prev.resourceNumber}`}
+                  class="adjacent-nav-link adjacent-prev flex items-center gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm no-underline text-inherit"
+                  aria-label={`Previous Resource: ${adjacent.prev.title}`}
+                >
+                  <span class="nav-dir-arrow text-muted-foreground" aria-hidden="true">←</span>
+                  <div class="nav-text-group flex flex-col gap-0.5 min-w-0">
+                    <span class="nav-label text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground">Previous Resource</span>
+                    <span class="nav-resource-title text-sm font-semibold text-foreground truncate">{adjacent.prev.title}</span>
+                  </div>
+                </a>
+              ) : (
+                <div class="adjacent-empty flex-1" />
+              )}
+
+              {adjacent.next ? (
+                <a
+                  href={`/resources/${adjacent.next.resourceNumber}`}
+                  class="adjacent-nav-link adjacent-next flex items-center justify-between gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm sm:ml-auto text-right no-underline text-inherit"
+                  aria-label={`Next Resource: ${adjacent.next.title}`}
+                >
+                  <div class="nav-text-group flex flex-col gap-0.5 min-w-0 text-left sm:text-right">
+                    <span class="nav-label text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground">Next Resource</span>
+                    <span class="nav-resource-title text-sm font-semibold text-foreground truncate">{adjacent.next.title}</span>
+                  </div>
+                  <span class="nav-dir-arrow text-muted-foreground" aria-hidden="true">→</span>
+                </a>
+              ) : (
+                <div class="adjacent-empty flex-1" />
+              )}
+            </div>
+          </nav>
+        )}
+
+        <!-- Printable Footer Notice -->
+        <div class="print-footer-notice hidden print:block mt-8 pt-4 border-t border-border text-xs text-muted-foreground" aria-hidden="true">
+          <p class="m-0">Printed from AakashDas.live • Open Educational Resources Archive</p>
+          <p class="m-0">
+            Resource #{resource!.resourceNumber}: {resource!.title} ({permanentUrl})
+          </p>
+        </div>
+      </article>
+    ) : (
+      /* =======================================================================
+         Resource Not Found or Unpublished
+         ======================================================================= */
+      <div class="resource-not-found-card rounded-xl border border-border bg-card text-card-foreground p-8 sm:p-14 shadow-xs max-w-xl mx-auto text-center space-y-5">
+        <div class="not-found-num-badge inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono font-medium border border-border bg-secondary text-muted-foreground">
+          <span>NO. {id}</span>
+        </div>
+
+        <h1 class="not-found-title text-2xl sm:text-3xl font-bold tracking-tight text-foreground m-0">Resource #{id} Not Available</h1>
+
+        <p class="not-found-desc text-sm text-muted-foreground leading-relaxed m-0">
+          The requested resource number is not available or has not been
+          published in the open educational archive.
+        </p>
+
+        <p class="not-found-note text-xs text-muted-foreground/80 leading-relaxed m-0">
+          Every published material in this archive is cataloged under a verified
+          permanent number. Please check the resource number or browse available
+          materials in the catalog.
+        </p>
+
+        <div class="not-found-actions flex items-center justify-center gap-3 pt-4 flex-wrap">
+          <a href="/resources" class="btn btn-primary inline-flex items-center gap-2 h-10 px-4 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline">
+            <Icon name="search" size={15} />
+            <span>Search Resource Catalog</span>
+          </a>
+          <a href="/" class="btn btn-secondary inline-flex items-center gap-2 h-10 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline">
+            <span>← Return to Homepage</span>
+          </a>
+        </div>
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<script>
+  function initResourceActions() {
+    // 1. Smooth scroll to View as PDF preview section
+    const scrollToPreviewBtns = document.querySelectorAll<HTMLElement>('[data-scroll-to-preview]');
+    scrollToPreviewBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const previewTarget = document.getElementById('view-as-pdf');
+        if (previewTarget) {
+          previewTarget.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+
+    // 2. Web Share API & Copy Fallback
+    const shareBtns = document.querySelectorAll<HTMLButtonElement>('[data-share-btn]');
+    shareBtns.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const title = btn.getAttribute('data-title') || document.title;
+        const url = btn.getAttribute('data-url') || window.location.href;
+        const feedback = document.querySelector<HTMLElement>('[data-share-feedback]');
+
+        function showFeedback(msg: string) {
+          if (feedback) {
+            feedback.textContent = msg;
+            feedback.style.display = 'inline-block';
+            setTimeout(() => {
+              feedback.style.display = 'none';
+            }, 3000);
+          }
+        }
+
+        async function copyUrl(copyTargetUrl: string) {
+          try {
+            await navigator.clipboard.writeText(copyTargetUrl);
+            showFeedback('Link copied to clipboard!');
+          } catch {
+            const tempInput = document.createElement('input');
+            tempInput.value = copyTargetUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showFeedback('Link copied to clipboard!');
+          }
+        }
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title,
+              url,
+            });
+            showFeedback('Shared successfully!');
+          } catch (err: unknown) {
+            if (err instanceof Error && err.name !== 'AbortError') {
+              await copyUrl(url);
+            }
+          }
+        } else {
+          await copyUrl(url);
+        }
+      });
+    });
+  }
+
+  initResourceActions();
+  document.addEventListener('astro:page-load', initResourceActions);
+</script>

@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // 1. Collection: siteSettings
+    //    Document ID: {document} (e.g., "general", "navigation")
+    //    Fields:
+    //      - name: string (required) - Site brand name
+    //      - title: string (required) - Meta title
+    //      - description: string (required) - Meta description
+    //      - url: string (required) - Canonical site URL
+    //      - email: string (required) - Contact email address
+    //      - navItems: list (optional) - Navigation configuration
+    //      - socialLinks: list (optional) - Social profile links
+    //    Access: Publicly readable; Admin-only write.
+    //
+    // 2. Collection: pages
+    //    Document ID: {document} (e.g., "home", "about")
+    //    Fields:
+    //      - title: string (required) - Page title
+    //      - lead: string (optional) - Page summary or subtitle
+    //      - story: list (optional) - Milestones / story cards
+    //      - activities: list (optional) - What I Do cards
+    //      - updatedAt: timestamp | string (optional)
+    //    Access: Publicly readable; Admin-only write.
+    //
+    // 3. Collection: resources
+    //    Document ID: {resourceId} (e.g., "001", "002")
+    //    Fields:
+    //      - resourceNumber: string (required) - Permanent 3-digit number (e.g., "001")
+    //      - title: string (required) - Resource title
+    //      - description: string (required) - Overview description
+    //      - category: string (required) - Resource category
+    //      - publishedAt: string | timestamp (required) - Publication date
+    //      - updatedAt: string | timestamp (optional)
+    //      - published: bool (required) - Visibility flag (true = public, false = draft)
+    //      - downloadFormat: string (optional) - e.g., "PDF Guide", "Spreadsheet (.xlsx)"
+    //      - fileSize: string (optional) - File size display string
+    //      - downloadUrl: string (optional) - Direct download link
+    //      - pdfPreviewUrl: string (optional) - Inline preview link
+    //      - docxUrl: string (optional) - Word document link
+    //      - attachments: list (optional) - Downloadable attachments array
+    //      - youtubeEmbed: map (optional) - YouTube video ID and caption
+    //      - contentBlocks: list (optional) - Editorial blocks
+    //      - tags: list (required) - Classification tags
+    //      - summaryPoints: list (optional) - Key takeaways
+    //      - targetAudience: string (optional) - Target audience description
+    //    Access: Public read if published == true; Admin full read/create/update/delete.
+    //
+    // 4. Collection: journals
+    //    Document ID: {slug} (e.g., "why-i-believe-in-learning-in-public")
+    //    Fields:
+    //      - id: string (required) - Sequential or unique ID
+    //      - slug: string (required) - URL-friendly slug
+    //      - title: string (required) - Article headline
+    //      - category: string (required) - Topic category
+    //      - excerpt: string (required) - Short summary snippet
+    //      - publishedAt: string | timestamp (required) - Date of publication
+    //      - readTime: string (required) - Estimated read duration
+    //      - published: bool (required) - Visibility flag (true = public, false = draft)
+    //      - isSample: bool (optional) - Flag for preview articles
+    //      - content: map (required) - Body content with lead and sections
+    //    Access: Public read if published == true; Admin full read/create/update/delete.
+    //
+    // 5. Collection: administrators
+    //    Document ID: {uid} - Firebase Auth UID of authorized admin
+    //    Fields:
+    //      - email: string (required) - Must match 'aakashdas.photo@gmail.com'
+    //      - role: string (required) - e.g., "admin"
+    //      - createdAt: timestamp (optional)
+    //      - lastLogin: timestamp (optional)
+    //    Access: Admin-only read and write. Ordinary users are completely blocked.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Core Helper Functions
+    // ===============================================================
+
+    // Check if the requester is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the requester is the verified administrator
+    // Strictly enforces:
+    // 1. Authenticated session exists
+    // 2. Identity provider is 'google.com' (Google OAuth)
+    // 3. Email exactly matches 'aakashdas.photo@gmail.com'
+    // 4. Email is verified by the identity provider
+    function isAuthorizedAdmin() {
+      return isAuthenticated() &&
+             request.auth.token.firebase.sign_in_provider == 'google.com' &&
+             request.auth.token.email == 'aakashdas.photo@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    // Check if a document is marked as published
+    // Safely accounts for:
+    // 1. Document existence (resource != null)
+    // 2. Missing 'published' field via safe map .get() fallback to false
+    function isPublished() {
+      return resource != null &&
+             resource.data.get('published', false) == true;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // 1. Site Settings (e.g., siteSettings/general, siteSettings/navigation)
+    // Publicly readable for site configuration; updates restricted to authorized administrator.
+    match /siteSettings/{document} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // 2. Editorial Pages (e.g., pages/home, pages/about)
+    // Publicly readable static content; updates restricted to authorized administrator.
+    match /pages/{document} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // 3. Educational Resources (e.g., resources/001, resources/002)
+    // Published entries are publicly accessible; drafts and unpublished entries are
+    // viewable only by the administrator. All mutations require administrator privileges.
+    match /resources/{resourceId} {
+      allow read: if isPublished() || isAuthorizedAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
+
+    // 4. Journal Entries (e.g., journals/why-i-believe-in-learning-in-public)
+    // Published entries are publicly accessible; drafts and unpublished entries are
+    // viewable only by the administrator. All mutations require administrator privileges.
+    match /journals/{slug} {
+      allow read: if isPublished() || isAuthorizedAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
+
+    // 5. Administrators Registry (e.g., administrators/{uid})
+    // Strictly restricted to authorized administrator. Ordinary users cannot read,
+    // write, or manipulate administrator documents to elevate privileges.
+    match /administrators/{uid} {
+      allow read: if isAuthorizedAdmin();
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // 6. Default Deny Catch-All
+    // Reject all read and write requests to unlisted collections and subcollections.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

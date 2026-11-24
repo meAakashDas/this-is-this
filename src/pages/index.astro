@@ -1,16 +1,122 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import ResourceFinder from '../components/ResourceFinder.astro';
+import FeaturedResources from '../components/FeaturedResources.astro';
+import SocialPresence from '../components/SocialPresence.astro';
+import Icon from '../components/Icon.astro';
+import { getPublicSiteConfig, getPublicHomePage } from '../lib/cms/contentLoader';
+
+const siteConfig = getPublicSiteConfig();
+const homePage = getPublicHomePage();
+
+const sectionOrder = homePage.sectionOrder || [
+  'finder',
+  'featuredResources',
+  'journal',
+  'contact',
+];
+
+const finderSection = homePage.sections?.finder || {
+  visible: true,
+  heading: 'Find Resources',
+  placeholder: 'Enter resource number',
+  buttonLabel: 'Find',
+};
+
+const journalSection = homePage.sections?.journal || {
+  visible: true,
+  heading: 'Journal',
+  description:
+    'Essays, research notes, and reflections on finance, technology, and building in Nepal.',
+  ctaText: 'Read articles',
+  ctaUrl: '/journal',
+};
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout
+  title={`${siteConfig.name} — Personal Website & Digital Archive`}
+  description={siteConfig.description}
+  currentPath="/"
+>
+  <div class="page-container homepage-container max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10 md:space-y-12 pb-14 sm:pb-18">
+    <!-- SECTION: Hero Zone -->
+    {homePage.sections?.hero?.visible !== false && (
+      <div class="homepage-section hero-zone">
+        <Hero />
+      </div>
+    )}
+
+    {sectionOrder.map((sectionId) => {
+      if (sectionId === 'finder' && finderSection.visible !== false) {
+        return (
+          <section class="homepage-section lookup-zone" aria-labelledby="lookup-heading">
+            <div class="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs max-w-[680px] mx-auto space-y-2.5 sm:space-y-3">
+              <div>
+                <h2 id="lookup-heading" class="lookup-heading text-lg sm:text-xl font-semibold tracking-tight text-foreground m-0">
+                  {finderSection.heading || 'Find Resources'}
+                </h2>
+              </div>
+              <div class="lookup-input-wrapper w-full">
+                <ResourceFinder
+                  minimal={true}
+                  showSamples={false}
+                  placeholder={finderSection.placeholder || 'Enter resource number'}
+                  buttonLabel={finderSection.buttonLabel || 'Find'}
+                  showIconPrefix={false}
+                />
+              </div>
+            </div>
+          </section>
+        );
+      }
+
+      if (sectionId === 'featuredResources' && homePage.sections?.featuredResources?.visible !== false) {
+        return (
+          <div class="homepage-section library-zone">
+            <FeaturedResources />
+          </div>
+        );
+      }
+
+      if (sectionId === 'journal' && journalSection.visible !== false) {
+        return (
+          <section class="homepage-section journal-zone" aria-labelledby="journal-heading">
+            <div class="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-border-strong transition-all">
+              <div class="space-y-1">
+                <h2 id="journal-heading" class="journal-heading m-0">
+                  <a
+                    href={journalSection.ctaUrl || '/journal'}
+                    class="journal-title-link inline-flex items-center text-xl sm:text-[22px] font-semibold tracking-tight text-foreground hover:text-muted-foreground transition-colors no-underline"
+                  >
+                    {journalSection.heading || 'Journal'}
+                  </a>
+                </h2>
+                <p class="text-sm text-muted-foreground m-0">
+                  {journalSection.description || 'Essays, research notes, and reflections on finance, technology, and building in Nepal.'}
+                </p>
+              </div>
+              <a
+                href={journalSection.ctaUrl || '/journal'}
+                class="inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium rounded-md border border-input bg-background hover:bg-secondary px-3.5 py-1.5 text-foreground transition-colors no-underline shrink-0"
+              >
+                <span>{journalSection.ctaText || 'Read articles'}</span>
+                <Icon name="arrow-right" size={13} />
+              </a>
+            </div>
+          </section>
+        );
+      }
+
+      if (sectionId === 'contact' && homePage.sections?.contact?.visible !== false) {
+        return (
+          <div class="homepage-section contact-zone">
+            <SocialPresence />
+          </div>
+        );
+      }
+
+      return null;
+    })}
+  </div>
+</BaseLayout>

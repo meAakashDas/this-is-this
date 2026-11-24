@@ -1,0 +1,83 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // =========================================================================
+    // Core Authorization Helper
+    // =========================================================================
+    function isAuthorizedAdmin() {
+      return request.auth != null &&
+             request.auth.token.firebase.sign_in_provider == 'google.com' &&
+             request.auth.token.email == 'aakashdas.photo@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    // =========================================================================
+    // File Validation Helpers
+    // =========================================================================
+    // Permitted image types up to 10MB
+    function isValidImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp|svg\\+xml|gif|avif)') &&
+             request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    // Permitted document attachments up to 50MB
+    function isValidDocument() {
+      return (
+        request.resource.contentType.matches('application/pdf') ||
+        request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+        request.resource.contentType.matches('application/msword') ||
+        request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+        request.resource.contentType.matches('application/vnd.ms-excel') ||
+        request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.presentationml.presentation') ||
+        request.resource.contentType.matches('application/vnd.ms-powerpoint') ||
+        request.resource.contentType.matches('application/zip') ||
+        request.resource.contentType.matches('application/x-zip-compressed') ||
+        request.resource.contentType.matches('text/csv') ||
+        request.resource.contentType.matches('text/plain')
+      ) && request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    // =========================================================================
+    // Storage Paths & Rules
+    // =========================================================================
+
+    // 1. Profile photographs (e.g. hero portrait, author avatar)
+    match /uploads/profile/{fileName} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() && isValidImage();
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    // 2. Site-wide branding and static graphics
+    match /uploads/site/{fileName} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() && isValidImage();
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    // 3. Educational Resource attachments (PDFs, DOCX, XLSX, CSV, covers)
+    match /uploads/resources/{resourceNumber}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() && (isValidDocument() || isValidImage());
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    // 4. Journal article covers and inline illustrations
+    match /uploads/journals/{slug}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() && isValidImage();
+      allow delete: if isAuthorizedAdmin();
+    }
+    match /uploads/journal/{slug}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() && isValidImage();
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

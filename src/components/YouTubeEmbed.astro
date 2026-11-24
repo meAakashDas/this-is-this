@@ -1,0 +1,36 @@
+---
+import type { YouTubeEmbedData } from '../types';
+
+interface Props {
+  data?: YouTubeEmbedData;
+  permanentUrl?: string;
+}
+
+const { data, permanentUrl = '' } = Astro.props;
+
+// Strict YouTube 11-char ID validation to prevent malicious URL injection
+const YOUTUBE_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
+const isValidId = Boolean(data?.videoId && YOUTUBE_ID_REGEX.test(data.videoId));
+const embedUrl = isValidId
+  ? `https://www.youtube-nocookie.com/embed/${data!.videoId}?rel=0`
+  : null;
+---
+
+{isValidId && (
+  <div class="video-responsive-wrapper w-full my-6">
+    <div class="video-player-box relative w-full aspect-video rounded-xl border border-border bg-black overflow-hidden shadow-xs">
+      <iframe
+        src={embedUrl}
+        title={data!.title || 'Educational Video Resource'}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+        loading="lazy"
+        class="absolute inset-0 w-full h-full border-0"
+      />
+    </div>
+    {data!.caption && <p class="video-caption text-xs text-muted-foreground text-center mt-2">{data!.caption}</p>}
+    <div class="video-print-fallback hidden print:block text-xs text-muted-foreground mt-2 border border-border p-2 rounded">
+      <strong>Video Reference:</strong> {data!.title} — Online streaming available at {permanentUrl}
+    </div>
+  </div>
+)}

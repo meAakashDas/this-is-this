@@ -1,0 +1,72 @@
+---
+import { getPublicResources, getPublicHomePage } from '../lib/cms/contentLoader';
+import Icon from './Icon.astro';
+
+const home = getPublicHomePage();
+const featuredHeading = home.sections?.featuredResources?.heading || 'Free Resources';
+const customCount = home.sections?.featuredResources?.count || 3;
+const customIds = home.sections?.featuredResources?.customResourceIds;
+
+let allPublished = getPublicResources();
+if (customIds && customIds.length > 0) {
+  const filtered = customIds
+    .map((id) => allPublished.find((r) => r.resourceNumber === id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r));
+  if (filtered.length > 0) {
+    allPublished = filtered;
+  }
+}
+const displayedResources = allPublished.slice(0, customCount);
+---
+
+<section class="featured-resources-section" aria-labelledby="featured-resources-heading">
+  <div class="section-header mb-5 sm:mb-6">
+    <div class="header-split flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <h2 id="featured-resources-heading" class="section-title text-[26px] sm:text-[30px] md:text-[32px] font-semibold tracking-tight text-foreground m-0 leading-tight">
+          {featuredHeading}
+        </h2>
+      </div>
+      <a
+        href="/resources"
+        class="view-all-link inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary px-3.5 py-1.5 rounded-md border border-input bg-background shadow-xs transition-colors no-underline group"
+      >
+        <span>View all</span>
+        <Icon name="arrow-right" size={13} class="view-all-arrow transition-transform group-hover:translate-x-0.5" />
+      </a>
+    </div>
+  </div>
+
+  <div class="featured-list grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6" role="list">
+    {displayedResources.map((res) => (
+      <article class="featured-card group relative rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong hover:shadow-sm transition-all duration-200 flex flex-col p-6 sm:p-6.5" role="listitem">
+        <a
+          href={`/resources/${res.resourceNumber}`}
+          class="featured-card-link flex flex-col flex-1 no-underline text-inherit"
+          aria-label={`Resource ${res.resourceNumber}: ${res.title}`}
+        >
+          <div class="card-meta-row flex items-center mb-3.5">
+            <span class="res-num-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium tracking-wider border border-border/80 bg-secondary/80 text-muted-foreground">
+              NO. {res.resourceNumber}
+            </span>
+          </div>
+
+          <h3 class="card-title text-[18px] sm:text-[19.5px] font-semibold tracking-tight text-foreground group-hover:text-foreground leading-snug transition-colors m-0 mb-2.5">
+            {res.title}
+          </h3>
+
+          <p class="card-desc text-sm sm:text-[14.5px] text-muted-foreground leading-relaxed line-clamp-3 mb-5 flex-1 m-0">
+            {res.description}
+          </p>
+
+          <div class="card-footer flex items-center justify-end pt-3 mt-auto border-t border-border/70 text-xs text-muted-foreground">
+            <span class="card-action inline-flex items-center gap-1.5 font-medium text-foreground text-[13px] group-hover:translate-x-0.5 transition-transform">
+              <span>Open</span>
+              <Icon name="arrow-right" size={12} class="action-arrow" />
+            </span>
+          </div>
+        </a>
+      </article>
+    ))}
+  </div>
+</section>

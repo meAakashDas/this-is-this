@@ -1,0 +1,251 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-11-23T21:30:00Z",
+  "totalFiles": 22,
+  "totalSizeBytes": 3191894,
+  "totalSizeFormatted": "3.04 MB",
+  "assets": [
+    {
+      "id": "img-profile-webp",
+      "localPath": "public/images/aakash-das.webp",
+      "targetStoragePath": "uploads/profile/aakash-das.webp",
+      "referencingDocument": "pages/home",
+      "fileType": "image/webp",
+      "extension": "webp",
+      "sizeBytes": 37968,
+      "sizeFormatted": "37.1 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "img-profile-jpg",
+      "localPath": "public/images/aakash-das.jpg",
+      "targetStoragePath": "uploads/profile/aakash-das.jpg",
+      "referencingDocument": "siteSettings/general",
+      "fileType": "image/jpeg",
+      "extension": "jpg",
+      "sizeBytes": 80059,
+      "sizeFormatted": "78.2 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "img-profile-full",
+      "localPath": "public/images/aakash-das-full.jpg",
+      "targetStoragePath": "uploads/profile/aakash-das-full.jpg",
+      "referencingDocument": "siteSettings/general",
+      "fileType": "image/jpeg",
+      "extension": "jpg",
+      "sizeBytes": 175557,
+      "sizeFormatted": "171.4 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "site-favicon-svg",
+      "localPath": "public/favicon.svg",
+      "targetStoragePath": "uploads/site/favicon.svg",
+      "referencingDocument": "siteSettings/general",
+      "fileType": "image/svg+xml",
+      "extension": "svg",
+      "sizeBytes": 1846,
+      "sizeFormatted": "1.8 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "site-favicon-32",
+      "localPath": "public/favicon-32x32.png",
+      "targetStoragePath": "uploads/site/favicon-32x32.png",
+      "referencingDocument": "siteSettings/general",
+      "fileType": "image/png",
+      "extension": "png",
+      "sizeBytes": 1232,
+      "sizeFormatted": "1.2 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "site-touch-icon",
+      "localPath": "public/apple-touch-icon.png",
+      "targetStoragePath": "uploads/site/apple-touch-icon.png",
+      "referencingDocument": "siteSettings/general",
+      "fileType": "image/png",
+      "extension": "png",
+      "sizeBytes": 8610,
+      "sizeFormatted": "8.4 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-001-pdf",
+      "localPath": "public/downloads/resource-001-starter-personal-budget-framework.pdf",
+      "targetStoragePath": "uploads/resources/001/resource-001-starter-personal-budget-framework.pdf",
+      "referencingDocument": "resources/001",
+      "fileType": "application/pdf",
+      "extension": "pdf",
+      "sizeBytes": 462519,
+      "sizeFormatted": "451.7 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-001-pdf-alias",
+      "localPath": "public/downloads/starter-budget-template-001.pdf",
+      "targetStoragePath": "uploads/resources/001/starter-budget-template-001.pdf",
+      "referencingDocument": "resources/001",
+      "fileType": "application/pdf",
+      "extension": "pdf",
+      "sizeBytes": 462519,
+      "sizeFormatted": "451.7 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-001-docx",
+      "localPath": "public/downloads/resource-001-starter-personal-budget-framework.docx",
+      "targetStoragePath": "uploads/resources/001/resource-001-starter-personal-budget-framework.docx",
+      "referencingDocument": "resources/001",
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "extension": "docx",
+      "sizeBytes": 35688,
+      "sizeFormatted": "34.9 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-001-docx-alias",
+      "localPath": "public/downloads/starter-budget-template-001.docx",
+      "targetStoragePath": "uploads/resources/001/starter-budget-template-001.docx",
+      "referencingDocument": "resources/001",
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "extension": "docx",
+      "sizeBytes": 35688,
+      "sizeFormatted": "34.9 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-001-csv",
+      "localPath": "public/downloads/starter-budget-model-001.csv",
+      "targetStoragePath": "uploads/resources/001/starter-budget-model-001.csv",
+      "referencingDocument": "resources/001",
+      "fileType": "text/csv",
+      "extension": "csv",
+      "sizeBytes": 282,
+      "sizeFormatted": "282 B",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-001-thumb",
+      "localPath": "public/images/thumbnails/dQw4w9WgXcQ.jpg",
+      "targetStoragePath": "uploads/resources/001/thumbnail-dQw4w9WgXcQ.jpg",
+      "referencingDocument": "resources/001",
+      "fileType": "image/jpeg",
+      "extension": "jpg",
+      "sizeBytes": 21011,
+      "sizeFormatted": "20.5 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-002-pdf",
+      "localPath": "public/downloads/resource-002-nepal-banking-account-checklist.pdf",
+      "targetStoragePath": "uploads/resources/002/resource-002-nepal-banking-account-checklist.pdf",
+      "referencingDocument": "resources/002",
+      "fileType": "application/pdf",
+      "extension": "pdf",
+      "sizeBytes": 424573,
+      "sizeFormatted": "414.6 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-002-pdf-alias",
+      "localPath": "public/downloads/nepal-banking-checklist-002.pdf",
+      "targetStoragePath": "uploads/resources/002/nepal-banking-checklist-002.pdf",
+      "referencingDocument": "resources/002",
+      "fileType": "application/pdf",
+      "extension": "pdf",
+      "sizeBytes": 424573,
+      "sizeFormatted": "414.6 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-002-docx",
+      "localPath": "public/downloads/resource-002-nepal-banking-account-checklist.docx",
+      "targetStoragePath": "uploads/resources/002/resource-002-nepal-banking-account-checklist.docx",
+      "referencingDocument": "resources/002",
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "extension": "docx",
+      "sizeBytes": 40354,
+      "sizeFormatted": "39.4 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-002-docx-alias",
+      "localPath": "public/downloads/nepal-banking-checklist-002.docx",
+      "targetStoragePath": "uploads/resources/002/nepal-banking-checklist-002.docx",
+      "referencingDocument": "resources/002",
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "extension": "docx",
+      "sizeBytes": 40354,
+      "sizeFormatted": "39.4 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-002-thumb",
+      "localPath": "public/images/thumbnails/kJQP7kiw5Fk.jpg",
+      "targetStoragePath": "uploads/resources/002/thumbnail-kJQP7kiw5Fk.jpg",
+      "referencingDocument": "resources/002",
+      "fileType": "image/jpeg",
+      "extension": "jpg",
+      "sizeBytes": 25889,
+      "sizeFormatted": "25.3 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-003-pdf",
+      "localPath": "public/downloads/resource-003-student-productivity-semester-tracker.pdf",
+      "targetStoragePath": "uploads/resources/003/resource-003-student-productivity-semester-tracker.pdf",
+      "referencingDocument": "resources/003",
+      "fileType": "application/pdf",
+      "extension": "pdf",
+      "sizeBytes": 443769,
+      "sizeFormatted": "433.4 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-003-pdf-alias",
+      "localPath": "public/downloads/student-productivity-tracker-003.pdf",
+      "targetStoragePath": "uploads/resources/003/student-productivity-tracker-003.pdf",
+      "referencingDocument": "resources/003",
+      "fileType": "application/pdf",
+      "extension": "pdf",
+      "sizeBytes": 443769,
+      "sizeFormatted": "433.4 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-003-docx",
+      "localPath": "public/downloads/resource-003-student-productivity-semester-tracker.docx",
+      "targetStoragePath": "uploads/resources/003/resource-003-student-productivity-semester-tracker.docx",
+      "referencingDocument": "resources/003",
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "extension": "docx",
+      "sizeBytes": 37654,
+      "sizeFormatted": "36.8 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-003-docx-alias",
+      "localPath": "public/downloads/student-productivity-tracker-003.docx",
+      "targetStoragePath": "uploads/resources/003/student-productivity-tracker-003.docx",
+      "referencingDocument": "resources/003",
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "extension": "docx",
+      "sizeBytes": 37654,
+      "sizeFormatted": "36.8 KB",
+      "uploadStatus": "local-only"
+    },
+    {
+      "id": "res-003-thumb",
+      "localPath": "public/images/thumbnails/fJ9rUzIMcZQ.jpg",
+      "targetStoragePath": "uploads/resources/003/thumbnail-fJ9rUzIMcZQ.jpg",
+      "referencingDocument": "resources/003",
+      "fileType": "image/jpeg",
+      "extension": "jpg",
+      "sizeBytes": 23549,
+      "sizeFormatted": "23.0 KB",
+      "uploadStatus": "local-only"
+    }
+  ]
+}

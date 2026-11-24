@@ -1,0 +1,98 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ResourceFinder from '../../components/ResourceFinder.astro';
+import Icon from '../../components/Icon.astro';
+import { getPublicSiteConfig, getPublicResources } from '../../lib/cms/contentLoader';
+
+const siteConfig = getPublicSiteConfig();
+const publishedResources = getPublicResources();
+---
+
+<BaseLayout
+  title={`Resources — ${siteConfig.name}`}
+  description="Free personal finance guides, banking checklists, and study templates by Aakash Das."
+  currentPath="/resources"
+>
+  <div class="page-container resources-page max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 sm:pt-8 sm:pb-16 md:pt-10 md:pb-20 space-y-6 sm:space-y-8">
+    <!-- =======================================================================
+         SECTION 1: Page Title
+         ======================================================================= -->
+    <header class="resources-header">
+      <h1 class="resources-title type-h1 text-foreground m-0">
+        Resources
+      </h1>
+    </header>
+
+    <!-- =======================================================================
+         SECTION 2: Resource Search (Centered & Proportional)
+         ======================================================================= -->
+    <section class="resources-search-wrap max-w-[640px] w-full mx-auto flex flex-col items-center space-y-2.5 sm:space-y-3" aria-labelledby="search-heading">
+      <h2 id="search-heading" class="search-title text-xl sm:text-[22px] font-semibold tracking-tight text-foreground m-0 text-center">
+        Find Resources
+      </h2>
+      <div class="search-box-container w-full max-w-[640px]">
+        <ResourceFinder
+          minimal={true}
+          idPrefix="library"
+          placeholder="Enter resource number"
+          buttonLabel="Find"
+          showSamples={false}
+          showIconPrefix={false}
+        />
+      </div>
+    </section>
+
+    <div class="h-px bg-border w-full" role="separator"></div>
+
+    <!-- =======================================================================
+         SECTION 3: Resource Catalog
+         ======================================================================= -->
+    <section class="catalog-section space-y-5 sm:space-y-6" aria-labelledby="catalog-heading">
+      <div class="section-header">
+        <h2 id="catalog-heading" class="section-title text-2xl sm:text-[28px] font-semibold tracking-tight text-foreground m-0">
+          All Resources
+        </h2>
+      </div>
+
+      {publishedResources.length > 0 ? (
+        <div class="resources-library-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6" role="list">
+          {publishedResources.map((res) => (
+            <article class="resource-row-card group rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all flex flex-col h-full p-5 sm:p-6" role="listitem">
+              <a
+                href={`/resources/${res.resourceNumber}`}
+                class="resource-card-link flex flex-col flex-1 no-underline text-inherit"
+                aria-label={`Open Resource ${res.resourceNumber}: ${res.title}`}
+              >
+                <div class="resource-card-header flex items-center justify-between gap-2 mb-3 sm:mb-3.5">
+                  <span class="resource-num inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border bg-secondary text-muted-foreground">
+                    NO. {res.resourceNumber}
+                  </span>
+                </div>
+
+                <div class="resource-card-body flex-1 flex flex-col mb-4">
+                  <h3 class="resource-title text-lg sm:text-[19px] font-semibold tracking-tight text-foreground group-hover:text-foreground transition-colors m-0 mb-2">
+                    {res.title}
+                  </h3>
+                  <p class="resource-desc text-sm sm:text-[14.5px] text-muted-foreground leading-relaxed m-0 flex-1">
+                    {res.description}
+                  </p>
+                </div>
+
+                <div class="resource-card-footer flex items-center justify-end pt-3 mt-auto border-t border-border text-xs">
+                  <span class="resource-open-action inline-flex items-center gap-1 font-medium text-foreground group-hover:translate-x-0.5 transition-transform">
+                    <span>Open</span>
+                    <Icon name="arrow-right" size={12} class="open-arrow" />
+                  </span>
+                </div>
+              </a>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-resources-card rounded-xl border border-border bg-card p-12 text-center text-muted-foreground text-sm">
+          <p class="empty-resources-text m-0">No resources published yet.</p>
+        </div>
+      )}
+    </section>
+  </div>
+</BaseLayout>

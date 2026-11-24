@@ -1,0 +1,302 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+  idPrefix?: string;
+  badgeText?: string;
+  title?: string;
+  description?: string;
+  helpText?: string;
+  showSamples?: boolean;
+  minimal?: boolean;
+  placeholder?: string;
+  buttonLabel?: string;
+  showIconPrefix?: boolean;
+}
+
+const {
+  idPrefix = 'finder',
+  badgeText = 'Resource Archive',
+  title = 'Find a resource by number',
+  description = 'Every study guide, spreadsheet, and note is assigned a permanent 3-digit identifier (e.g. 001). Enter a number below for direct access without an account or login.',
+  helpText = 'Preserves leading zeroes. Permanent identifiers never change or expire.',
+  showSamples = true,
+  minimal = false,
+  placeholder = 'Enter resource number (e.g. 001)',
+  buttonLabel = 'Find Resource',
+  showIconPrefix = true,
+} = Astro.props;
+
+const formId =
+  idPrefix === 'finder' ? 'resource-finder-form' : `${idPrefix}-form`;
+const inputId =
+  idPrefix === 'finder' ? 'resource-number-input' : `${idPrefix}-input`;
+const submitBtnId =
+  idPrefix === 'finder' ? 'finder-submit-btn' : `${idPrefix}-submit-btn`;
+const statusId = idPrefix === 'finder' ? 'finder-status' : `${idPrefix}-status`;
+---
+
+{minimal ? (
+  <section
+    id="resource-finder"
+    class="finder-minimal-section w-full"
+    aria-label="Resource Search"
+  >
+    <form id={formId} class="finder-minimal-form w-full" novalidate data-finder-form>
+      <div class="finder-search-box flex items-center w-full rounded-md border border-input bg-background shadow-xs transition-all focus-within:ring-1 focus-within:ring-ring focus-within:border-ring p-1">
+        {showIconPrefix && (
+          <div class="finder-icon-prefix pl-3 text-muted-foreground flex items-center" aria-hidden="true">
+            <Icon name="search" size={16} />
+          </div>
+        )}
+        <label for={inputId} class="sr-only">
+          Resource Number
+        </label>
+        <input
+          type="text"
+          id={inputId}
+          name="resourceNumber"
+          class="finder-search-input h-10 flex-1 bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none border-0 focus:ring-0 focus:outline-none"
+          placeholder={placeholder}
+          autocomplete="off"
+          inputmode="numeric"
+          maxlength="6"
+          pattern="[0-9]*"
+          aria-describedby={statusId}
+          required
+          value=""
+          data-finder-input
+        />
+        <button
+          type="submit"
+          id={submitBtnId}
+          class="finder-search-btn btn btn-primary inline-flex items-center justify-center gap-1.5 h-10 px-4 text-xs sm:text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0 shadow-xs cursor-pointer"
+          aria-label={buttonLabel}
+        >
+          <span>{buttonLabel}</span>
+          <Icon name="arrow-right" size={13} class="btn-arrow" />
+        </button>
+      </div>
+
+      {showSamples && (
+        <div class="finder-quick-pills-row flex items-center gap-2 mt-2.5">
+          <span class="pills-label text-xs text-muted-foreground">Quick samples:</span>
+          <div class="pills-list flex items-center gap-1.5">
+            <button
+              type="button"
+              class="quick-pill text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              data-number="001"
+              aria-label="Load resource 001"
+            >
+              001
+            </button>
+            <button
+              type="button"
+              class="quick-pill text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              data-number="002"
+              aria-label="Load resource 002"
+            >
+              002
+            </button>
+            <button
+              type="button"
+              class="quick-pill text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              data-number="003"
+              aria-label="Load resource 003"
+            >
+              003
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div
+        id={statusId}
+        class="finder-status-box mt-2 text-xs py-2 px-3 rounded-md w-full border text-center transition-all"
+        role="status"
+        aria-live="polite"
+        style="display: none;"
+        data-finder-status
+      ></div>
+    </form>
+  </section>
+) : (
+  <section
+    id="resource-finder"
+    class="finder-card-section py-6 w-full"
+    aria-labelledby={`${idPrefix}-heading`}
+  >
+    <div class="finder-card rounded-xl border border-border bg-card text-card-foreground p-6 sm:p-8 shadow-xs max-w-2xl mx-auto">
+      <div class="finder-header space-y-2 mb-6">
+        <span class="badge inline-flex items-center rounded-md border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+          {badgeText}
+        </span>
+        <h2 id={`${idPrefix}-heading`} class="finder-title text-xl sm:text-2xl font-bold tracking-tight text-foreground m-0">
+          {title}
+        </h2>
+        <p class="finder-description text-sm text-muted-foreground leading-relaxed m-0">
+          {description}
+        </p>
+      </div>
+
+      <form id={formId} class="finder-form space-y-3" novalidate data-finder-form>
+        <div class="finder-search-box flex items-center w-full rounded-md border border-input bg-background shadow-xs transition-all focus-within:ring-1 focus-within:ring-ring focus-within:border-ring p-1">
+          {showIconPrefix && (
+            <div class="finder-icon-prefix pl-3 text-muted-foreground flex items-center" aria-hidden="true">
+              <Icon name="search" size={16} />
+            </div>
+          )}
+          <label for={inputId} class="sr-only">
+            Resource Number
+          </label>
+          <input
+            type="text"
+            id={inputId}
+            name="resourceNumber"
+            class="finder-search-input h-10 flex-1 bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none border-0 focus:ring-0 focus:outline-none"
+            placeholder={placeholder}
+            autocomplete="off"
+            inputmode="numeric"
+            maxlength="6"
+            pattern="[0-9]*"
+            aria-describedby={statusId}
+            required
+            value=""
+            data-finder-input
+          />
+          <button
+            type="submit"
+            id={submitBtnId}
+            class="finder-search-btn btn btn-primary inline-flex items-center justify-center gap-1.5 h-10 px-4 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
+            aria-label={buttonLabel}
+          >
+            <span>{buttonLabel}</span>
+            <Icon name="arrow-right" size={14} class="btn-arrow" />
+          </button>
+        </div>
+
+        {showSamples && (
+          <div class="finder-quick-pills-row flex items-center gap-2 pt-1">
+            <span class="pills-label text-xs text-muted-foreground">Quick samples:</span>
+            <div class="pills-list flex items-center gap-1.5">
+              <button
+                type="button"
+                class="quick-pill text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                data-number="001"
+                aria-label="Load resource 001"
+              >
+                001
+              </button>
+              <button
+                type="button"
+                class="quick-pill text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                data-number="002"
+                aria-label="Load resource 002"
+              >
+                002
+              </button>
+              <button
+                type="button"
+                class="quick-pill text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                data-number="003"
+                aria-label="Load resource 003"
+              >
+                003
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div
+          id={statusId}
+          class="finder-status-box text-xs py-2 px-3 rounded-md text-center border transition-all"
+          role="status"
+          aria-live="polite"
+          style="display: none;"
+          data-finder-status
+        ></div>
+      </form>
+    </div>
+  </section>
+)}
+
+<script>
+  import { validateAndFormatResourceNumber } from '../utils/resourceValidation';
+
+  function initResourceFinders() {
+    const forms = document.querySelectorAll<HTMLFormElement>('[data-finder-form]');
+
+    forms.forEach((form) => {
+      const input = form.querySelector<HTMLInputElement>('[data-finder-input]');
+      const statusBox = form.querySelector<HTMLDivElement>('[data-finder-status]');
+      const quickPills = form.querySelectorAll<HTMLButtonElement>('.quick-pill');
+
+      if (!input || !statusBox) return;
+
+      // Ensure input is empty on initial load
+      input.value = '';
+
+      function showFeedback(message: string, type: 'error' | 'info') {
+        statusBox.textContent = message;
+        if (type === 'error') {
+          statusBox.className = 'finder-status-box mt-2 text-xs py-2 px-3 rounded-md w-full text-center border border-destructive/40 bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-red-300';
+        } else {
+          statusBox.className = 'finder-status-box mt-2 text-xs py-2 px-3 rounded-md w-full text-center border border-border bg-secondary text-foreground';
+        }
+        statusBox.style.display = 'block';
+      }
+
+      function clearFeedback() {
+        statusBox.textContent = '';
+        statusBox.style.display = 'none';
+        statusBox.className = 'finder-status-box';
+      }
+
+      quickPills.forEach((pill) => {
+        pill.addEventListener('click', (e) => {
+          const target = e.currentTarget as HTMLElement;
+          const num = target.getAttribute('data-number');
+          if (num) {
+            input.value = num;
+            input.focus();
+            clearFeedback();
+          }
+        });
+      });
+
+      input.addEventListener('input', () => {
+        clearFeedback();
+        const sanitized = input.value.replace(/[^0-9]/g, '');
+        if (sanitized !== input.value) {
+          input.value = sanitized;
+        }
+      });
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        clearFeedback();
+
+        const rawVal = input.value;
+        const validation = validateAndFormatResourceNumber(rawVal);
+
+        if (!validation.valid) {
+          showFeedback(
+            validation.error || 'Please enter a valid resource number (e.g. 001).',
+            'error'
+          );
+          input.focus();
+          return;
+        }
+
+        const formatted = validation.resourceNumber!;
+        input.value = formatted;
+
+        showFeedback(`Opening resource #${formatted}...`, 'info');
+        window.location.href = `/resources/${formatted}`;
+      });
+    });
+  }
+
+  initResourceFinders();
+  document.addEventListener('astro:page-load', initResourceFinders);
+</script>

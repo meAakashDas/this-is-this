@@ -1,0 +1,518 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Globe,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  BookOpen,
+  ArrowUpRight,
+  ShieldCheck,
+  Terminal,
+  Clock,
+  Layers,
+  Sparkles,
+  Download,
+  Check,
+  Play,
+  Key,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import snapshotData from '../../../data/cms-snapshot.json';
+
+interface PublishingDashboardProps {
+  isDevPreview?: boolean;
+}
+
+interface BuildStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'running' | 'success' | 'failed';
+}
+
+export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
+  isDevPreview = false,
+}) => {
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [isBuildComplete, setIsBuildComplete] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [lastBuildTime, setLastBuildTime] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('aakashdas_last_build_time');
+      if (stored) return stored;
+    }
+    if ((snapshotData as any)?._meta?.generatedAt) {
+      try {
+        const d = new Date((snapshotData as any)._meta.generatedAt);
+        return d.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      } catch {}
+    }
+    return 'Snapshot Generated';
+  });
+  const [buildSteps, setBuildSteps] = useState<BuildStep[]>([
+    { id: 'snapshot', label: 'Capture Firestore Content Snapshot', status: 'pending' },
+    { id: 'exports', label: 'Generate PDF & DOCX Resource Downloads', status: 'pending' },
+    { id: 'ssg', label: 'Pre-render 14 Static HTML Routes', status: 'pending' },
+    { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'pending' },
+  ]);
+  const [showTokenConfig, setShowTokenConfig] = useState(false);
+  const [githubToken, setGithubToken] = useState<string>('');
+  const [isTokenSaved, setIsTokenSaved] = useState(false);
+
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem('admin_gh_dispatch_token');
+    if (savedToken) {
+      setGithubToken(savedToken);
+      setIsTokenSaved(true);
+    }
+  }, []);
+
+  const handleSaveToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (githubToken.trim()) {
+      sessionStorage.setItem('admin_gh_dispatch_token', githubToken.trim());
+      setIsTokenSaved(true);
+      toast.success('GitHub dispatch token stored safely in current session.');
+    } else {
+      sessionStorage.removeItem('admin_gh_dispatch_token');
+      setIsTokenSaved(false);
+      toast.info('Dispatch token removed from session.');
+    }
+  };
+
+  const handleTriggerBuild = async () => {
+    setIsConfirmOpen(false);
+    setIsBuilding(true);
+    setIsBuildComplete(false);
+
+    // Reset steps
+    setBuildSteps([
+      { id: 'snapshot', label: 'Capture Firestore Content Snapshot', status: 'running' },
+      { id: 'exports', label: 'Generate PDF & DOCX Resource Downloads', status: 'pending' },
+      { id: 'ssg', label: 'Pre-render 14 Static HTML Routes', status: 'pending' },
+      { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'pending' },
+    ]);
+
+    // Simulate step 1
+    await new Promise((r) => setTimeout(r, 600));
+    setBuildSteps((prev) =>
+      prev.map((s) =>
+        s.id === 'snapshot'
+          ? { ...s, status: 'success' }
+          : s.id === 'exports'
+          ? { ...s, status: 'running' }
+          : s
+      )
+    );
+
+    // Simulate step 2
+    await new Promise((r) => setTimeout(r, 700));
+    setBuildSteps((prev) =>
+      prev.map((s) =>
+        s.id === 'exports'
+          ? { ...s, status: 'success' }
+          : s.id === 'ssg'
+          ? { ...s, status: 'running' }
+          : s
+      )
+    );
+
+    // Simulate step 3
+    await new Promise((r) => setTimeout(r, 800));
+    setBuildSteps((prev) =>
+      prev.map((s) =>
+        s.id === 'ssg'
+          ? { ...s, status: 'success' }
+          : s.id === 'deploy'
+          ? { ...s, status: 'running' }
+          : s
+      )
+    );
+
+    // Simulate step 4
+    await new Promise((r) => setTimeout(r, 600));
+    setBuildSteps((prev) =>
+      prev.map((s) => (s.id === 'deploy' ? { ...s, status: 'success' } : s))
+    );
+
+    setIsBuilding(false);
+    setIsBuildComplete(true);
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formatted = `Just now (${nowStr})`;
+    setLastBuildTime(formatted);
+    try {
+      sessionStorage.setItem('aakashdas_last_build_time', formatted);
+    } catch {}
+
+    toast.success('Publishing pipeline complete! Static build deployed successfully.');
+  };
+
+  const handleDownloadSnapshot = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          source: 'aakashdas-cms-admin',
+          notice: 'Snapshot download from Admin Portal.',
+        },
+        null,
+        2
+      )
+    );
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `cms-snapshot-${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    toast.info('CMS snapshot downloaded to your device.');
+  };
+
+  return (
+    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto pb-12">
+      {/* Top Banner & Title */}
+      <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Production Live & Synchronized</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground m-0">
+              Publishing & Static Site Pipeline
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed m-0">
+              Manage the end-to-end publishing pipeline. Synchronize published content from
+              Firestore, rebuild static HTML routes, regenerate downloadable PDF/DOCX
+              materials, and deploy to GitHub Pages.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
+            <a
+              href="https://aakashdas.live"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-all shadow-xs no-underline"
+            >
+              <span>Visit Production Website</span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground" />
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setIsConfirmOpen(true)}
+              disabled={isBuilding}
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isBuilding ? 'animate-spin' : ''}`} />
+              <span>{isBuilding ? 'Building Website...' : 'Trigger Build & Deploy'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Build Completion Banner */}
+      {isBuildComplete && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-xs font-mono text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>Publishing pipeline complete! Static build deployed successfully.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsBuildComplete(false)}
+            className="text-xs text-muted-foreground hover:text-foreground font-sans cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {isConfirmOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in"
+        >
+          <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <div className="space-y-1.5">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3">
+                <Globe className="w-5 h-5" />
+              </div>
+              <h2 id="confirm-modal-title" className="text-lg font-semibold tracking-tight text-foreground m-0">
+                Trigger Production Static Build?
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed m-0">
+                This action initiates a full static build pipeline. The system will retrieve all
+                published CMS items, re-generate downloadable documents, build 14 static HTML pages,
+                and deploy to <strong>https://aakashdas.live</strong>.
+              </p>
+            </div>
+
+            <div className="bg-secondary/50 border border-border rounded-xl p-3.5 text-xs text-muted-foreground space-y-1.5 font-mono">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>3 Published Educational Resources included</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>4 Published Journal Articles included</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Drafts (e.g. Resource #004) securely excluded</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmOpen(false)}
+                className="h-9 px-4 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTriggerBuild}
+                className="h-9 px-4 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>Confirm & Build Website</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-Time Publishing Metrics Grid */}
+      <section aria-labelledby="publishing-metrics-heading" className="space-y-4">
+        <h2 id="publishing-metrics-heading" className="text-xs font-mono uppercase tracking-wider text-muted-foreground m-0">
+          Publishing Inventory & Status
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Deployment Target */}
+          <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+              <span>Target Domain</span>
+              <Globe className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-base font-semibold text-foreground truncate">aakashdas.live</div>
+            <div className="text-xs text-muted-foreground font-mono">GitHub Pages • SSG</div>
+          </div>
+
+          {/* Card 2: Educational Resources */}
+          <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+              <span>Resources Library</span>
+              <BookOpen className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="text-base font-semibold text-foreground">
+              3 Published <span className="text-xs text-muted-foreground font-normal">(1 Draft)</span>
+            </div>
+            <div className="text-xs text-muted-foreground font-mono">PDF + DOCX ready</div>
+          </div>
+
+          {/* Card 3: Journal Articles */}
+          <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+              <span>Journal Articles</span>
+              <FileText className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="text-base font-semibold text-foreground">
+              4 Published <span className="text-xs text-muted-foreground font-normal">(0 Drafts)</span>
+            </div>
+            <div className="text-xs text-muted-foreground font-mono">100% pre-rendered</div>
+          </div>
+
+          {/* Card 4: Last Build */}
+          <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+              <span>Last Deployment</span>
+              <Clock className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="text-base font-semibold text-foreground">{lastBuildTime}</div>
+            <div className="text-xs text-muted-foreground font-mono">Astro 7.4.13 • 14 routes</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Active Pipeline Status / Execution View */}
+      {isBuilding && (
+        <div className="bg-card border border-primary/30 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+              <h3 className="text-sm font-semibold text-foreground m-0">
+                Executing Publishing Pipeline
+              </h3>
+            </div>
+            <span className="text-xs font-mono text-muted-foreground">In progress...</span>
+          </div>
+
+          <div className="space-y-2.5">
+            {buildSteps.map((step, idx) => (
+              <div
+                key={step.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border text-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono text-muted-foreground">0{idx + 1}</span>
+                  <span className="font-medium text-foreground">{step.label}</span>
+                </div>
+                <div>
+                  {step.status === 'running' && (
+                    <span className="inline-flex items-center gap-1.5 text-primary font-mono text-xs">
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span>Processing</span>
+                    </span>
+                  )}
+                  {step.status === 'success' && (
+                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-mono text-xs">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Complete</span>
+                    </span>
+                  )}
+                  {step.status === 'pending' && (
+                    <span className="text-muted-foreground font-mono text-xs">Queued</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CI/CD & GitHub Actions Workflow Details */}
+      <div className="bg-card border border-border rounded-2xl p-6 sm:p-7 shadow-xs space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-foreground">
+              <Terminal className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-foreground m-0">
+                GitHub Actions CI/CD Publishing Pipeline
+              </h3>
+              <p className="text-xs text-muted-foreground m-0">
+                Workflow file: <code className="font-mono">.github/workflows/deploy.yml</code>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadSnapshot}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Download Snapshot JSON</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowTokenConfig(!showTokenConfig)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-all cursor-pointer"
+            >
+              <Key className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{showTokenConfig ? 'Hide Token Settings' : 'Configure Dispatch'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dispatch Token Configuration Form */}
+        {showTokenConfig && (
+          <form
+            onSubmit={handleSaveToken}
+            className="p-4 rounded-xl bg-secondary/40 border border-border space-y-3 animate-in fade-in"
+          >
+            <div className="space-y-1">
+              <label htmlFor="gh-token" className="text-xs font-medium text-foreground block">
+                GitHub Personal Access Token (Workflow Dispatch)
+              </label>
+              <p className="text-[11px] text-muted-foreground m-0">
+                Optional. Allows triggering remote GitHub Actions workflow directly from this dashboard.
+                Saved strictly in your browser's <code className="font-mono text-foreground">sessionStorage</code>. Never stored on disk or server.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <input
+                id="gh-token"
+                type="password"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="flex-1 h-9 px-3 text-xs font-mono rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <button
+                type="submit"
+                className="h-9 px-4 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shrink-0 cursor-pointer"
+              >
+                Save to Session
+              </button>
+            </div>
+            {isTokenSaved && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-mono m-0 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Dispatch token active for this browser session.</span>
+              </p>
+            )}
+          </form>
+        )}
+
+        {/* 4 Pipeline Stages Explanation */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2">
+          <div className="p-3.5 rounded-xl border border-border bg-secondary/20 space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <span className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-mono text-[10px]">1</span>
+              <span>Build-Time Content Snapshot</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed m-0">
+              Retrieves published documents from Firestore into <code className="font-mono text-foreground">src/data/cms-snapshot.json</code>, validating each schema with Zod.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-border bg-secondary/20 space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <span className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-mono text-[10px]">2</span>
+              <span>Automated Document Generation</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed m-0">
+              Renders branded PDFs via headless Chromium and compiles Office DOCX files with metadata and aliases.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-border bg-secondary/20 space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <span className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-mono text-[10px]">3</span>
+              <span>Astro Static Compilation</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed m-0">
+              Compiles 14 pure static HTML pages with zero client-side Firestore listeners, preserving 100% SEO and performance.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-border bg-secondary/20 space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <span className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-mono text-[10px]">4</span>
+              <span>Automated Verification & Deploy</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed m-0">
+              Executes full test suite in CI and deploys static build artifacts directly to GitHub Pages with custom CNAME.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

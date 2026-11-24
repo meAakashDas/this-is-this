@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import {
+  getPublicSiteConfig,
+  getPublicJournalArticleBySlug,
+  getAllPublicJournalSlugs,
+  getAdjacentPublicJournalArticles,
+} from '../../lib/cms/contentLoader';
+
+export function getStaticPaths() {
+  const slugs = getAllPublicJournalSlugs();
+  return slugs.map((slug) => ({
+    params: { slug },
+  }));
+}
+
+const siteConfig = getPublicSiteConfig();
+const { slug } = Astro.params;
+const article = slug ? getPublicJournalArticleBySlug(slug) : undefined;
+
+if (!article) {
+  return Astro.redirect('/journal');
+}
+
+const { prev, next } = slug
+  ? getAdjacentPublicJournalArticles(slug)
+  : { prev: undefined, next: undefined };
+const pageTitle = `${article.title} — Journal — ${siteConfig.name}`;
+const pageDesc = article.excerpt;
+---
+
+<BaseLayout title={pageTitle} description={pageDesc} currentPath="/journal">
+  <article class="page-container journal-article-page max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 sm:pt-12 sm:pb-24">
+    <!-- Back Navigation -->
+    <nav class="article-nav-crumb mb-6 sm:mb-8" aria-label="Journal Navigation">
+      <a
+        href="/journal"
+        class="journal-back-link inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors no-underline group"
+      >
+        <Icon name="arrow-right" size={13} class="rotate-180 transition-transform group-hover:-translate-x-0.5" />
+        <span>Back to Journal</span>
+      </a>
+    </nav>
+
+    <!-- Article Header -->
+    <header class="article-header">
+      <h1 class="article-title text-2xl sm:text-3xl md:text-[2.25rem] font-semibold tracking-tight text-foreground m-0 text-balance leading-tight">
+        {article.title}
+      </h1>
+    </header>
+
+    <div class="h-px bg-border w-full my-6 sm:my-8" role="separator"></div>
+
+    <!-- Article Body -->
+    <div class="article-content space-y-6 max-w-[760px]">
+      {article.contentHtml ? (
+        <div class="journal-document-content notion-prose" set:html={article.contentHtml} />
+      ) : (
+        <>
+          <p class="article-lead text-base sm:text-lg text-foreground/90 leading-relaxed font-normal m-0 mb-6">
+            {article.content.lead}
+          </p>
+
+          {article.content.sections.map((section) => (
+            <section class="article-section space-y-3.5 my-6 sm:my-8">
+              {section.heading && (
+                <h2 class="section-heading text-lg sm:text-xl font-semibold tracking-tight text-foreground m-0 pt-2">
+                  {section.heading}
+                </h2>
+              )}
+              {section.paragraphs.map((para) => (
+                <p class="article-paragraph text-sm sm:text-[15.5px] text-muted-foreground leading-relaxed m-0">
+                  {para}
+                </p>
+              ))}
+              {section.quote && (
+                <blockquote class="article-quote border-l-2 border-border pl-4 sm:pl-5 my-5 italic text-foreground/80 font-normal text-sm sm:text-[15.5px]">
+                  "{section.quote}"
+                </blockquote>
+              )}
+            </section>
+          ))}
+        </>
+      )}
+    </div>
+
+
+    <div class="h-px bg-border w-full my-8" role="separator"></div>
+
+    <!-- Adjacent Article Navigation (Prev / Next) -->
+    <nav class="article-pagination grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[760px]" aria-label="Adjacent Articles">
+      {prev ? (
+        <a
+          href={`/journal/${prev.slug}`}
+          class="pagination-link group flex flex-col p-4 sm:p-5 rounded-xl border border-border bg-card shadow-xs hover:border-border-strong transition-all no-underline text-inherit"
+        >
+          <span class="pagination-direction text-xs font-mono text-muted-foreground flex items-center gap-1 mb-1.5">
+            <Icon name="arrow-right" size={12} class="rotate-180 transition-transform group-hover:-translate-x-0.5" />
+            <span>Previous Entry</span>
+          </span>
+          <span class="pagination-title text-sm sm:text-base font-semibold text-foreground group-hover:text-foreground line-clamp-1">
+            {prev.title}
+          </span>
+        </a>
+      ) : <div />}
+
+      {next ? (
+        <a
+          href={`/journal/${next.slug}`}
+          class="pagination-link group flex flex-col p-4 sm:p-5 rounded-xl border border-border bg-card shadow-xs hover:border-border-strong transition-all no-underline text-inherit sm:text-right"
+        >
+          <span class="pagination-direction text-xs font-mono text-muted-foreground flex items-center sm:justify-end gap-1 mb-1.5">
+            <span>Next Entry</span>
+            <Icon name="arrow-right" size={12} class="transition-transform group-hover:translate-x-0.5" />
+          </span>
+          <span class="pagination-title text-sm sm:text-base font-semibold text-foreground group-hover:text-foreground line-clamp-1">
+            {next.title}
+          </span>
+        </a>
+      ) : <div />}
+    </nav>
+  </article>
+</BaseLayout>

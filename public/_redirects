@@ -1,0 +1,5 @@
+# 301 Permanent Redirects from legacy domain to official primary domain
+https://aakashdas.me/* https://aakashdas.live/:splat 301!
+http://aakashdas.me/* https://aakashdas.live/:splat 301!
+https://www.aakashdas.me/* https://aakashdas.live/:splat 301!
+http://www.aakashdas.me/* https://aakashdas.live/:splat 301!

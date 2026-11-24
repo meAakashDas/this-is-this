@@ -1,0 +1,191 @@
+---
+import type { ContentBlock } from '../types';
+import Icon from './Icon.astro';
+import { blockNoteToHtml } from '../utils/blockNoteMigration';
+
+interface Props {
+  blocks?: ContentBlock[];
+  contentHtml?: string;
+  blocknoteHtml?: string;
+  blocknoteJson?: any;
+}
+
+const { blocks = [], contentHtml, blocknoteHtml, blocknoteJson } = Astro.props;
+
+const renderedHtml = blocknoteHtml || (blocknoteJson && Array.isArray(blocknoteJson) && blocknoteJson.length > 0 ? blockNoteToHtml(blocknoteJson) : contentHtml);
+
+function isSafeUrl(url?: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+---
+
+{renderedHtml ? (
+  <div class="resource-document-content resource-content editorial-reading-container max-w-none space-y-4" set:html={renderedHtml} />
+) : blocks && blocks.length > 0 ? (
+  <div class="resource-content editorial-reading-container max-w-none space-y-4">
+    {blocks.map((block) => {
+      if (block.type === 'heading') {
+        if (block.level === 1 || block.level === 2) {
+          return (
+            <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2">
+              {block.text}
+            </h2>
+          );
+        }
+        return (
+          <h3 class="text-lg font-semibold tracking-tight text-foreground mt-6 mb-2">
+            {block.text}
+          </h3>
+        );
+      }
+
+      if (block.type === 'paragraph') {
+        return (
+          <p class="text-base text-muted-foreground leading-relaxed m-0">
+            {block.text}
+          </p>
+        );
+      }
+
+      if (block.type === 'blockquote') {
+        return (
+          <blockquote class="editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3 my-6 rounded-r-md italic text-muted-foreground">
+            <p class="text-base text-foreground/90 m-0 leading-relaxed">
+              "{block.text}"
+            </p>
+            {block.caption && (
+              <cite class="editorial-blockquote-caption block text-xs not-italic text-muted-foreground mt-2 font-mono">
+                — {block.caption}
+              </cite>
+            )}
+          </blockquote>
+        );
+      }
+
+      if (block.type === 'bulletList') {
+        return (
+          <ul class="editorial-bullet-list my-4 ml-6 list-disc space-y-2 text-muted-foreground">
+            {block.items.map((item) => (
+              <li class="editorial-list-item text-base leading-relaxed text-muted-foreground">
+                <span class="text-foreground/90">{item}</span>
+              </li>
+            ))}
+          </ul>
+        );
+      }
+
+      if (block.type === 'orderedList') {
+        return (
+          <ol class="editorial-ordered-list my-4 ml-6 list-decimal space-y-2 text-muted-foreground">
+            {block.items.map((item) => (
+              <li class="editorial-list-item text-base leading-relaxed text-muted-foreground">
+                <span class="text-foreground/90">{item}</span>
+              </li>
+            ))}
+          </ol>
+        );
+      }
+
+      if (block.type === 'table') {
+        return (
+          <div class="table-scroll-container w-full overflow-x-auto my-6 rounded-lg border border-border bg-card shadow-xs">
+            <table class="editorial-table w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="border-b border-border bg-muted/40">
+                  {block.headers.map((h) => (
+                    <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border/60">
+                {block.rows.map((row) => (
+                  <tr class="hover:bg-muted/20 transition-colors">
+                    {row.map((cell, idx) =>
+                      idx === 0 ? (
+                        <th scope="row" class="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                          {cell}
+                        </th>
+                      ) : (
+                        <td class="px-4 py-3 text-muted-foreground">
+                          {cell}
+                        </td>
+                      )
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {block.caption && (
+              <p class="table-caption px-4 py-2.5 text-xs text-muted-foreground bg-muted/10 border-t border-border/40 italic m-0">
+                {block.caption}
+              </p>
+            )}
+          </div>
+        );
+      }
+
+      if (block.type === 'callout') {
+        const variant = block.variant || 'info';
+        const isWarning = variant === 'warning';
+        const isTip = variant === 'tip';
+
+        return (
+          <aside
+            class={`callout-box ${variant} relative w-full rounded-lg border p-4 sm:p-5 my-6 shadow-xs flex flex-col gap-1.5 ${
+              isWarning
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200'
+                : isTip
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200'
+                : 'border-border bg-muted/40 text-foreground'
+            }`}
+          >
+            {block.title && (
+              <div class="callout-title flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Icon name={isWarning ? 'alert-triangle' : isTip ? 'check-circle' : 'info'} size={16} />
+                <span>{block.title}</span>
+              </div>
+            )}
+            <p class="callout-text text-sm text-muted-foreground leading-relaxed m-0">
+              {block.text}
+            </p>
+          </aside>
+        );
+      }
+
+      if (block.type === 'separator') {
+        return <hr class="section-divider my-8 border-0 h-px bg-border/60 w-full" />;
+      }
+
+      if (block.type === 'image' && isSafeUrl(block.src)) {
+        return (
+          <figure class="editorial-figure my-8 text-center">
+            <img
+              src={block.src}
+              alt={block.alt}
+              loading="lazy"
+              decoding="async"
+              class="max-w-full h-auto rounded-lg border border-border mx-auto shadow-xs block"
+            />
+            {block.caption && (
+              <figcaption class="text-xs text-muted-foreground mt-2 font-mono">
+                {block.caption}
+              </figcaption>
+            )}
+          </figure>
+        );
+      }
+
+      return null;
+    })}
+  </div>
+) : null}

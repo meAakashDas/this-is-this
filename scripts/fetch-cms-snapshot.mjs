@@ -415,7 +415,7 @@ async function fetchFromFirestore() {
 
   try {
     const { initializeApp } = await import('firebase/app');
-    const { getFirestore, doc, getDoc, collection, getDocs } = await import('firebase/firestore');
+    const { getFirestore, doc, getDoc, collection, getDocs, query, where } = await import('firebase/firestore');
 
     const config = {
       apiKey: process.env.PUBLIC_FIREBASE_API_KEY,
@@ -433,8 +433,8 @@ async function fetchFromFirestore() {
       getDoc(doc(db, 'siteSettings', 'general')),
       getDoc(doc(db, 'pages', 'home')),
       getDoc(doc(db, 'pages', 'about')),
-      getDocs(collection(db, 'resources')),
-      getDocs(collection(db, 'journals')),
+      getDocs(query(collection(db, 'resources'), where('published', '==', true))),
+      getDocs(query(collection(db, 'journals'), where('published', '==', true))),
     ]);
 
     if (!settingsSnap.exists() && !homeSnap.exists()) {

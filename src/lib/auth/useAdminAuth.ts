@@ -52,7 +52,8 @@ export function useAdminAuth(): AdminAuthState & {
         const isPreviewActive =
           IS_DEV &&
           typeof window !== 'undefined' &&
-          sessionStorage.getItem('aakashdas_dev_preview_active') === 'true';
+          (sessionStorage.getItem('aakashdas_dev_preview_active') === 'true' ||
+            new URLSearchParams(window.location.search).get('preview') === 'true');
 
         if (isPreviewActive) {
           const devUser = DEV_PREVIEW_ADMIN_USER;

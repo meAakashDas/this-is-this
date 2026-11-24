@@ -139,6 +139,8 @@ const { currentPath = '/' } = Astro.props;
     // Theme toggle setup
     const toggleBtns = document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]');
     toggleBtns.forEach((btn) => {
+      if (btn.dataset.bound === 'true') return;
+      btn.dataset.bound = 'true';
       btn.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
@@ -150,6 +152,8 @@ const { currentPath = '/' } = Astro.props;
     const toggleBtn = document.getElementById('mobile-nav-toggle');
     const drawer = document.getElementById('mobile-nav-drawer');
     if (!toggleBtn || !drawer) return;
+    if (toggleBtn.dataset.bound === 'true') return;
+    toggleBtn.dataset.bound = 'true';
 
     const openIcon = toggleBtn.querySelector('.menu-icon-open') as HTMLElement;
     const closeIcon = toggleBtn.querySelector('.menu-icon-close') as HTMLElement;

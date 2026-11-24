@@ -7,6 +7,10 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   site: 'https://aakashdas.live',
   compressHTML: true,
+  prefetch: {
+    prefetchAll: true,
+    defaultStrategy: 'hover',
+  },
 
   devToolbar: {
     enabled: false,

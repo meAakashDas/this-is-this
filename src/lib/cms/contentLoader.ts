@@ -401,6 +401,7 @@ export function getPublicJournalArticles(): JournalEntry[] {
   if (snapshot.journals && snapshot.journals.length > 0) {
     return snapshot.journals
       .filter((j) => j.published && j.status !== 'draft')
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
       .map(mapDocToJournalEntry);
   }
   return defaultGetAllJournalArticles();

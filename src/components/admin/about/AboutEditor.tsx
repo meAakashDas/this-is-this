@@ -215,10 +215,26 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
   const applyLoadedData = (data: Partial<AboutPageDocument>) => {
     if (data.title) setTitle(data.title);
     if (data.introParagraphs && data.introParagraphs.length > 0) setIntroParagraphs(data.introParagraphs);
-    if (data.workEntries) setWorkEntries(data.workEntries);
-    if (data.mediaEntries) setMediaEntries(data.mediaEntries);
-    if (data.educationEntries) setEducationEntries(data.educationEntries);
-    if (data.experienceEntries) setExperienceEntries(data.experienceEntries);
+    if (data.workEntries && data.workEntries.length > 0) {
+      setWorkEntries(data.workEntries);
+    } else {
+      setWorkEntries(DEFAULT_ABOUT_STATE.workEntries);
+    }
+    if (data.mediaEntries && data.mediaEntries.length > 0) {
+      setMediaEntries(data.mediaEntries);
+    } else {
+      setMediaEntries(DEFAULT_ABOUT_STATE.mediaEntries);
+    }
+    if (data.educationEntries && data.educationEntries.length > 0) {
+      setEducationEntries(data.educationEntries);
+    } else {
+      setEducationEntries(DEFAULT_ABOUT_STATE.educationEntries);
+    }
+    if (data.experienceEntries && data.experienceEntries.length > 0) {
+      setExperienceEntries(data.experienceEntries);
+    } else {
+      setExperienceEntries(DEFAULT_ABOUT_STATE.experienceEntries);
+    }
     setIsDirty(false);
   };
 

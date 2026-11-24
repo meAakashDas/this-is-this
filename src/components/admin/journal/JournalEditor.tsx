@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -167,6 +167,18 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     setIsDirty(true);
   };
 
+  // Track BlockNote initialization so initial load doesn't trigger dirty flag
+  const isBlockNoteInitialized = React.useRef(false);
+
+  const handleBlockNoteChange = useCallback((blocks: any[]) => {
+    setBlocknoteJson(blocks);
+    if (!isBlockNoteInitialized.current) {
+      isBlockNoteInitialized.current = true;
+      return;
+    }
+    setIsDirty(true);
+  }, []);
+
   const buildDocument = (currentStatus: JournalStatus): JournalDocument => {
     const now = new Date().toISOString();
     const isPub = currentStatus === 'published';
@@ -177,7 +189,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     const contentBlocks = htmlToJournalBlocks(generatedHtml);
 
     return {
-      id: slug || generateSlugFromTitle(title) || 'draft-article',
+      id: initialArticle?.id || slug || generateSlugFromTitle(title) || 'draft-article',
       slug: (slug || generateSlugFromTitle(title) || 'draft-article').trim(),
       legacyId: initialArticle?.legacyId,
       createdAt: initialArticle?.createdAt || now,
@@ -446,6 +458,9 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                   }}
                   className="px-2.5 py-1 text-xs rounded-md border border-input bg-background text-foreground"
                 >
+                  {category && !JOURNAL_CATEGORIES.some((c) => c.name === category) && (
+                    <option value={category}>{category}</option>
+                  )}
                   {JOURNAL_CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.name}>
                       {cat.name}
@@ -532,10 +547,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
 
             <BlockNoteEditor
               initialBlocks={blocknoteJson}
-              onChange={(blocks) => {
-                setBlocknoteJson(blocks);
-                setIsDirty(true);
-              }}
+              onChange={handleBlockNoteChange}
               resourceNumber={slug || 'general'}
               uploadPrefix={`uploads/journal/${slug || 'general'}`}
               isDevPreview={isDevPreview}

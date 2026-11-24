@@ -227,6 +227,8 @@ const statusId = idPrefix === 'finder' ? 'finder-status' : `${idPrefix}-status`;
     const forms = document.querySelectorAll<HTMLFormElement>('[data-finder-form]');
 
     forms.forEach((form) => {
+      if (form.dataset.bound === 'true') return;
+      form.dataset.bound = 'true';
       const input = form.querySelector<HTMLInputElement>('[data-finder-input]');
       const statusBox = form.querySelector<HTMLDivElement>('[data-finder-status]');
       const quickPills = form.querySelectorAll<HTMLButtonElement>('.quick-pill');

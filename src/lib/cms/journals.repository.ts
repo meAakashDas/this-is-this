@@ -13,64 +13,308 @@ import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index
 import { validateJournal, validateSlug } from './validation.ts';
 import { CmsError, CmsNotFoundError, CmsConflictError } from './errors.ts';
 import type { JournalDocument } from '../../types/cms/index.ts';
+import snapshotData from '../../data/cms-snapshot.json' with { type: 'json' };
+import { sampleJournalEntries } from '../../data/journal.ts';
+import {
+  calculateWordCount,
+  calculateReadingTime,
+  contentStructureToBlocks,
+  extractTextFromBlocks,
+} from '../../data/journalCategories.ts';
+import {
+  journalContentToBlockNote,
+  blockNoteToHtml,
+} from '../../utils/blockNoteMigration.ts';
 
 const COLLECTION = 'journals';
+
+/**
+ * Sanitizes journal document data for Firestore by converting nested arrays
+ * (e.g. In BlockNote tables or table data) into Firestore-compatible formats.
+ */
+function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+
+  const copy = Array.isArray(obj) ? [...obj] : { ...obj };
+
+  // BlockNote JSON can contain tables with nested cell arrays.
+  // Serialize blocknoteJson to JSON string to guarantee 100% Firestore compatibility.
+  if ('blocknoteJson' in copy && copy.blocknoteJson !== undefined && typeof copy.blocknoteJson !== 'string') {
+    copy.blocknoteJson = JSON.stringify(copy.blocknoteJson);
+  }
+
+  // Journal contentBlocks tableData.rows is string[][]
+  if ('contentBlocks' in copy && Array.isArray(copy.contentBlocks)) {
+    copy.contentBlocks = copy.contentBlocks.map((block: any) => {
+      if (block && block.tableData && Array.isArray(block.tableData.rows)) {
+        return {
+          ...block,
+          tableData: {
+            ...block.tableData,
+            rows: block.tableData.rows.map((row: any) =>
+              Array.isArray(row) ? { cells: row } : row
+            ),
+          },
+        };
+      }
+      return block;
+    });
+  }
+
+  return copy;
+}
+
+/**
+ * Restores sanitized journal data from Firestore back into rich JavaScript objects and nested arrays.
+ */
+function restoreFromFirestore(docData: any): JournalDocument {
+  if (!docData) return docData;
+  const copy = { ...docData };
+
+  if (typeof copy.blocknoteJson === 'string') {
+    try {
+      copy.blocknoteJson = JSON.parse(copy.blocknoteJson);
+    } catch {
+      // keep as string if parsing fails
+    }
+  }
+
+  if (Array.isArray(copy.contentBlocks)) {
+    copy.contentBlocks = copy.contentBlocks.map((block: any) => {
+      if (block && block.tableData && Array.isArray(block.tableData.rows)) {
+        return {
+          ...block,
+          tableData: {
+            ...block.tableData,
+            rows: block.tableData.rows.map((row: any) =>
+              row && typeof row === 'object' && 'cells' in row ? row.cells : row
+            ),
+          },
+        };
+      }
+      return block;
+    });
+  }
+
+  return copy as JournalDocument;
+}
+
+/**
+ * Returns baseline fallback journal articles from snapshot or static data.
+ */
+export function getBaselineFallbackJournals(): JournalDocument[] {
+  if (
+    snapshotData &&
+    Array.isArray((snapshotData as any).journals) &&
+    (snapshotData as any).journals.length > 0
+  ) {
+    return (snapshotData as any).journals.map((j: any) => {
+      const restored = restoreFromFirestore(j);
+      if (!restored.blocknoteJson && restored.content) {
+        const bnBlocks = journalContentToBlockNote(restored.content);
+        const bnHtml = blockNoteToHtml(bnBlocks);
+        return {
+          ...restored,
+          blocknoteJson: bnBlocks,
+          blocknoteHtml: bnHtml,
+          contentHtml: restored.contentHtml || bnHtml,
+        };
+      }
+      return restored;
+    });
+  }
+
+  return sampleJournalEntries.map((sample, idx) => {
+    const blocks = contentStructureToBlocks(sample.content);
+    const bnBlocks = journalContentToBlockNote(sample.content);
+    const bnHtml = blockNoteToHtml(bnBlocks);
+    const text = extractTextFromBlocks(blocks);
+    const words = calculateWordCount(`${sample.title} ${sample.excerpt} ${text}`);
+    const readTime = calculateReadingTime(words);
+    const now = new Date().toISOString();
+
+    return {
+      id: sample.slug,
+      legacyId: sample.id,
+      slug: sample.slug,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: 'aakashdas.photo@gmail.com',
+      title: sample.title,
+      category: sample.category,
+      tags: [sample.category, 'Editorial'],
+      excerpt: sample.excerpt,
+      author: 'Aakash Das',
+      language: 'English',
+      published: true,
+      status: 'published',
+      featured: idx === 0,
+      order: idx + 1,
+      publishedAt: sample.publishedAt,
+      readTime: sample.readTime || readTime,
+      wordCount: words,
+      isSample: sample.isSample,
+      content: sample.content,
+      contentBlocks: blocks,
+      blocknoteJson: bnBlocks,
+      blocknoteHtml: bnHtml,
+      contentHtml: bnHtml,
+      seo: {
+        title: `${sample.title} — Journal — Aakash Das`,
+        description: sample.excerpt,
+      },
+    };
+  });
+}
+
+function findFallbackJournal(identifier: string): JournalDocument | null {
+  const all = getBaselineFallbackJournals();
+  const trimmed = identifier ? String(identifier).trim().toLowerCase() : '';
+  if (!trimmed) return null;
+  return (
+    all.find(
+      (j) =>
+        (j.id && j.id.toLowerCase() === trimmed) ||
+        (j.slug && j.slug.toLowerCase() === trimmed) ||
+        (j.legacyId && j.legacyId.toLowerCase() === trimmed)
+    ) || null
+  );
+}
 
 /**
  * Retrieves all published journal articles for public listing.
  */
 export async function getPublishedJournals(): Promise<JournalDocument[]> {
   const db = tryGetFirebaseFirestore();
-  if (!db) return [];
+  if (!db) {
+    return getBaselineFallbackJournals().filter((j) => j.published);
+  }
 
   try {
     const colRef = collection(db, COLLECTION);
     const q = query(colRef, where('published', '==', true), orderBy('publishedAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((docSnap) => docSnap.data() as JournalDocument);
+    if (!snapshot.empty) {
+      return snapshot.docs.map((docSnap) => ({
+        ...restoreFromFirestore(docSnap.data()),
+        id: docSnap.id,
+      }));
+    }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new CmsError(`Failed to fetch published journal articles: ${msg}`, 'READ_FAILED');
+    console.warn('[CMS] Failed to fetch published journals from Firestore, using fallback:', error);
   }
+
+  return getBaselineFallbackJournals().filter((j) => j.published);
 }
 
 /**
  * Retrieves all journal articles (including drafts) for admin dashboard.
  */
 export async function getAllJournalsForAdmin(): Promise<JournalDocument[]> {
-  const db = getFirebaseFirestore();
-
-  try {
-    const colRef = collection(db, COLLECTION);
-    const q = query(colRef, orderBy('publishedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((docSnap) => docSnap.data() as JournalDocument);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new CmsError(`Failed to fetch journals for admin: ${msg}`, 'READ_FAILED');
+  const db = tryGetFirebaseFirestore();
+  if (db) {
+    try {
+      const colRef = collection(db, COLLECTION);
+      const q = query(colRef, orderBy('publishedAt', 'desc'));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((docSnap) => ({
+          ...restoreFromFirestore(docSnap.data()),
+          id: docSnap.id,
+        }));
+      }
+    } catch (error) {
+      console.warn('[CMS] Failed to fetch journals for admin from Firestore, falling back to baseline:', error);
+    }
   }
+
+  return getBaselineFallbackJournals();
 }
 
 /**
- * Retrieves a single journal article by its unique URL slug.
+ * Retrieves a single journal article by its unique URL slug or internal document ID.
  */
 export async function getJournalBySlug(rawSlug: string): Promise<JournalDocument | null> {
   const db = tryGetFirebaseFirestore();
-  if (!db) return null;
+  const trimmed = rawSlug ? String(rawSlug).trim() : '';
+  if (!trimmed) return null;
 
-  const valid = validateSlug(rawSlug);
-  if (!valid.valid || !valid.value) return null;
-  const slug = valid.value;
+  const valid = validateSlug(trimmed);
+  const slug = valid.valid && valid.value ? valid.value : trimmed.toLowerCase();
 
-  try {
-    const docRef = doc(db, COLLECTION, slug);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return snap.data() as JournalDocument;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new CmsError(`Failed to fetch journal article "${slug}": ${msg}`, 'READ_FAILED');
+  if (db) {
+    try {
+      // 1. Direct document lookup by slug ID
+      const docRef = doc(db, COLLECTION, slug);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return { ...restoreFromFirestore(snap.data()), id: snap.id };
+      }
+
+      // 2. Direct document lookup by raw trimmed identifier (if different from slug)
+      if (trimmed !== slug) {
+        const rawDocRef = doc(db, COLLECTION, trimmed);
+        const rawSnap = await getDoc(rawDocRef);
+        if (rawSnap.exists()) {
+          return { ...restoreFromFirestore(rawSnap.data()), id: rawSnap.id };
+        }
+      }
+
+      // 3. Query by slug field
+      const colRef = collection(db, COLLECTION);
+      const qSlug = query(colRef, where('slug', '==', slug));
+      const qSlugSnap = await getDocs(qSlug);
+      if (!qSlugSnap.empty && qSlugSnap.docs[0]) {
+        const d = qSlugSnap.docs[0];
+        return { ...restoreFromFirestore(d.data()), id: d.id };
+      }
+
+      // 4. Query by id field
+      const qId = query(colRef, where('id', '==', trimmed));
+      const qIdSnap = await getDocs(qId);
+      if (!qIdSnap.empty && qIdSnap.docs[0]) {
+        const d = qIdSnap.docs[0];
+        return { ...restoreFromFirestore(d.data()), id: d.id };
+      }
+
+      // 5. Query by legacyId field
+      const qLegacy = query(colRef, where('legacyId', '==', trimmed));
+      const qLegacySnap = await getDocs(qLegacy);
+      if (!qLegacySnap.empty && qLegacySnap.docs[0]) {
+        const d = qLegacySnap.docs[0];
+        return { ...restoreFromFirestore(d.data()), id: d.id };
+      }
+    } catch (error) {
+      console.warn(`[CMS] Error fetching journal article "${slug}" from Firestore:`, error);
+    }
   }
+
+  // Resilient fallback to local baseline/snapshot data
+  return findFallbackJournal(slug) || findFallbackJournal(trimmed);
+}
+
+/**
+ * Helper to get journal by ID (checks document ID directly, then delegates to getJournalBySlug).
+ */
+export async function getJournalById(id: string): Promise<JournalDocument | null> {
+  const db = tryGetFirebaseFirestore();
+  const trimmed = id ? String(id).trim() : '';
+  if (!trimmed) return null;
+
+  if (db) {
+    try {
+      const docRef = doc(db, COLLECTION, trimmed);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return { ...restoreFromFirestore(snap.data()), id: snap.id };
+      }
+    } catch (error) {
+      console.warn(`[CMS] Error fetching journal by ID "${trimmed}":`, error);
+    }
+  }
+
+  return getJournalBySlug(trimmed);
 }
 
 /**
@@ -107,7 +351,7 @@ export async function createJournal(
 
   try {
     const docRef = doc(db, COLLECTION, slug);
-    await setDoc(docRef, validated);
+    await setDoc(docRef, sanitizeForFirestore(validated));
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -117,31 +361,52 @@ export async function createJournal(
 
 /**
  * Updates an existing journal article document.
+ * Safely targets the canonical database document, preserves stable ID,
+ * and preserves all unedited fields (BlockNote content, structured sections, SEO).
  */
 export async function updateJournal(
-  rawSlug: string,
+  rawIdentifier: string,
   data: Partial<JournalDocument>,
   adminEmail: string = 'aakashdas.photo@gmail.com'
 ): Promise<JournalDocument> {
   const db = getFirebaseFirestore();
 
-  const slugValidation = validateSlug(rawSlug);
-  if (!slugValidation.valid || !slugValidation.value) {
-    throw new CmsError('Invalid journal slug', 'VALIDATION_ERROR');
+  const trimmedId = rawIdentifier ? String(rawIdentifier).trim() : '';
+  if (!trimmedId) {
+    throw new CmsError('Journal identifier is required for update.', 'VALIDATION_ERROR');
   }
-  const slug = slugValidation.value;
 
-  const existing = await getJournalBySlug(slug);
+  // Resilient lookup of the existing article
+  const existing = (await getJournalBySlug(trimmedId)) || (await getJournalById(trimmedId));
   if (!existing) {
-    throw new CmsNotFoundError('Journal', slug);
+    throw new CmsNotFoundError('Journal', trimmedId);
+  }
+
+  // Canonical document ID (must stay stable)
+  const canonicalDocId = existing.id || existing.slug || trimmedId;
+
+  // Determine slug (validate if changed)
+  let targetSlug = existing.slug;
+  if (data.slug && data.slug.trim() !== '') {
+    const slugValidation = validateSlug(data.slug);
+    if (!slugValidation.valid || !slugValidation.value) {
+      throw new CmsError(slugValidation.error || 'Invalid journal slug', 'VALIDATION_ERROR');
+    }
+    targetSlug = slugValidation.value;
   }
 
   const now = new Date().toISOString();
   const merged: JournalDocument = {
     ...existing,
     ...data,
-    id: slug,
-    slug,
+    id: canonicalDocId,
+    slug: targetSlug,
+    blocknoteJson: data.blocknoteJson !== undefined ? data.blocknoteJson : existing.blocknoteJson,
+    blocknoteHtml: data.blocknoteHtml !== undefined ? data.blocknoteHtml : existing.blocknoteHtml,
+    contentHtml: data.contentHtml !== undefined ? data.contentHtml : existing.contentHtml,
+    content: data.content !== undefined ? data.content : existing.content,
+    contentBlocks: data.contentBlocks !== undefined ? data.contentBlocks : (existing.contentBlocks || []),
+    seo: data.seo !== undefined ? { ...(existing.seo || {}), ...data.seo } : existing.seo,
     updatedAt: now,
     updatedBy: adminEmail,
   };
@@ -149,12 +414,12 @@ export async function updateJournal(
   const validated = validateJournal(merged);
 
   try {
-    const docRef = doc(db, COLLECTION, slug);
-    await setDoc(docRef, validated, { merge: true });
+    const docRef = doc(db, COLLECTION, canonicalDocId);
+    await setDoc(docRef, sanitizeForFirestore(validated), { merge: true });
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    throw new CmsError(`Failed to update journal article "${slug}": ${msg}`, 'WRITE_FAILED');
+    throw new CmsError(`Failed to update journal article "${canonicalDocId}": ${msg}`, 'WRITE_FAILED');
   }
 }
 
@@ -271,27 +536,29 @@ export async function duplicateJournal(
 /**
  * Deletes a journal article document permanently.
  */
-export async function deleteJournal(rawSlug: string): Promise<void> {
+export async function deleteJournal(rawIdentifier: string): Promise<void> {
   const db = getFirebaseFirestore();
 
-  const slugValidation = validateSlug(rawSlug);
-  if (!slugValidation.valid || !slugValidation.value) {
-    throw new CmsError('Invalid journal slug', 'VALIDATION_ERROR');
+  const trimmedId = rawIdentifier ? String(rawIdentifier).trim() : '';
+  if (!trimmedId) {
+    throw new CmsError('Journal identifier is required for delete.', 'VALIDATION_ERROR');
   }
-  const slug = slugValidation.value;
+
+  const existing = (await getJournalBySlug(trimmedId)) || (await getJournalById(trimmedId));
+  const targetDocId = existing?.id || existing?.slug || trimmedId;
 
   try {
-    const docRef = doc(db, COLLECTION, slug);
+    const docRef = doc(db, COLLECTION, targetDocId);
     await deleteDoc(docRef);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    throw new CmsError(`Failed to delete journal article "${slug}": ${msg}`, 'DELETE_FAILED');
+    throw new CmsError(`Failed to delete journal article "${targetDocId}": ${msg}`, 'DELETE_FAILED');
   }
 }
 
 // Aliases conforming to Section 15 specifications
 export const getArticles = getAllJournalsForAdmin;
-export const getArticleById = getJournalBySlug;
+export const getArticleById = getJournalById;
 export const getArticleBySlug = getJournalBySlug;
 export const createArticle = createJournal;
 export const updateArticle = updateJournal;

@@ -113,13 +113,21 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     },
   });
 
-  // Listen to document changes and notify parent
+  // Listen to document changes and notify parent (skip initial setup dispatch)
+  const isInitialMount = React.useRef(true);
+  const onChangeRef = React.useRef(onChange);
+  onChangeRef.current = onChange;
+
   useEffect(() => {
     if (!editor) return;
     return editor.onChange(() => {
-      onChange(editor.document);
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+      }
+      onChangeRef.current(editor.document);
     });
-  }, [editor, onChange]);
+  }, [editor]);
 
   return (
     <div className="blocknote-canvas-container w-full min-h-[520px] rounded-xl border border-border bg-card text-card-foreground shadow-xs focus-within:border-border-strong transition-all overflow-hidden flex flex-col">

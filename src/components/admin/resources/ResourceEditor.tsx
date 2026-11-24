@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -167,10 +167,16 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     }
   };
 
-  const handleBlockNoteChange = (blocks: any[]) => {
+  const isBlockNoteInitialized = React.useRef(false);
+
+  const handleBlockNoteChange = useCallback((blocks: any[]) => {
     setBlocknoteJson(blocks);
+    if (!isBlockNoteInitialized.current) {
+      isBlockNoteInitialized.current = true;
+      return;
+    }
     setIsDirty(true);
-  };
+  }, []);
 
   const buildDocument = (currentStatus: ResourceStatus): ResourceDocument => {
     const paddedNum = (resourceNumber || '001').padStart(3, '0');
@@ -187,7 +193,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     const contentBlocks = blockNoteToContentBlocks(blocknoteJson);
 
     return {
-      id: paddedNum,
+      id: initialResource?.id || paddedNum,
       resourceNumber: paddedNum,
       createdAt: initialResource?.createdAt || now,
       updatedAt: now,
@@ -469,6 +475,9 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
                   }}
                   className="px-2.5 py-1 text-xs rounded-md border border-input bg-background text-foreground"
                 >
+                  {category && !RESOURCE_CATEGORIES.some((c) => c.name === category) && (
+                    <option value={category}>{category}</option>
+                  )}
                   {RESOURCE_CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.name}>
                       {cat.name}

@@ -1,22 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import type { JournalDocument } from '../../../types/cms/journal.ts';
 import { JournalList } from './JournalList.tsx';
 import { JournalEditor } from './JournalEditor.tsx';
 import { JournalPreview } from './JournalPreview.tsx';
-import { sampleJournalEntries } from '../../../data/journal.ts';
-import {
-  calculateWordCount,
-  calculateReadingTime,
-  contentStructureToBlocks,
-  extractTextFromBlocks,
-} from '../../../data/journalCategories.ts';
-import {
-  journalContentToBlockNote,
-  blockNoteToHtml,
-} from '../../../utils/blockNoteMigration.ts';
 import {
   getAllJournalsForAdmin,
+  getJournalBySlug,
+  getJournalById,
   createJournal,
   updateJournal,
   publishJournal,
@@ -24,6 +15,7 @@ import {
   archiveJournal,
   duplicateJournal,
   deleteJournal,
+  getBaselineFallbackJournals,
 } from '../../../lib/cms/journals.repository.ts';
 
 const PREVIEW_STORAGE_KEY = 'aakashdas_cms_journal_preview';
@@ -35,95 +27,113 @@ interface JournalManagerProps {
 export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = false }) => {
   const [articles, setArticles] = useState<JournalDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRecordLoading, setIsRecordLoading] = useState(false);
+  const [recordNotFoundSlug, setRecordNotFoundSlug] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'list' | 'editor' | 'preview'>('list');
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<JournalDocument | null>(null);
 
-  // Convert static sample journal entries into canonical JournalDocuments
-  const getInitialBaselineArticles = (): JournalDocument[] => {
-    return sampleJournalEntries.map((sample, idx) => {
-      const blocks = contentStructureToBlocks(sample.content);
-      const bnBlocks = journalContentToBlockNote(sample.content);
-      const bnHtml = blockNoteToHtml(bnBlocks);
-      const text = extractTextFromBlocks(blocks);
-      const words = calculateWordCount(`${sample.title} ${sample.excerpt} ${text}`);
-      const readTime = calculateReadingTime(words);
-      const now = new Date().toISOString();
+  // Helper to sync URL search params
+  const updateUrlParam = useCallback((idOrSlug: string | null, isCreate: boolean = false) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'journal');
+    if (idOrSlug) {
+      url.searchParams.set('id', idOrSlug);
+      url.searchParams.delete('create');
+    } else if (isCreate) {
+      url.searchParams.set('create', 'true');
+      url.searchParams.delete('id');
+    } else {
+      url.searchParams.delete('id');
+      url.searchParams.delete('slug');
+      url.searchParams.delete('create');
+      url.searchParams.delete('edit');
+    }
+    window.history.pushState(null, '', url.toString());
+  }, []);
 
-      return {
-        id: sample.slug,
-        legacyId: sample.id,
-        slug: sample.slug,
-        createdAt: now,
-        updatedAt: now,
-        updatedBy: 'aakashdas.photo@gmail.com',
-        title: sample.title,
-        category: sample.category,
-        tags: [sample.category, 'Editorial'],
-        excerpt: sample.excerpt,
-        author: 'Aakash Das',
-        language: 'English',
-        published: true,
-        status: 'published',
-        featured: idx === 0,
-        order: idx + 1,
-        publishedAt: sample.publishedAt,
-        readTime: sample.readTime || readTime,
-        wordCount: words,
-        isSample: sample.isSample,
-        content: sample.content,
-        contentBlocks: blocks,
-        blocknoteJson: bnBlocks,
-        blocknoteHtml: bnHtml,
-        contentHtml: bnHtml,
-        seo: {
-          title: `${sample.title} — Journal — Aakash Das`,
-          description: sample.excerpt,
-        },
-      };
-    });
-  };
-
-  // Load articles
+  // Load articles and check URL parameters on mount
   useEffect(() => {
+    let mounted = true;
+
     const loadData = async () => {
       setLoading(true);
+
+      let loadedArticles: JournalDocument[] = [];
 
       // Dev Preview Mode: read from sessionStorage
       if (isDevPreview) {
         try {
           const cached = sessionStorage.getItem(PREVIEW_STORAGE_KEY);
           if (cached) {
-            setArticles(JSON.parse(cached));
-          } else {
-            const baseline = getInitialBaselineArticles();
-            setArticles(baseline);
-            sessionStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(baseline));
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              loadedArticles = parsed;
+            }
+          }
+          if (loadedArticles.length === 0) {
+            loadedArticles = getBaselineFallbackJournals();
+            sessionStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(loadedArticles));
           }
         } catch (e) {
           console.warn('Failed to read journal from sessionStorage:', e);
-          setArticles(getInitialBaselineArticles());
+          loadedArticles = getBaselineFallbackJournals();
         }
-        setLoading(false);
-        return;
+      } else {
+        // Production mode: fetch from Firestore with fallback to baseline
+        try {
+          loadedArticles = await getAllJournalsForAdmin();
+        } catch (err) {
+          console.warn('Could not fetch journals from Firestore, using baseline:', err);
+          loadedArticles = getBaselineFallbackJournals();
+        }
       }
 
-      // Production mode: fetch from Firestore with fallback to baseline
-      try {
-        const firestoreArticles = await getAllJournalsForAdmin();
-        if (firestoreArticles.length > 0) {
-          setArticles(firestoreArticles);
-        } else {
-          setArticles(getInitialBaselineArticles());
+      if (mounted) {
+        setArticles(loadedArticles);
+
+        // Check direct navigation URL search params: ?tab=journal&id=slug or create=true
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const targetSlug = params.get('id') || params.get('slug') || params.get('edit');
+          const isCreate = params.get('create') === 'true';
+
+          if (targetSlug) {
+            setIsRecordLoading(true);
+            const found =
+              loadedArticles.find((a) => a.slug === targetSlug || a.id === targetSlug || a.legacyId === targetSlug) ||
+              (await getJournalBySlug(targetSlug)) ||
+              (await getJournalById(targetSlug));
+
+            if (mounted) {
+              if (found) {
+                setSelectedSlug(found.slug);
+                setSelectedArticle(found);
+                setActiveView('editor');
+                setRecordNotFoundSlug(null);
+              } else {
+                setRecordNotFoundSlug(targetSlug);
+                setActiveView('list');
+              }
+              setIsRecordLoading(false);
+            }
+          } else if (isCreate) {
+            setSelectedSlug(null);
+            setSelectedArticle(null);
+            setActiveView('editor');
+          }
         }
-      } catch (err) {
-        console.warn('Could not fetch journals from Firestore, using baseline:', err);
-        setArticles(getInitialBaselineArticles());
-      } finally {
+
         setLoading(false);
       }
     };
 
     loadData();
+
+    return () => {
+      mounted = false;
+    };
   }, [isDevPreview]);
 
   // Persist helper for preview mode
@@ -141,21 +151,73 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
   // Navigation handlers
   const handleCreate = () => {
     setSelectedSlug(null);
+    setSelectedArticle(null);
+    setRecordNotFoundSlug(null);
     setActiveView('editor');
+    updateUrlParam(null, true);
   };
 
-  const handleEdit = (slug: string) => {
-    setSelectedSlug(slug);
-    setActiveView('editor');
+  const handleEdit = async (slug: string) => {
+    updateUrlParam(slug);
+    setRecordNotFoundSlug(null);
+    setIsRecordLoading(true);
+
+    try {
+      if (isDevPreview) {
+        const foundLocal = articles.find(
+          (a) => a.slug === slug || a.id === slug || a.legacyId === slug
+        );
+        if (foundLocal) {
+          setSelectedSlug(foundLocal.slug);
+          setSelectedArticle(foundLocal);
+          setActiveView('editor');
+          return;
+        }
+      }
+
+      // Retrieve fresh article record from database
+      const fullDoc =
+        articles.find((a) => a.slug === slug || a.id === slug || a.legacyId === slug) ||
+        (await getJournalBySlug(slug)) ||
+        (await getJournalById(slug)) ||
+        null;
+
+      if (fullDoc) {
+        setSelectedSlug(fullDoc.slug);
+        setSelectedArticle(fullDoc);
+        setActiveView('editor');
+      } else {
+        setRecordNotFoundSlug(slug);
+        setActiveView('list');
+      }
+    } catch (err) {
+      console.warn('Error fetching journal article for edit:', err);
+      const cached = articles.find((a) => a.slug === slug || a.id === slug) || null;
+      if (cached) {
+        setSelectedSlug(cached.slug);
+        setSelectedArticle(cached);
+        setActiveView('editor');
+      } else {
+        setRecordNotFoundSlug(slug);
+        setActiveView('list');
+      }
+    } finally {
+      setIsRecordLoading(false);
+    }
   };
 
   const handlePreview = (slug: string) => {
+    const article = articles.find((a) => a.slug === slug) || null;
     setSelectedSlug(slug);
+    setSelectedArticle(article);
     setActiveView('preview');
   };
 
   const handleBackToList = () => {
+    updateUrlParam(null);
     setSelectedSlug(null);
+    setSelectedArticle(null);
+    setRecordNotFoundSlug(null);
     setActiveView('list');
   };
 
@@ -165,15 +227,18 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
     action: 'draft' | 'publish'
   ): Promise<void> => {
     const isPub = action === 'publish';
+    const canonicalId = doc.id || doc.slug;
+
     const finalDoc: JournalDocument = {
       ...doc,
+      id: canonicalId,
       published: isPub,
       status: isPub ? 'published' : 'draft',
       updatedAt: new Date().toISOString(),
     };
 
     if (isDevPreview) {
-      const existingIdx = articles.findIndex((a) => a.slug === finalDoc.slug);
+      const existingIdx = articles.findIndex((a) => a.slug === finalDoc.slug || a.id === finalDoc.id);
       let updated: JournalDocument[];
       if (existingIdx >= 0) {
         updated = articles.map((a, i) => (i === existingIdx ? finalDoc : a));
@@ -182,22 +247,27 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       }
       persistArticles(updated);
       setSelectedSlug(finalDoc.slug);
-      return;
-    }
-
-    // Production mode
-    const existing = articles.find((a) => a.slug === finalDoc.slug);
-    if (existing) {
-      await updateJournal(finalDoc.slug, finalDoc);
+      setSelectedArticle(finalDoc);
     } else {
-      await createJournal(finalDoc);
+      // Production mode with unified resilient update
+      const existing =
+        (await getJournalBySlug(finalDoc.slug)) ||
+        (await getJournalById(canonicalId));
+
+      if (existing) {
+        await updateJournal(canonicalId, finalDoc);
+      } else {
+        await createJournal(finalDoc);
+      }
+
+      const refreshed = await getAllJournalsForAdmin();
+      setArticles(refreshed);
+      setSelectedSlug(finalDoc.slug);
+      setSelectedArticle(finalDoc);
     }
 
-    const updated = articles.some((a) => a.slug === finalDoc.slug)
-      ? articles.map((a) => (a.slug === finalDoc.slug ? finalDoc : a))
-      : [finalDoc, ...articles];
-    setArticles(updated);
-    setSelectedSlug(finalDoc.slug);
+    updateUrlParam(null);
+    setActiveView('list');
   };
 
   const handleTogglePublish = async (slug: string) => {
@@ -222,23 +292,13 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
     }
 
     if (isCurrentlyPub) {
-      await unpublishJournal(slug);
+      await unpublishJournal(target.id || slug);
     } else {
-      await publishJournal(slug);
+      await publishJournal(target.id || slug);
     }
 
-    setArticles(
-      articles.map((a) =>
-        a.slug === slug
-          ? {
-              ...a,
-              published: !isCurrentlyPub,
-              status: nextStatus as any,
-              updatedAt: new Date().toISOString(),
-            }
-          : a
-      )
-    );
+    const refreshed = await getAllJournalsForAdmin();
+    setArticles(refreshed);
   };
 
   const handleArchive = async (slug: string) => {
@@ -263,20 +323,14 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       return;
     }
 
-    await archiveJournal(slug);
-    setArticles(
-      articles.map((a) =>
-        a.slug === slug
-          ? {
-              ...a,
-              published: false,
-              status: nextStatus as any,
-              archivedAt: isArch ? undefined : new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }
-          : a
-      )
-    );
+    if (!isArch) {
+      await archiveJournal(target.id || slug);
+    } else {
+      await unpublishJournal(target.id || slug);
+    }
+
+    const refreshed = await getAllJournalsForAdmin();
+    setArticles(refreshed);
   };
 
   const handleDuplicate = async (slug: string) => {
@@ -309,8 +363,9 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       return;
     }
 
-    const duplicated = await duplicateJournal(slug);
-    setArticles([duplicated, ...articles]);
+    await duplicateJournal(target.id || slug);
+    const refreshed = await getAllJournalsForAdmin();
+    setArticles(refreshed);
   };
 
   const handleDelete = async (slug: string) => {
@@ -321,19 +376,41 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
     }
 
     await deleteJournal(slug);
-    setArticles(articles.filter((a) => a.slug !== slug));
+    const refreshed = await getAllJournalsForAdmin();
+    setArticles(refreshed);
   };
 
-  if (loading) {
+  if (loading || isRecordLoading) {
     return (
       <div className="p-12 text-center flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground font-mono">Loading Journal Articles...</p>
+        <p className="text-xs text-muted-foreground font-mono">
+          {isRecordLoading ? 'Retrieving article record from database...' : 'Loading Journal Articles...'}
+        </p>
       </div>
     );
   }
 
-  const selectedArticle = articles.find((a) => a.slug === selectedSlug) || null;
+  // Not Found State for direct URL access to non-existent journal article
+  if (recordNotFoundSlug && activeView === 'list') {
+    return (
+      <div className="p-8 max-w-xl mx-auto text-center space-y-4 border border-destructive/20 bg-destructive/5 rounded-2xl">
+        <AlertCircle className="w-10 h-10 text-destructive mx-auto" />
+        <h3 className="text-base font-bold text-foreground">Journal Article Not Found</h3>
+        <p className="text-sm text-muted-foreground">
+          Journal with identifier &quot;{recordNotFoundSlug}&quot; was not found in the archive.
+        </p>
+        <button
+          type="button"
+          onClick={handleBackToList}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Journal Articles</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -353,6 +430,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
 
       {activeView === 'editor' && (
         <JournalEditor
+          key={selectedArticle?.id || selectedArticle?.slug || 'new'}
           initialArticle={selectedArticle}
           existingSlugs={articles.map((a) => a.slug)}
           onSave={handleSaveArticle}

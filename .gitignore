@@ -30,3 +30,7 @@ playwright-report/
 
 # local migration backups & temporary dumps
 backups/
+
+# QA audit and benchmark output dumps
+scripts/audit-results-*.json
+scripts/stress-test-results.json

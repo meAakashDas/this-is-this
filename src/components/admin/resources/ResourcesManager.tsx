@@ -1,100 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { ResourceList } from './ResourceList.tsx';
 import { ResourceEditor } from './ResourceEditor.tsx';
 import { ResourcePreview } from './ResourcePreview.tsx';
 import {
   getAllResourcesForAdmin,
+  getResourceByNumber,
+  getResourceById,
   createResource,
   updateResource,
   deleteResource,
   publishResource,
   unpublishResource,
   archiveResource,
+  getBaselineFallbackResources,
 } from '../../../lib/cms/resources.repository.ts';
-import { resourcesData } from '../../../data/resources.ts';
 import type { ResourceDocument } from '../../../types/cms/resource.ts';
-import {
-  legacyBlocksToBlockNote,
-  blockNoteToHtml,
-} from '../../../utils/blockNoteMigration.ts';
 
 interface ResourcesManagerProps {
   isDevPreview?: boolean;
 }
 
 const DEV_STORAGE_KEY = 'aakashdas_cms_resources_preview';
-
-// Convert existing static data to full ResourceDocument baseline
-function getBaselineResources(): ResourceDocument[] {
-  return resourcesData.map((res, index) => {
-    const slug = res.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
-    const cmsAttachments = (res.attachments || []).map((att, aIdx) => ({
-      id: att.id,
-      name: att.name,
-      fileName: att.url.split('/').pop() || `${slug}-${att.id}`,
-      format: att.format,
-      fileSize: att.fileSize,
-      url: att.url,
-      fileExtension: att.url.split('.').pop() || 'pdf',
-      isPreviewable: Boolean(att.isPreviewable),
-      order: aIdx + 1,
-      visible: true,
-      uploadedAt: res.publishedAt,
-    }));
-
-    const bnBlocks = legacyBlocksToBlockNote(
-      res.contentBlocks || [],
-      res.summaryPoints || [],
-      res.targetAudience || ''
-    );
-    const bnHtml = blockNoteToHtml(bnBlocks);
-
-    return {
-      id: res.resourceNumber,
-      resourceNumber: res.resourceNumber,
-      createdAt: res.publishedAt,
-      updatedAt: res.updatedAt || res.publishedAt,
-      updatedBy: 'seed-migration',
-      title: res.title,
-      slug,
-      category: res.category,
-      description: res.description,
-      tags: res.tags,
-      author: 'Aakash Das',
-      language: 'English',
-      published: res.published,
-      status: res.published ? 'published' : 'draft',
-      featured: index < 3,
-      order: index + 1,
-      publishedAt: res.publishedAt,
-      downloadFormat: res.downloadFormat,
-      fileSize: res.fileSize,
-      downloadUrl: res.downloadUrl,
-      pdfPreviewUrl: res.pdfPreviewUrl,
-      docxUrl: res.docxUrl,
-      cardActionLabel: 'Open',
-      detailActionLabel: 'Download Resources',
-      attachments: cmsAttachments,
-      youtubeEmbed: res.youtubeEmbed,
-      summaryPoints: res.summaryPoints || [],
-      targetAudience: res.targetAudience || '',
-      contentBlocks: res.contentBlocks || [],
-      contentHtml: bnHtml,
-      blocknoteJson: bnBlocks,
-      blocknoteHtml: bnHtml,
-      seo: {
-        title: `Resource #${res.resourceNumber}: ${res.title} — Aakash Das`,
-        description: res.description,
-      },
-    };
-  });
-}
-
 const HIGHEST_NUM_KEY = 'aakashdas_highest_resource_number';
 
 function calculateNextNumber(resources: ResourceDocument[]): string {
@@ -117,48 +44,112 @@ function calculateNextNumber(resources: ResourceDocument[]): string {
 export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview = false }) => {
   const [resources, setResources] = useState<ResourceDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecordLoading, setIsRecordLoading] = useState(false);
+  const [recordNotFoundId, setRecordNotFoundId] = useState<string | null>(null);
   const [viewState, setViewState] = useState<'list' | 'editor' | 'preview'>('list');
   const [selectedResource, setSelectedResource] = useState<ResourceDocument | null>(null);
 
-  // Load resources on mount
+  // Helper to sync URL search params
+  const updateUrlParam = useCallback((id: string | null, isCreate: boolean = false) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'resources');
+    if (id) {
+      url.searchParams.set('id', id);
+      url.searchParams.delete('create');
+    } else if (isCreate) {
+      url.searchParams.set('create', 'true');
+      url.searchParams.delete('id');
+    } else {
+      url.searchParams.delete('id');
+      url.searchParams.delete('create');
+      url.searchParams.delete('edit');
+    }
+    window.history.pushState(null, '', url.toString());
+  }, []);
+
+  // Load resources and check URL parameters on mount
   useEffect(() => {
     let mounted = true;
 
     async function loadData() {
       setIsLoading(true);
       try {
+        let loadedResources: ResourceDocument[] = [];
+
         if (isDevPreview && typeof window !== 'undefined') {
           const cached = sessionStorage.getItem(DEV_STORAGE_KEY);
           if (cached) {
             const parsed = JSON.parse(cached);
-            if (mounted && Array.isArray(parsed) && parsed.length > 0) {
-              setResources(parsed);
-              setIsLoading(false);
-              return;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              loadedResources = parsed;
             }
           }
-          // Default to baseline static data in dev preview
-          const baseline = getBaselineResources();
-          if (mounted) {
-            setResources(baseline);
-            sessionStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(baseline));
-            setIsLoading(false);
-            return;
+          if (loadedResources.length === 0) {
+            loadedResources = getBaselineFallbackResources();
+            sessionStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(loadedResources));
           }
+        } else {
+          // Live Firestore fetch with resilient fallback
+          loadedResources = await getAllResourcesForAdmin();
         }
 
-        // Live Firestore fetch
-        const firestoreDocs = await getAllResourcesForAdmin();
         if (mounted) {
-          if (firestoreDocs && firestoreDocs.length > 0) {
-            setResources(firestoreDocs);
-          } else {
-            setResources(getBaselineResources());
+          setResources(loadedResources);
+
+          // Check direct navigation URL search params: ?tab=resources&id=001 or create=true
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const targetId = params.get('id') || params.get('edit');
+            const isCreate = params.get('create') === 'true';
+
+            if (targetId) {
+              setIsRecordLoading(true);
+              const found =
+                loadedResources.find((r) => r.resourceNumber === targetId || r.id === targetId || r.slug === targetId) ||
+                (await getResourceByNumber(targetId)) ||
+                (await getResourceById(targetId));
+
+              if (mounted) {
+                if (found) {
+                  setSelectedResource(found);
+                  setViewState('editor');
+                  setRecordNotFoundId(null);
+                } else {
+                  setRecordNotFoundId(targetId);
+                  setViewState('list');
+                }
+                setIsRecordLoading(false);
+              }
+            } else if (isCreate) {
+              const nextNum = calculateNextNumber(loadedResources);
+              const newDoc: Partial<ResourceDocument> = {
+                resourceNumber: nextNum,
+                title: '',
+                slug: '',
+                category: 'Personal Finance',
+                description: '',
+                tags: [],
+                author: 'Aakash Das',
+                language: 'English',
+                published: false,
+                status: 'draft',
+                featured: false,
+                order: loadedResources.length + 1,
+                publishedAt: new Date().toISOString().split('T')[0],
+                attachments: [],
+                summaryPoints: [],
+                targetAudience: '',
+                contentBlocks: [],
+              };
+              setSelectedResource(newDoc as ResourceDocument);
+              setViewState('editor');
+            }
           }
         }
       } catch (err) {
-        console.warn('Could not load resources from Firestore, falling back to baseline:', err);
-        if (mounted) setResources(getBaselineResources());
+        console.warn('Could not load resources, falling back to baseline:', err);
+        if (mounted) setResources(getBaselineFallbackResources());
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -203,11 +194,42 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     };
     setSelectedResource(newDoc as ResourceDocument);
     setViewState('editor');
+    setRecordNotFoundId(null);
+    updateUrlParam(null, true);
   };
 
-  const handleEdit = (resource: ResourceDocument) => {
-    setSelectedResource(resource);
-    setViewState('editor');
+  const handleEdit = async (resource: ResourceDocument) => {
+    const canonicalId = resource.resourceNumber || resource.id;
+    updateUrlParam(canonicalId);
+    setRecordNotFoundId(null);
+    setIsRecordLoading(true);
+
+    try {
+      if (isDevPreview) {
+        const foundLocal = resources.find(
+          (r) => r.resourceNumber === canonicalId || r.id === canonicalId
+        );
+        if (foundLocal) {
+          setSelectedResource(foundLocal);
+          setViewState('editor');
+          return;
+        }
+      }
+
+      // Retrieve fresh record from database
+      const fullRecord =
+        (await getResourceByNumber(canonicalId)) ||
+        (await getResourceById(canonicalId)) ||
+        resource;
+      setSelectedResource(fullRecord);
+      setViewState('editor');
+    } catch (err) {
+      console.warn('Error loading fresh resource record, using cached:', err);
+      setSelectedResource(resource);
+      setViewState('editor');
+    } finally {
+      setIsRecordLoading(false);
+    }
   };
 
   const handlePreview = (resource: ResourceDocument) => {
@@ -236,7 +258,8 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     } else {
       try {
         await createResource(duplicated);
-        setResources([...resources, duplicated]);
+        const refreshed = await getAllResourcesForAdmin();
+        setResources(refreshed);
       } catch (err) {
         console.error('Failed to duplicate resource in Firestore:', err);
       }
@@ -262,15 +285,12 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     } else {
       try {
         if (willPublish) {
-          await publishResource(resource.resourceNumber);
+          await publishResource(resource.id || resource.resourceNumber);
         } else {
-          await unpublishResource(resource.resourceNumber);
+          await unpublishResource(resource.id || resource.resourceNumber);
         }
-        setResources(
-          resources.map((r) =>
-            r.resourceNumber === resource.resourceNumber ? updatedResource : r
-          )
-        );
+        const refreshed = await getAllResourcesForAdmin();
+        setResources(refreshed);
       } catch (err) {
         console.error('Failed to toggle publish status:', err);
       }
@@ -296,15 +316,12 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     } else {
       try {
         if (!isCurrentlyArchived) {
-          await archiveResource(resource.resourceNumber);
+          await archiveResource(resource.id || resource.resourceNumber);
         } else {
-          await unpublishResource(resource.resourceNumber);
+          await unpublishResource(resource.id || resource.resourceNumber);
         }
-        setResources(
-          resources.map((r) =>
-            r.resourceNumber === resource.resourceNumber ? updatedResource : r
-          )
-        );
+        const refreshed = await getAllResourcesForAdmin();
+        setResources(refreshed);
       } catch (err) {
         console.error('Failed to archive resource:', err);
       }
@@ -318,7 +335,8 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     } else {
       try {
         await deleteResource(resourceNumber);
-        setResources(resources.filter((r) => r.resourceNumber !== resourceNumber));
+        const refreshed = await getAllResourcesForAdmin();
+        setResources(refreshed);
       } catch (err) {
         console.error('Failed to delete resource in Firestore:', err);
       }
@@ -326,11 +344,10 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   };
 
   const handleSaveEditor = async (doc: ResourceDocument) => {
-    const existingIndex = resources.findIndex(
-      (r) => r.resourceNumber === doc.resourceNumber
-    );
-
     if (isDevPreview) {
+      const existingIndex = resources.findIndex(
+        (r) => r.resourceNumber === doc.resourceNumber || r.id === doc.id
+      );
       let updatedList: ResourceDocument[];
       if (existingIndex >= 0) {
         updatedList = [...resources];
@@ -340,8 +357,13 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
       }
       persistDevChanges(updatedList);
     } else {
-      if (existingIndex >= 0) {
-        await updateResource(doc.resourceNumber, doc);
+      const canonicalId = doc.id || doc.resourceNumber;
+      const existing =
+        (await getResourceByNumber(doc.resourceNumber)) ||
+        (await getResourceById(canonicalId));
+
+      if (existing) {
+        await updateResource(canonicalId, doc);
       } else {
         await createResource(doc);
       }
@@ -349,15 +371,49 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
       setResources(refreshed);
     }
 
+    updateUrlParam(null);
     setViewState('list');
     setSelectedResource(null);
   };
 
-  if (isLoading) {
+  const handleCancelEditor = () => {
+    updateUrlParam(null);
+    setViewState('list');
+    setSelectedResource(null);
+    setRecordNotFoundId(null);
+  };
+
+  if (isLoading || isRecordLoading) {
     return (
       <div className="p-12 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <p className="text-sm">Loading Educational Resources CMS...</p>
+        <p className="text-sm">
+          {isRecordLoading ? 'Retrieving resource record from database...' : 'Loading Educational Resources CMS...'}
+        </p>
+      </div>
+    );
+  }
+
+  // Not Found State for direct URL access to non-existent record
+  if (recordNotFoundId && viewState === 'list') {
+    return (
+      <div className="p-8 max-w-xl mx-auto text-center space-y-4 border border-destructive/20 bg-destructive/5 rounded-2xl">
+        <AlertCircle className="w-10 h-10 text-destructive mx-auto" />
+        <h3 className="text-base font-bold text-foreground">Resource Not Found</h3>
+        <p className="text-sm text-muted-foreground">
+          Resource with identifier &quot;{recordNotFoundId}&quot; was not found in the educational archive.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setRecordNotFoundId(null);
+            updateUrlParam(null);
+          }}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Resources List</span>
+        </button>
       </div>
     );
   }
@@ -365,14 +421,12 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   if (viewState === 'editor') {
     return (
       <ResourceEditor
+        key={selectedResource?.id || selectedResource?.resourceNumber || 'new'}
         initialResource={selectedResource || undefined}
         existingNumbers={resources.map((r) => r.resourceNumber)}
         existingSlugs={resources.map((r) => ({ number: r.resourceNumber, slug: r.slug }))}
         onSave={handleSaveEditor}
-        onCancel={() => {
-          setViewState('list');
-          setSelectedResource(null);
-        }}
+        onCancel={handleCancelEditor}
         isDevPreview={isDevPreview}
       />
     );
@@ -384,10 +438,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <button
             type="button"
-            onClick={() => {
-              setViewState('list');
-              setSelectedResource(null);
-            }}
+            onClick={handleCancelEditor}
             className="text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             ← Back to Resources List

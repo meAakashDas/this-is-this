@@ -2,7 +2,6 @@
 import { getPublicSiteConfig } from '../lib/cms/contentLoader';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { Toaster } from '../components/ui/sonner';
 import '../styles/global.css';
 
 const siteConfig = getPublicSiteConfig();
@@ -68,6 +67,13 @@ const canonicalURL = new URL(cleanPath, siteConfig.url);
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
     <link rel="shortcut icon" href="/favicon.ico?v=2" />
 
+    <!-- Performance Preloads & DNS Prefetch -->
+    <link rel="dns-prefetch" href="https://www.youtube-nocookie.com" />
+    <link rel="preload" href="/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    {cleanPath === '/' && (
+      <link rel="preload" as="image" href="/images/aakash-das.webp" type="image/webp" fetchpriority="high" />
+    )}
+
     <!-- Theme Initialization Script (Prevent FOUC) -->
     <script is:inline>
       (function () {
@@ -97,6 +103,5 @@ const canonicalURL = new URL(cleanPath, siteConfig.url);
     </main>
 
     <Footer />
-    <Toaster client:load />
   </body>
 </html>

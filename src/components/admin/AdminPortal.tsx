@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminAuth } from '../../lib/auth/useAdminAuth.ts';
 import { AdminLoginCard } from './AdminLoginCard.tsx';
 import { AdminHeader } from './AdminHeader.tsx';
@@ -15,6 +15,17 @@ import { WebsiteSettingsEditor } from './settings/WebsiteSettingsEditor.tsx';
 import { Toaster } from '../ui/sonner.tsx';
 import { Loader2, Info } from 'lucide-react';
 
+const VALID_TABS: AdminTab[] = [
+  'overview',
+  'profile',
+  'homepage',
+  'about',
+  'resources',
+  'journal',
+  'publishing',
+  'settings',
+];
+
 export const AdminPortal: React.FC = () => {
   const {
     user,
@@ -28,7 +39,46 @@ export const AdminPortal: React.FC = () => {
     enableDevPreview,
   } = useAdminAuth();
 
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  // Read initial tab from URL if present
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') as AdminTab;
+      if (tabParam && VALID_TABS.includes(tabParam)) {
+        return tabParam;
+      }
+    }
+    return 'overview';
+  });
+
+  // Handle tab selection and keep URL search params in sync
+  const handleSelectTab = (tab: AdminTab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      // Clean up item IDs when switching primary tabs
+      url.searchParams.delete('id');
+      url.searchParams.delete('slug');
+      url.searchParams.delete('edit');
+      window.history.pushState(null, '', url.toString());
+    }
+  };
+
+  // Sync with browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab') as AdminTab;
+        if (tabParam && VALID_TABS.includes(tabParam)) {
+          setActiveTab(tabParam);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // 1. Initializing state: show dedicated loading screen while verifying Firebase session
   if (status === 'initializing') {
@@ -76,12 +126,12 @@ export const AdminPortal: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Left Sidebar */}
-          <AdminSidebar activeTab={activeTab} onSelectTab={setActiveTab} />
+          <AdminSidebar activeTab={activeTab} onSelectTab={handleSelectTab} />
 
           {/* Right Main Content */}
           <section className="flex-1 w-full min-w-0" aria-label="Admin Content Pane">
             {activeTab === 'overview' ? (
-              <AdminOverview user={user} onNavigateTab={setActiveTab} />
+              <AdminOverview user={user} onNavigateTab={handleSelectTab} />
             ) : activeTab === 'profile' ? (
               <ProfileEditor isDevPreview={isDevPreview} />
             ) : activeTab === 'homepage' ? (
@@ -99,7 +149,7 @@ export const AdminPortal: React.FC = () => {
             ) : (
               <AdminComingSoon
                 tab={activeTab}
-                onBackToOverview={() => setActiveTab('overview')}
+                onBackToOverview={() => handleSelectTab('overview')}
               />
             )}
           </section>

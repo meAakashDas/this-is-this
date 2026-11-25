@@ -81,10 +81,24 @@ jobs:
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
 
+      - name: Package Static Build Artifact
+        run: |
+          tar \
+            --dereference --hard-dereference \
+            --directory ./dist \
+            -cvf "$RUNNER_TEMP/artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=".[^/]*" \
+            .
+
       - name: Upload Static Build Artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          path: './dist'
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   # =========================================================================
   # Deploy Job: Runs ONLY after build succeeds, querying the completed artifact

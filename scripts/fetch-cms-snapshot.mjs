@@ -33,6 +33,11 @@ import {
   journalContentToBlockNote,
   blockNoteToHtml,
 } from '../src/utils/blockNoteMigration.ts';
+import {
+  restoreBlocksFromFirestore,
+  restoreContentBlocksFromFirestore,
+  unwrapNestedArraysFromFirestore,
+} from '../src/lib/cms/sanitize.ts';
 
 const args = process.argv.slice(2);
 const forceStatic = args.includes('--force-static');
@@ -444,8 +449,20 @@ async function fetchFromFirestore() {
         : '/images/aakash-das.webp';
     }
     const aboutPage = aboutSnap.exists() ? aboutSnap.data() : null;
-    const resources = resourcesSnap.docs.map((d) => d.data());
-    const journals = journalsSnap.docs.map((d) => d.data());
+    const resources = resourcesSnap.docs.map((d) => {
+      const data = unwrapNestedArraysFromFirestore(d.data());
+      if (data.blocknoteJson !== undefined) data.blocknoteJson = restoreBlocksFromFirestore(data.blocknoteJson);
+      if (data.contentJson !== undefined) data.contentJson = restoreBlocksFromFirestore(data.contentJson);
+      if (Array.isArray(data.contentBlocks)) {
+        data.contentBlocks = restoreContentBlocksFromFirestore(data.contentBlocks);
+      }
+      return data;
+    });
+    const journals = journalsSnap.docs.map((d) => {
+      const data = unwrapNestedArraysFromFirestore(d.data());
+      if (data.blocknoteJson !== undefined) data.blocknoteJson = restoreBlocksFromFirestore(data.blocknoteJson);
+      return data;
+    });
 
     return { siteSettings, homePage, aboutPage, resources, journals };
   } catch (err) {

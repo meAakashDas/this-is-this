@@ -49,6 +49,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     )
   );
   const [attachmentsMutated, setAttachmentsMutated] = useState(false);
+  const [stagedAttachmentIds, setStagedAttachmentIds] = useState<Set<string>>(new Set());
 
   // Queue storage paths removed/replaced during this edit session; only delete after Firestore save succeeds
   const pendingCleanupPathsRef = useRef<Set<string>>(new Set());
@@ -92,11 +93,18 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
 
   const handleAttachmentsChange = (
     updated: CmsAttachment[],
-    meta?: { attachmentsMutated?: boolean }
+    meta?: { attachmentsMutated?: boolean; stagedAttachmentId?: string }
   ) => {
     setAttachments(updated);
     if (meta?.attachmentsMutated) {
       setAttachmentsMutated(true);
+    }
+    if (meta?.stagedAttachmentId) {
+      setStagedAttachmentIds((prev) => {
+        const next = new Set(prev);
+        meta.stagedAttachmentId!.split(',').filter(Boolean).forEach((id) => next.add(id));
+        return next;
+      });
     }
     setIsDirty(true);
     setErrorMsg(null);
@@ -224,6 +232,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       setStatus(targetStatus);
       setIsDirty(false);
       setAttachmentsMutated(false);
+      setStagedAttachmentIds(new Set());
       setSuccessMsg(
         targetStatus === 'published'
           ? isDevPreview
@@ -351,21 +360,17 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
         aria-labelledby="downloadable-files-heading"
         className="space-y-4 pt-2"
       >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <UploadCloud className="w-5 h-5 text-primary" />
-            <h3 id="downloadable-files-heading" className="text-base font-semibold tracking-tight text-foreground m-0">
-              1. Downloadable Files
-            </h3>
-          </div>
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-secondary text-foreground border border-border">
-            {attachments.length} {attachments.length === 1 ? 'file' : 'files'}
-          </span>
+        <div className="flex items-center gap-2">
+          <UploadCloud className="w-5 h-5 text-primary" />
+          <h3 id="downloadable-files-heading" className="text-base font-semibold tracking-tight text-foreground m-0">
+            1. Downloadable Files
+          </h3>
         </div>
 
         <AttachmentManager
           resourceNumber={resourceNumber}
           attachments={attachments}
+          stagedIds={stagedAttachmentIds}
           onChange={handleAttachmentsChange}
           onQueueBinaryCleanup={handleQueueBinaryCleanup}
           isDevPreview={isDevPreview}

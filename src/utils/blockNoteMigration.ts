@@ -32,16 +32,30 @@ export function generateBlockId(): string {
 }
 
 /**
- * Extract plain text string from BlockNote inline content
+ * Unwraps BlockNote inline content arrays cleanly, including v0.57+ `tableCell` objects.
+ */
+function unwrapInlineArray(content: any): any[] | null {
+  if (!content) return null;
+  if (Array.isArray(content)) return content;
+  if (typeof content === 'object' && Array.isArray(content.content)) {
+    return content.content;
+  }
+  return null;
+}
+
+/**
+ * Extract plain text string from BlockNote inline content (or tableCell object)
  */
 export function blockNoteInlineToPlainText(content: any): string {
   if (!content) return '';
   if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
+  const items = unwrapInlineArray(content);
+  if (!items) return '';
 
-  return content
+  return items
     .map((item: any) => {
       if (typeof item === 'string') return item;
+      if (!item || typeof item !== 'object') return '';
       if (item.type === 'text') return item.text || '';
       if (item.type === 'link') {
         if (Array.isArray(item.content)) {
@@ -49,22 +63,27 @@ export function blockNoteInlineToPlainText(content: any): string {
         }
         return item.text || item.href || '';
       }
+      if (Array.isArray(item.content)) {
+        return blockNoteInlineToPlainText(item.content);
+      }
       return item.text || '';
     })
     .join('');
 }
 
 /**
- * Render BlockNote inline content to HTML with styles and links
+ * Render BlockNote inline content (or tableCell object) to HTML with styles and links
  */
 export function renderInlineContentToHtml(content: any): string {
   if (!content) return '';
   if (typeof content === 'string') return escapeHtml(content);
-  if (!Array.isArray(content)) return '';
+  const items = unwrapInlineArray(content);
+  if (!items) return '';
 
-  return content
+  return items
     .map((item: any) => {
       if (typeof item === 'string') return escapeHtml(item);
+      if (!item || typeof item !== 'object') return '';
 
       if (item.type === 'link') {
         const linkText = Array.isArray(item.content)
@@ -364,15 +383,19 @@ export function blockNoteToHtml(blocks: any[] = []): string {
       currentListType = block.type;
 
       const innerHtml = renderInlineContentToHtml(block.content);
+      const nestedHtml =
+        Array.isArray(block.children) && block.children.length > 0
+          ? `\n<div class="mt-2 ml-4">${blockNoteToHtml(block.children)}</div>`
+          : '';
 
       if (block.type === 'checkListItem') {
         const isChecked = Boolean(block.props?.checked);
         listItems.push(
-          `  <li class="editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground"><span class="checklist-box font-mono font-bold text-xs ${isChecked ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground/60'}">${isChecked ? '✓' : '○'}</span><span class="text-foreground/90">${innerHtml}</span></li>`
+          `  <li class="editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground"><span class="checklist-box font-mono font-bold text-xs ${isChecked ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground/60'}">${isChecked ? '✓' : '○'}</span><span class="text-foreground/90">${innerHtml}${nestedHtml}</span></li>`
         );
       } else {
         listItems.push(
-          `  <li class="editorial-list-item text-base leading-relaxed text-muted-foreground"><span class="text-foreground/90">${innerHtml}</span></li>`
+          `  <li class="editorial-list-item text-base leading-relaxed text-muted-foreground"><span class="text-foreground/90">${innerHtml}${nestedHtml}</span></li>`
         );
       }
       continue;
@@ -546,6 +569,19 @@ export function blockNoteToContentBlocks(blocks: any[] = []): ContentBlock[] {
     }
   }
 
+  const collectChildTextItems = (children: any[] = []): string[] => {
+    const items: string[] = [];
+    for (const child of children) {
+      if (!child || typeof child !== 'object') continue;
+      const t = blockNoteInlineToPlainText(child.content);
+      if (t) items.push(t);
+      if (Array.isArray(child.children) && child.children.length > 0) {
+        items.push(...collectChildTextItems(child.children));
+      }
+    }
+    return items;
+  };
+
   for (const block of blocks) {
     if (!block || typeof block !== 'object') continue;
 
@@ -553,11 +589,17 @@ export function blockNoteToContentBlocks(blocks: any[] = []): ContentBlock[] {
       if (currentOrderedItems.length > 0) flushLists();
       const text = blockNoteInlineToPlainText(block.content);
       if (text) currentBulletItems.push(text);
+      if (Array.isArray(block.children) && block.children.length > 0) {
+        currentBulletItems.push(...collectChildTextItems(block.children));
+      }
       continue;
     } else if (block.type === 'numberedListItem') {
       if (currentBulletItems.length > 0) flushLists();
       const text = blockNoteInlineToPlainText(block.content);
       if (text) currentOrderedItems.push(text);
+      if (Array.isArray(block.children) && block.children.length > 0) {
+        currentOrderedItems.push(...collectChildTextItems(block.children));
+      }
       continue;
     } else {
       flushLists();

@@ -11,7 +11,18 @@ import {
 } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateResource, validateResourceNumber } from './validation.ts';
-import { removeUndefinedFields, sanitizeAssetUrl, clearLiveSyncCache } from './sanitize.ts';
+import {
+  removeUndefinedFields,
+  sanitizeAssetUrl,
+  clearLiveSyncCache,
+  serializeBlocksForFirestore,
+  restoreBlocksFromFirestore,
+  serializeContentBlocksForFirestore,
+  restoreContentBlocksFromFirestore,
+  wrapNestedArraysForFirestore,
+  unwrapNestedArraysFromFirestore,
+  validateFirestoreDocumentPayload,
+} from './sanitize.ts';
 import { CmsError, CmsNotFoundError, CmsConflictError } from './errors.ts';
 import type { ResourceDocument } from '../../types/cms/index.ts';
 import snapshotData from '../../data/cms-snapshot.json' with { type: 'json' };
@@ -24,65 +35,52 @@ import {
 const COLLECTION = 'resources';
 
 /**
- * Sanitizes data for Firestore by converting nested arrays (e.g. in BlockNote tables
- * and content block tables) into Firestore-compatible formats and stripping any undefined values.
+ * Schema-aware sanitizer for Firestore Resource documents.
+ * Preserves rich BlockNote structures (`blocknoteJson` & `contentJson`) and `contentBlocks`
+ * tables as Firestore objects/arrays with zero nested arrays and zero `undefined` values,
+ * then validates the final payload before writing to Firestore.
  */
-function sanitizeForFirestore(obj: any): any {
+function sanitizeForFirestore(obj: any, docId?: string): any {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj !== 'object') return obj;
 
   const cleaned = removeUndefinedFields(obj);
   const copy = Array.isArray(cleaned) ? [...cleaned] : { ...cleaned };
 
-  // BlockNote JSON can contain tables with nested cell arrays.
-  // Serialize blocknoteJson to JSON string to guarantee 100% Firestore compatibility.
-  if ('blocknoteJson' in copy && copy.blocknoteJson !== undefined && typeof copy.blocknoteJson !== 'string') {
-    copy.blocknoteJson = JSON.stringify(copy.blocknoteJson);
+  if ('blocknoteJson' in copy && copy.blocknoteJson !== undefined) {
+    copy.blocknoteJson = serializeBlocksForFirestore(copy.blocknoteJson);
   }
 
-  // Content blocks can have table blocks with rows: string[][]
+  if ('contentJson' in copy && copy.contentJson !== undefined) {
+    copy.contentJson = serializeBlocksForFirestore(copy.contentJson);
+  }
+
   if ('contentBlocks' in copy && Array.isArray(copy.contentBlocks)) {
-    copy.contentBlocks = copy.contentBlocks.map((block: any) => {
-      if (block && block.type === 'table' && Array.isArray(block.rows)) {
-        return {
-          ...block,
-          rows: block.rows.map((row: any) => (Array.isArray(row) ? { cells: row } : row)),
-        };
-      }
-      return block;
-    });
+    copy.contentBlocks = serializeContentBlocksForFirestore(copy.contentBlocks);
   }
 
-  return removeUndefinedFields(copy);
+  const finalPayload = removeUndefinedFields(wrapNestedArraysForFirestore(copy));
+  validateFirestoreDocumentPayload(finalPayload, `resources/${docId || copy.id || copy.resourceNumber || 'unknown'}`);
+  return finalPayload;
 }
 
 /**
- * Restores sanitized data from Firestore back into rich JavaScript objects and nested arrays.
+ * Restores sanitized resource data from Firestore back into rich JavaScript structures.
  */
 function restoreFromFirestore(docData: any): ResourceDocument {
   if (!docData) return docData;
-  const copy = { ...docData };
+  const copy = unwrapNestedArraysFromFirestore({ ...docData });
 
-  if (typeof copy.blocknoteJson === 'string') {
-    try {
-      copy.blocknoteJson = JSON.parse(copy.blocknoteJson);
-    } catch {
-      // keep as string if parsing fails
-    }
+  if (copy.blocknoteJson !== undefined) {
+    copy.blocknoteJson = restoreBlocksFromFirestore(copy.blocknoteJson);
+  }
+
+  if (copy.contentJson !== undefined) {
+    copy.contentJson = restoreBlocksFromFirestore(copy.contentJson);
   }
 
   if (Array.isArray(copy.contentBlocks)) {
-    copy.contentBlocks = copy.contentBlocks.map((block: any) => {
-      if (block && block.type === 'table' && Array.isArray(block.rows)) {
-        return {
-          ...block,
-          rows: block.rows.map((row: any) =>
-            row && typeof row === 'object' && 'cells' in row ? row.cells : row
-          ),
-        };
-      }
-      return block;
-    });
+    copy.contentBlocks = restoreContentBlocksFromFirestore(copy.contentBlocks);
   }
 
   return copy as ResourceDocument;
@@ -370,7 +368,7 @@ export async function createResource(
 
   try {
     const docRef = doc(db, COLLECTION, resourceNumber);
-    await setDoc(docRef, sanitizeForFirestore(validated));
+    await setDoc(docRef, sanitizeForFirestore(validated, resourceNumber));
     clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
@@ -464,7 +462,7 @@ export async function updateResource(
     const docRef = doc(db, COLLECTION, finalDocId);
     // Write full sanitized document (since `merged` already preserves `existing` fields)
     // so removed fields like cleared pdfPreviewUrl/docxUrl are actually deleted in Firestore.
-    await setDoc(docRef, sanitizeForFirestore(validated));
+    await setDoc(docRef, sanitizeForFirestore(validated, finalDocId));
     if (isNumberMigrating) {
       try {
         await deleteDoc(doc(db, COLLECTION, canonicalDocId));

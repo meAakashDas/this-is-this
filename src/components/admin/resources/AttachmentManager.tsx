@@ -25,7 +25,8 @@ import {
 interface AttachmentManagerProps {
   resourceNumber: string;
   attachments: CmsAttachment[];
-  onChange: (attachments: CmsAttachment[], meta?: { attachmentsMutated?: boolean }) => void;
+  stagedIds?: Set<string>;
+  onChange: (attachments: CmsAttachment[], meta?: { attachmentsMutated?: boolean; stagedAttachmentId?: string }) => void;
   onQueueBinaryCleanup?: (storagePath: string) => void;
   isDevPreview?: boolean;
 }
@@ -48,8 +49,8 @@ const SUPPORTED_EXTENSIONS = [
 const MAX_DOC_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_IMG_SIZE = 10 * 1024 * 1024; // 10 MB
 // Cloud Firestore hard limit is 1 MiB (1,048,576 bytes).
-// ~600 KB binary becomes ~800 KB base64 safely inside a Firestore document alongside content.
-const MAX_INLINE_FIRESTORE_BYTES = 600 * 1024;
+// Keep inline fallback binaries compact so the full document never exceeds 1 MiB.
+const MAX_INLINE_FIRESTORE_BYTES = 550 * 1024;
 const MAX_TOTAL_INLINE_BYTES = 700 * 1024;
 const STORAGE_TIMEOUT_MS = 4000;
 
@@ -312,6 +313,7 @@ export async function cleanupObsoleteAttachmentBinary(storagePath: string): Prom
 export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   resourceNumber,
   attachments,
+  stagedIds,
   onChange,
   onQueueBinaryCleanup,
   isDevPreview = false,
@@ -462,11 +464,12 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
 
       if (addedAttachments.length > 0) {
         const updatedList = [...attachments, ...addedAttachments];
-        onChange(updatedList, { attachmentsMutated: true });
+        const stagedId = addedAttachments.map((a) => a.id).join(',');
+        onChange(updatedList, { attachmentsMutated: true, stagedAttachmentId: stagedId });
         setUploadSuccess(
           addedAttachments.length === 1
-            ? `Added "${addedAttachments[0].fileName}" (${addedAttachments[0].fileSize}). Click Save Draft or Publish/Update to save to Firestore.`
-            : `Added ${addedAttachments.length} files. Click Save Draft or Publish/Update to save to Firestore.`
+            ? `Added "${addedAttachments[0].fileName}" (${addedAttachments[0].fileSize}) — staged locally. Click Save Draft or Publish/Update to save.`
+            : `Added ${addedAttachments.length} files — staged locally. Click Save Draft or Publish/Update to save.`
         );
       }
     } catch (err: any) {
@@ -534,9 +537,9 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         uploadedAt: new Date().toISOString(),
       };
 
-      onChange(updated, { attachmentsMutated: true });
+      onChange(updated, { attachmentsMutated: true, stagedAttachmentId: oldAtt.id });
       setUploadSuccess(
-        `Replaced "${oldAtt.fileName || oldAtt.name}" with "${file.name}" (${formatBytes(file.size)}). Click Save Draft or Publish/Update to save changes.`
+        `Replaced "${oldAtt.fileName || oldAtt.name}" with "${file.name}" (${formatBytes(file.size)}) — staged locally. Click Save Draft or Publish/Update to save changes.`
       );
     } catch (replaceErr: any) {
       setUploadError(replaceErr?.message || `Failed to replace "${oldAtt.name}".`);
@@ -646,11 +649,11 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
             <UploadCloud className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground m-0">
-              Drag and drop files here, or click to upload
+            <p className="text-sm font-medium text-foreground m-0">
+              Drop files here or click to upload
             </p>
             <p className="text-xs text-muted-foreground mt-1 m-0">
-              Supports PDF, DOC, DOCX, XLS, XLSX, CSV, PPT, PPTX, ZIP, PNG, JPG (multiple files supported)
+              PDF, DOC, DOCX, XLS, XLSX, CSV, PPT, PPTX, ZIP, PNG, JPG
             </p>
           </div>
         </div>
@@ -727,6 +730,15 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                       {att.fileSize && (
                         <span className="text-xs text-muted-foreground font-mono shrink-0">
                           • {att.fileSize}
+                        </span>
+                      )}
+                      {stagedIds?.has(att.id) ? (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 shrink-0">
+                          Staged (unsaved)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shrink-0">
+                          Saved
                         </span>
                       )}
                     </div>

@@ -23,7 +23,9 @@ export function getStaticPaths() {
 const siteConfig = getPublicSiteConfig();
 const { id } = Astro.params;
 const resource = id ? getPublicResourceByNumber(id) : undefined;
-const isPublished = Boolean(resource && resource.published);
+const isPublished = Boolean(
+  resource && resource.published && resource.status !== 'draft' && resource.status !== 'archived'
+);
 
 if (!isPublished) {
   Astro.response.status = 404;

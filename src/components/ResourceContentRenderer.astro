@@ -12,7 +12,22 @@ interface Props {
 
 const { blocks = [], contentHtml, blocknoteHtml, blocknoteJson } = Astro.props;
 
-const renderedHtml = blocknoteHtml || (blocknoteJson && Array.isArray(blocknoteJson) && blocknoteJson.length > 0 ? blockNoteToHtml(blocknoteJson) : contentHtml);
+const parsedBlocknoteJson = (() => {
+  if (Array.isArray(blocknoteJson)) return blocknoteJson;
+  if (typeof blocknoteJson === 'string') {
+    try {
+      const parsed = JSON.parse(blocknoteJson);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+})();
+
+const renderedHtml =
+  blocknoteHtml ||
+  (parsedBlocknoteJson.length > 0 ? blockNoteToHtml(parsedBlocknoteJson) : contentHtml);
 
 function isSafeUrl(url?: string): boolean {
   if (!url) return false;

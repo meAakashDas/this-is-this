@@ -56,7 +56,14 @@ function isSafePublicUrl(url: unknown): url is string {
   const lower = trimmed.toLowerCase();
   if (lower.startsWith('blob:') || lower.startsWith('javascript:')) return false;
   if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
-  if (lower.startsWith('data:image/') || lower.startsWith('data:application/')) return true;
+  if (
+    lower.startsWith('data:image/') ||
+    lower.startsWith('data:application/') ||
+    lower.startsWith('data:text/csv') ||
+    lower.startsWith('data:text/plain')
+  ) {
+    return true;
+  }
   try {
     const parsed = new URL(trimmed);
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol);

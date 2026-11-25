@@ -4,7 +4,10 @@
  * Ensures all objects written to Cloud Firestore conform to strict Firestore constraints:
  * 1. Strips all `undefined` values recursively (Firestore throws fatal exception if `undefined` is passed).
  * 2. Prevents temporary `blob:` URLs from ever being persisted in Firestore or rendered publicly.
- * 3. Invalidates client-side live sync caches on mutations.
+ * 3. Schema-aware serialization eliminating unsupported nested arrays (e.g. BlockNote table cells)
+ *    while preserving rich BlockNote & ContentBlock structure natively as Firestore objects/arrays.
+ * 4. Pre-write Firestore payload validation catching remaining invalid structures or >1 MiB size.
+ * 5. Invalidates client-side live sync caches on mutations.
  */
 
 /**
@@ -61,6 +64,256 @@ export function removeUndefinedFields<T>(obj: T): T {
   }
 
   return obj;
+}
+
+/**
+ * Recursively wraps any direct nested arrays (`[[...]]`) into `{ __fsNestedArray: true, items: [...] }`
+ * so Firestore never receives unsupported array-of-arrays while preserving exact structure on restore.
+ */
+export function wrapNestedArraysForFirestore<T>(value: T): T {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Date || value instanceof RegExp) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      const sanitizedItem = wrapNestedArraysForFirestore(item);
+      if (Array.isArray(sanitizedItem)) {
+        return {
+          __fsNestedArray: true,
+          items: sanitizedItem,
+        };
+      }
+      return sanitizedItem;
+    }) as unknown as T;
+  }
+
+  const out: Record<string, any> = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (val !== undefined) {
+      out[key] = wrapNestedArraysForFirestore(val);
+    }
+  }
+  return out as T;
+}
+
+/**
+ * Unwraps `{ __fsNestedArray: true, items: [...] }` wrappers created during Firestore sanitization.
+ */
+export function unwrapNestedArraysFromFirestore<T>(value: T): T {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Date || value instanceof RegExp) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => unwrapNestedArraysFromFirestore(item)) as unknown as T;
+  }
+
+  const record = value as Record<string, any>;
+  if (record.__fsNestedArray === true && Array.isArray(record.items)) {
+    return unwrapNestedArraysFromFirestore(record.items) as unknown as T;
+  }
+
+  const out: Record<string, any> = {};
+  for (const [key, val] of Object.entries(record)) {
+    out[key] = unwrapNestedArraysFromFirestore(val);
+  }
+  return out as T;
+}
+
+/**
+ * Schema-aware serializer for BlockNote documents targeting Cloud Firestore.
+ * Converts table cell arrays (`rows[].cells: InlineContent[][]`) into BlockNote tableCell
+ * objects (`{ type: 'tableCell', content: InlineContent[], props: {...} }`) and recurses
+ * through child blocks (`children`) and props so zero direct nested arrays remain.
+ */
+export function serializeBlocksForFirestore(rawBlocks: unknown): any {
+  let blocks = rawBlocks;
+  if (typeof blocks === 'string') {
+    try {
+      const parsed = JSON.parse(blocks);
+      if (Array.isArray(parsed)) {
+        blocks = parsed;
+      } else {
+        return rawBlocks;
+      }
+    } catch {
+      return rawBlocks;
+    }
+  }
+
+  if (!Array.isArray(blocks)) {
+    return wrapNestedArraysForFirestore(removeUndefinedFields(blocks));
+  }
+
+  const convertBlock = (block: any): any => {
+    if (!block || typeof block !== 'object') return block;
+
+    const cleanBlock: Record<string, any> = {};
+    for (const [k, v] of Object.entries(block)) {
+      if (v !== undefined) {
+        cleanBlock[k] = v;
+      }
+    }
+
+    // Schema-aware conversion for BlockNote tables (`content.type === 'tableContent'` or `rows`)
+    if (cleanBlock.type === 'table' && cleanBlock.content && typeof cleanBlock.content === 'object') {
+      const rows = Array.isArray(cleanBlock.content.rows) ? cleanBlock.content.rows : [];
+      cleanBlock.content = {
+        ...cleanBlock.content,
+        rows: rows.map((row: any) => {
+          if (!row || typeof row !== 'object') return row;
+          const cells = Array.isArray(row.cells) ? row.cells : [];
+          return {
+            ...row,
+            cells: cells.map((cell: any) => {
+              if (Array.isArray(cell)) {
+                return {
+                  type: 'tableCell',
+                  content: wrapNestedArraysForFirestore(removeUndefinedFields(cell)),
+                  props: {
+                    backgroundColor: 'default',
+                    textColor: 'default',
+                    textAlignment: 'left',
+                    colspan: 1,
+                    rowspan: 1,
+                  },
+                };
+              }
+              if (cell && typeof cell === 'object') {
+                return wrapNestedArraysForFirestore(removeUndefinedFields(cell));
+              }
+              return {
+                type: 'tableCell',
+                content: cell ? [{ type: 'text', text: String(cell), styles: {} }] : [],
+              };
+            }),
+          };
+        }),
+      };
+    } else if (cleanBlock.content !== undefined) {
+      cleanBlock.content = wrapNestedArraysForFirestore(removeUndefinedFields(cleanBlock.content));
+    }
+
+    if (Array.isArray(cleanBlock.children)) {
+      cleanBlock.children = cleanBlock.children.map((child: any) => convertBlock(child));
+    }
+
+    if (cleanBlock.props !== undefined) {
+      cleanBlock.props = wrapNestedArraysForFirestore(removeUndefinedFields(cleanBlock.props));
+    }
+
+    return wrapNestedArraysForFirestore(removeUndefinedFields(cleanBlock));
+  };
+
+  return blocks.map((b) => convertBlock(b));
+}
+
+/**
+ * Restores BlockNote blocks from Firestore (handling legacy JSON strings,
+ * `{ __fsNestedArray }` wrappers, and object-wrapped table cells).
+ */
+export function restoreBlocksFromFirestore(rawBlocks: unknown): any {
+  let blocks = rawBlocks;
+  if (typeof blocks === 'string') {
+    try {
+      blocks = JSON.parse(blocks);
+    } catch {
+      return rawBlocks;
+    }
+  }
+  return unwrapNestedArraysFromFirestore(blocks);
+}
+
+/**
+ * Converts legacy `ContentBlock[]` (e.g. `type: 'table'` with `rows: string[][]`) into Firestore-safe objects.
+ */
+export function serializeContentBlocksForFirestore(blocks: unknown): any {
+  if (!Array.isArray(blocks)) return blocks;
+  return blocks.map((block: any) => {
+    if (block && block.type === 'table' && Array.isArray(block.rows)) {
+      return wrapNestedArraysForFirestore(
+        removeUndefinedFields({
+          ...block,
+          rows: block.rows.map((row: any) => (Array.isArray(row) ? { cells: row } : row)),
+        })
+      );
+    }
+    return wrapNestedArraysForFirestore(removeUndefinedFields(block));
+  });
+}
+
+/**
+ * Restores legacy `ContentBlock[]` table rows back into `string[][]`.
+ */
+export function restoreContentBlocksFromFirestore(blocks: unknown): any {
+  if (!Array.isArray(blocks)) return blocks;
+  return unwrapNestedArraysFromFirestore(blocks).map((block: any) => {
+    if (block && block.type === 'table' && Array.isArray(block.rows)) {
+      return {
+        ...block,
+        rows: block.rows.map((row: any) =>
+          row && typeof row === 'object' && 'cells' in row ? row.cells : row
+        ),
+      };
+    }
+    return block;
+  });
+}
+
+const FIRESTORE_SAFE_BYTE_LIMIT = 980 * 1024; // Safety threshold below Firestore 1,048,576-byte limit
+
+/**
+ * Validates that a Firestore document payload contains zero `undefined` values,
+ * zero direct nested arrays (`Array` inside `Array`), and fits within Firestore's 1 MiB limit.
+ * Throws a clear error identifying the exact problematic field path on violation.
+ */
+export function validateFirestoreDocumentPayload(payload: unknown, rootPath: string = 'document'): void {
+  const walk = (val: unknown, fieldPath: string) => {
+    if (val === undefined) {
+      throw new Error(`Invalid Firestore payload: field "${fieldPath}" is undefined.`);
+    }
+    if (val === null || typeof val !== 'object') {
+      return;
+    }
+    if (val instanceof Date || val instanceof RegExp) {
+      return;
+    }
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) {
+        const item = val[i];
+        const itemPath = `${fieldPath}[${i}]`;
+        if (Array.isArray(item)) {
+          throw new Error(
+            `Invalid Firestore payload: nested array detected at "${itemPath}". Arrays cannot directly contain arrays.`
+          );
+        }
+        walk(item, itemPath);
+      }
+      return;
+    }
+    for (const [k, v] of Object.entries(val)) {
+      walk(v, `${fieldPath}.${k}`);
+    }
+  };
+
+  walk(payload, rootPath);
+
+  const jsonStr = JSON.stringify(payload);
+  const byteSize =
+    typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(jsonStr).length : jsonStr.length;
+  if (byteSize > FIRESTORE_SAFE_BYTE_LIMIT) {
+    const sizeKb = Math.round(byteSize / 1024);
+    throw new Error(
+      `Resource document (${sizeKb} KB) exceeds Firestore's 1 MiB limit (often caused by large inline attachments or embedded images). Remove large inline files or configure GitHub/Firebase Storage.`
+    );
+  }
 }
 
 /**

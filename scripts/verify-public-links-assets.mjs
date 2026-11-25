@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:4321';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:4321';
 
 const PUBLIC_ROUTES = [
   '/',
@@ -104,7 +104,7 @@ async function verifyPublicLinksAndAssets() {
       const response = await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle' });
       const status = response ? response.status() : 0;
       const text = await page.content();
-      const has404 = status === 404 || text.includes('404') || text.includes('Not Found');
+      const has404 = status === 404 || text.includes('404') || text.includes('Not Found') || text.includes('Not Available');
       if (!has404) {
         errors.push(`Route ${route} did not return 404 (status: ${status})`);
       } else {

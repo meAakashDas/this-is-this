@@ -791,7 +791,6 @@ async function syncJournalDetail(db: any, slug: string) {
             <h1 class="article-title text-2xl sm:text-3xl md:text-[2.25rem] font-semibold tracking-tight text-foreground m-0 text-balance leading-tight">${escapeHtml(data.title)}</h1>
           </header>
           <div class="h-px bg-border w-full my-6 sm:my-8" role="separator"></div>
-          ${isSafePublicUrl(data.coverImage) ? `<figure class="mb-6 rounded-xl overflow-hidden border border-border"><img src="${escapeHtml(data.coverImage)}" alt="${escapeHtml(data.thumbnailAlt || data.title)}" class="w-full max-h-80 object-cover block" /></figure>` : ''}
           <div class="article-content space-y-6 max-w-[760px]">
             <div class="journal-document-content notion-prose">${bodyHtml}</div>
           </div>
@@ -808,9 +807,13 @@ async function syncJournalDetail(db: any, slug: string) {
     }
 
     if (bodyHtml) {
-      const contentDiv = articleEl.querySelector('.journal-document-content');
-      if (contentDiv && contentDiv.innerHTML !== bodyHtml) {
-        contentDiv.innerHTML = bodyHtml;
+      const richContainer = articleEl.querySelector('.journal-document-content');
+      const contentWrapper = articleEl.querySelector('.article-content');
+      const isAdminEdited = data.updatedBy === 'aakashdas.photo@gmail.com';
+      if (richContainer && richContainer.innerHTML !== bodyHtml) {
+        richContainer.innerHTML = bodyHtml;
+      } else if (!richContainer && contentWrapper && isAdminEdited) {
+        contentWrapper.innerHTML = `<div class="journal-document-content notion-prose">${bodyHtml}</div>`;
       }
     }
   } catch (err) {

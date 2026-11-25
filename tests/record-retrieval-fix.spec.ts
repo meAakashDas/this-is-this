@@ -64,13 +64,10 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
     // Wait for the journal editor to load
     await expect(page.locator('input[placeholder*="Article Title"]')).toBeVisible({ timeout: 10000 });
 
-    // Verify Title
+    // Verify Title and simplified single-section editor loaded cleanly
     const titleInput = page.locator('input[placeholder*="Article Title"]');
     await expect(titleInput).toHaveValue('Where Finance Meets Technology');
-
-    // Verify Category select value is Finance & Tech
-    const categorySelect = page.locator('select').first();
-    await expect(categorySelect).toHaveValue('Finance & Tech');
+    await expect(page.locator('#article-content-editor')).toBeVisible();
 
     // CRITICAL: Ensure NO false "Journal with identifier was not found" error appears
     const notFoundError = page.locator('text=Journal with identifier "where-finance-meets-technology" was not found');
@@ -85,10 +82,11 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
     // Verify PUBLISHED badge is visible
     await expect(page.locator('span:has-text("PUBLISHED")')).toBeVisible();
 
-    // Test Save Draft button
+    // Test Save Draft & Update Article buttons
     const saveDraftBtn = page.locator('button:has-text("Save Draft")');
     await expect(saveDraftBtn).toBeVisible();
-    await saveDraftBtn.click();
+    await expect(page.locator('button:has-text("Update Article")')).toBeVisible();
+    await page.locator('button:has-text("Update Article")').click();
 
     // Ensure save succeeds without any errors
     await expect(notFoundError).toHaveCount(0);
@@ -120,7 +118,7 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
 
     // Clicking "Back to Journal" returns to listing
     await page.locator('button:has-text("Back to Journal")').click();
-    await expect(page.locator('h2:has-text("Journal & Articles CMS")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Journal & Articles")')).toBeVisible();
   });
 
   test('E. Edit buttons in listings synchronize URL parameters and preserve editing session on page refresh', async ({

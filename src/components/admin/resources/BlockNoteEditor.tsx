@@ -91,24 +91,33 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     return undefined;
   }, []);
 
+  // Cache unprovisioned Spark-plan storage state so inline image insertion is instant
+  const storageDisabledRef = React.useRef(false);
+
   // Initialize BlockNote editor
   const editor = useCreateBlockNote({
     initialContent: validInitialContent,
     uploadFile: async (file: File) => {
       try {
-        if (!isDevPreview) {
+        if (!isDevPreview && !storageDisabledRef.current) {
           const storage = tryGetFirebaseStorage();
           if (storage) {
             const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
             const prefix = uploadPrefix || `uploads/resources/${resourceNumber}`;
             const storagePath = `${prefix}/images/${Date.now()}-${cleanName}`;
             const fileRef = ref(storage, storagePath);
-            await uploadBytes(fileRef, file);
+            await Promise.race([
+              uploadBytes(fileRef, file),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Storage upload timeout')), 4000)
+              ),
+            ]);
             return await getDownloadURL(fileRef);
           }
         }
       } catch (err) {
-        console.warn('[BlockNote] Storage upload skipped/failed on Spark plan, converting to Data URL:', err);
+        storageDisabledRef.current = true;
+        console.warn('[BlockNote] Storage upload unavailable on Spark plan, embedding Data URL:', err);
       }
       const compressed = await compressImageFile(file, 1200, 1200, 0.85);
       return compressed.dataUrl;

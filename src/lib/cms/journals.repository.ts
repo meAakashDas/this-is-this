@@ -417,7 +417,7 @@ export async function updateJournal(
     id: finalDocId,
     slug: targetSlug,
     coverImage: sanitizeAssetUrl(
-      data.coverImage !== undefined ? data.coverImage : existing.coverImage,
+      'coverImage' in data ? data.coverImage : existing.coverImage,
       ''
     ) || undefined,
     blocknoteJson: data.blocknoteJson !== undefined ? data.blocknoteJson : existing.blocknoteJson,
@@ -434,7 +434,8 @@ export async function updateJournal(
 
   try {
     const docRef = doc(db, COLLECTION, finalDocId);
-    await setDoc(docRef, sanitizeForFirestore(validated), { merge: !isSlugMigrating });
+    // Write full sanitized document (merged preserves existing fields) so removed fields clear cleanly
+    await setDoc(docRef, sanitizeForFirestore(validated));
     if (isSlugMigrating) {
       try {
         await deleteDoc(doc(db, COLLECTION, canonicalDocId));

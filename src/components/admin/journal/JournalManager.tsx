@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import type { JournalDocument } from '../../../types/cms/journal.ts';
 import { JournalList } from './JournalList.tsx';
 import { JournalEditor } from './JournalEditor.tsx';
-import { JournalPreview } from './JournalPreview.tsx';
 import {
   getAllJournalsForAdmin,
   getJournalBySlug,
@@ -13,8 +12,6 @@ import {
   updateJournal,
   publishJournal,
   unpublishJournal,
-  archiveJournal,
-  duplicateJournal,
   deleteJournal,
   getBaselineFallbackJournals,
 } from '../../../lib/cms/journals.repository.ts';
@@ -30,9 +27,10 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
   const [loading, setLoading] = useState(true);
   const [isRecordLoading, setIsRecordLoading] = useState(false);
   const [recordNotFoundSlug, setRecordNotFoundSlug] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'list' | 'editor' | 'preview'>('list');
+  const [activeView, setActiveView] = useState<'list' | 'editor'>('list');
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<JournalDocument | null>(null);
+  const [editorSessionKey, setEditorSessionKey] = useState<string>('initial');
 
   // Helper to sync URL search params
   const updateUrlParam = useCallback((idOrSlug: string | null, isCreate: boolean = false) => {
@@ -111,6 +109,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
               if (found) {
                 setSelectedSlug(found.slug);
                 setSelectedArticle(found);
+                setEditorSessionKey(`edit-${found.slug}`);
                 setActiveView('editor');
                 setRecordNotFoundSlug(null);
               } else {
@@ -122,6 +121,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
           } else if (isCreate) {
             setSelectedSlug(null);
             setSelectedArticle(null);
+            setEditorSessionKey(`create-${Date.now()}`);
             setActiveView('editor');
           }
         }
@@ -153,6 +153,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
   const handleCreate = () => {
     setSelectedSlug(null);
     setSelectedArticle(null);
+    setEditorSessionKey(`create-${Date.now()}`);
     setRecordNotFoundSlug(null);
     setActiveView('editor');
     updateUrlParam(null, true);
@@ -171,6 +172,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
         if (foundLocal) {
           setSelectedSlug(foundLocal.slug);
           setSelectedArticle(foundLocal);
+          setEditorSessionKey(`edit-${foundLocal.slug}`);
           setActiveView('editor');
           return;
         }
@@ -186,6 +188,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       if (fullDoc) {
         setSelectedSlug(fullDoc.slug);
         setSelectedArticle(fullDoc);
+        setEditorSessionKey(`edit-${fullDoc.slug}`);
         setActiveView('editor');
       } else {
         setRecordNotFoundSlug(slug);
@@ -197,6 +200,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       if (cached) {
         setSelectedSlug(cached.slug);
         setSelectedArticle(cached);
+        setEditorSessionKey(`edit-${cached.slug}`);
         setActiveView('editor');
       } else {
         setRecordNotFoundSlug(slug);
@@ -205,13 +209,6 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
     } finally {
       setIsRecordLoading(false);
     }
-  };
-
-  const handlePreview = (slug: string) => {
-    const article = articles.find((a) => a.slug === slug) || null;
-    setSelectedSlug(slug);
-    setSelectedArticle(article);
-    setActiveView('preview');
   };
 
   const handleBackToList = () => {
@@ -250,6 +247,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       persistArticles(updated);
       setSelectedSlug(finalDoc.slug);
       setSelectedArticle(finalDoc);
+      updateUrlParam(finalDoc.slug);
       toast.success(isPub ? `Article "${finalDoc.title}" published (Dev Preview).` : `Draft "${finalDoc.title}" saved (Dev Preview).`);
     } else {
       const originalLookupId = selectedArticle?.id || selectedArticle?.slug || canonicalId;
@@ -258,21 +256,21 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
         (await getJournalBySlug(originalLookupId)) ||
         (await getJournalBySlug(finalDoc.slug));
 
-      if (existing) {
-        await updateJournal(existing.id || existing.slug, finalDoc);
-      } else {
-        await createJournal(finalDoc);
-      }
+      const savedDoc = existing
+        ? await updateJournal(existing.id || existing.slug, finalDoc)
+        : await createJournal(finalDoc);
 
       const refreshed = await getAllJournalsForAdmin();
       setArticles(refreshed);
-      setSelectedSlug(finalDoc.slug);
-      setSelectedArticle(finalDoc);
-      toast.success(isPub ? `Article "${finalDoc.title}" published to Cloud Firestore.` : `Article "${finalDoc.title}" saved as draft in Cloud Firestore.`);
+      setSelectedSlug(savedDoc.slug);
+      setSelectedArticle(savedDoc);
+      updateUrlParam(savedDoc.slug);
+      toast.success(
+        isPub
+          ? `Article "${savedDoc.title}" published to Cloud Firestore.`
+          : `Article "${savedDoc.title}" saved as draft in Cloud Firestore.`
+      );
     }
-
-    updateUrlParam(null);
-    setActiveView('list');
   };
 
   const handleTogglePublish = async (slug: string) => {
@@ -309,85 +307,6 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       toast.success(isCurrentlyPub ? `Unpublished "${target.title}" to draft.` : `Published "${target.title}" to Cloud Firestore.`);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update article publish status.');
-    }
-  };
-
-  const handleArchive = async (slug: string) => {
-    const target = articles.find((a) => a.slug === slug);
-    if (!target) return;
-    const isArch = target.status === 'archived';
-    const nextStatus = isArch ? 'draft' : 'archived';
-
-    if (isDevPreview) {
-      const updated = articles.map((a) =>
-        a.slug === slug
-          ? {
-              ...a,
-              published: false,
-              status: nextStatus as any,
-              archivedAt: isArch ? undefined : new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }
-          : a
-      );
-      persistArticles(updated);
-      toast.success(isArch ? 'Article restored to draft.' : 'Article archived.');
-      return;
-    }
-
-    try {
-      if (!isArch) {
-        await archiveJournal(target.id || slug);
-      } else {
-        await unpublishJournal(target.id || slug);
-      }
-
-      const refreshed = await getAllJournalsForAdmin();
-      setArticles(refreshed);
-      toast.success(isArch ? `Restored "${target.title}" to draft.` : `Archived "${target.title}".`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to update article archive status.');
-    }
-  };
-
-  const handleDuplicate = async (slug: string) => {
-    const target = articles.find((a) => a.slug === slug);
-    if (!target) return;
-
-    if (isDevPreview) {
-      const baseSlug = `${target.slug}-copy`;
-      let newSlug = baseSlug;
-      let counter = 1;
-      while (articles.some((a) => a.slug === newSlug)) {
-        counter++;
-        newSlug = `${baseSlug}-${counter}`;
-      }
-
-      const clone: JournalDocument = {
-        ...JSON.parse(JSON.stringify(target)),
-        id: newSlug,
-        slug: newSlug,
-        title: `${target.title} (Copy)`,
-        published: false,
-        status: 'draft',
-        order: (target.order || 0) + 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const updated = [clone, ...articles];
-      persistArticles(updated);
-      toast.success(`Duplicated "${target.title}".`);
-      return;
-    }
-
-    try {
-      await duplicateJournal(target.id || slug);
-      const refreshed = await getAllJournalsForAdmin();
-      setArticles(refreshed);
-      toast.success(`Duplicated "${target.title}" as draft.`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to duplicate article.');
     }
   };
 
@@ -448,10 +367,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
           articles={articles}
           onCreate={handleCreate}
           onEdit={handleEdit}
-          onPreview={handlePreview}
-          onDuplicate={handleDuplicate}
           onTogglePublish={handleTogglePublish}
-          onArchive={handleArchive}
           onDelete={handleDelete}
           isDevPreview={isDevPreview}
         />
@@ -459,36 +375,13 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
 
       {activeView === 'editor' && (
         <JournalEditor
-          key={selectedArticle?.id || selectedArticle?.slug || 'new'}
+          key={editorSessionKey}
           initialArticle={selectedArticle}
           existingSlugs={articles.map((a) => a.slug)}
           onSave={handleSaveArticle}
           onCancel={handleBackToList}
           isDevPreview={isDevPreview}
         />
-      )}
-
-      {activeView === 'preview' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-2">
-            <button
-              type="button"
-              onClick={handleBackToList}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors shadow-xs cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Journal Articles</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView('editor')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
-            >
-              Edit This Article
-            </button>
-          </div>
-          <JournalPreview article={selectedArticle || {}} />
-        </div>
       )}
     </div>
   );

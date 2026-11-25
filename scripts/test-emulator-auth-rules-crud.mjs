@@ -317,36 +317,79 @@ async function run() {
   assert.strictEqual(deleted990, null);
   console.log('  ✓ Resource #001 update and #990 draft -> publish -> unpublish -> delete verified under firestore.rules.');
 
-  // 5. Journal Repository CRUD
-  console.log('\n[5/6] Testing Journal Repository Create -> Update -> Delete...');
+  // 5. Journal Repository Full Workflow (Create Draft -> Publish -> Edit Preserving Slug -> Unpublish -> Delete)
+  console.log('\n[5/6] Testing Journal Repository Create -> Publish -> Update (Preserve Slug) -> Unpublish -> Delete...');
   await createJournal(
     {
       slug: 'emulator-verified-article',
       title: 'Emulator Verified Article',
       category: 'Learning',
       excerpt: 'Testing persistence.',
-      publishedAt: '2026-11-25',
+      publishedAt: 'November 2026',
       readTime: '3 min read',
       published: false,
       status: 'draft',
+      blocknoteHtml: '<h2>Draft Intro</h2><p>Initial draft body.</p>',
+      contentHtml: '<h2>Draft Intro</h2><p>Initial draft body.</p>',
       content: {
         lead: 'Initial lead paragraph.',
-        sections: [
-          {
-            heading: 'Section One',
-            paragraphs: ['Verified emulator persistence body.'],
-          },
-        ],
+        sections: [{ heading: 'Section One', paragraphs: ['Initial draft body.'] }],
       },
     },
     'aakashdas.photo@gmail.com'
   );
-  await updateJournal('emulator-verified-article', { published: true, status: 'published' });
-  const jRead = await getJournalBySlug('emulator-verified-article');
-  assert.strictEqual(jRead?.published, true);
+
+  // Anonymous visitor MUST NOT read draft article
+  await signOut(auth);
+  await expectRejected(
+    () => getDoc(doc(db, 'journals', 'emulator-verified-article')),
+    'Unpublished draft journal must be denied to anonymous visitors'
+  );
+
+  // Admin publishes article
+  await signInWithCredential(
+    auth,
+    googleCredentialFor('uid-aakash-admin', 'aakashdas.photo@gmail.com', true)
+  );
+  await updateJournal(
+    'emulator-verified-article',
+    {
+      title: 'Emulator Verified Article (Edited)',
+      published: true,
+      status: 'published',
+      blocknoteHtml: '<h2>Published Heading</h2><p>Inline image:</p><img src="data:image/png;base64,iVBORw0KGgo=" alt="Inline" />',
+      contentHtml: '<h2>Published Heading</h2><p>Inline image:</p><img src="data:image/png;base64,iVBORw0KGgo=" alt="Inline" />',
+    },
+    'aakashdas.photo@gmail.com'
+  );
+
+  // Anonymous visitor CAN read published article and sees preserved slug + edited content
+  await signOut(auth);
+  const pubJournalSnap = await getDoc(doc(db, 'journals', 'emulator-verified-article'));
+  assert.strictEqual(pubJournalSnap.exists(), true, 'Published journal must be publicly readable');
+  assert.strictEqual(pubJournalSnap.data().slug, 'emulator-verified-article', 'Slug must be preserved cleanly');
+  assert.ok(pubJournalSnap.data().contentHtml.includes('data:image/png;base64,'), 'Inline image Data URI must persist');
+
+  // Admin unpublishes article -> hidden again
+  await signInWithCredential(
+    auth,
+    googleCredentialFor('uid-aakash-admin', 'aakashdas.photo@gmail.com', true)
+  );
+  await updateJournal('emulator-verified-article', { published: false, status: 'draft' }, 'aakashdas.photo@gmail.com');
+  await signOut(auth);
+  await expectRejected(
+    () => getDoc(doc(db, 'journals', 'emulator-verified-article')),
+    'Unpublished journal must immediately be hidden from public readers'
+  );
+
+  // Admin deletes article -> permanently removed
+  await signInWithCredential(
+    auth,
+    googleCredentialFor('uid-aakash-admin', 'aakashdas.photo@gmail.com', true)
+  );
   await deleteJournal('emulator-verified-article');
   assert.strictEqual(await getJournalBySlug('emulator-verified-article'), null);
-  console.log('  ✓ Journal CRUD verified cleanly.');
+  console.log('  ✓ Journal Create -> Draft -> Publish -> Edit -> Unpublish -> Delete verified cleanly.');
 
   // 6. Firebase Storage Rules & > 600 KB PDF Upload Test
   console.log('\n[6/6] Testing storage.rules with >600 KB (750 KB) PDF upload...');

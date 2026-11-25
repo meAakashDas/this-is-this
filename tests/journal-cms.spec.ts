@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Journal & Articles CMS QA', () => {
+test.describe('Simplified Single-Section Journal CMS QA', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/admin');
     await page.evaluate(() => {
@@ -17,306 +17,166 @@ test.describe('Journal & Articles CMS QA', () => {
       'Dev Preview CMS UI tests require astro dev (IS_DEV=true); production preview enforces Google OAuth'
     );
   });
-  test('1. Sidebar has Journal tab marked active/ready without Phase 8 badge', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
 
+  test('1. Sidebar has Journal tab marked active/ready', async ({ page }) => {
     const journalTab = page.locator('aside button:has-text("Journal")');
     await expect(journalTab).toBeVisible();
     await expect(journalTab.locator('text=Phase 8')).toHaveCount(0);
   });
 
-  test('2. Clicking Journal tab loads Journal CMS dashboard and metrics', async ({
+  test('2. Simple Journal Management List displays title, excerpt, status, Edit, Publish/Unpublish, and Delete', async ({
     page,
   }) => {
-    await page.goto('/admin');
     await page.locator('aside button:has-text("Journal")').click();
 
-    // Verify main heading
-    await expect(
-      page.locator('h2:has-text("Journal & Articles CMS")')
-    ).toBeVisible();
+    await expect(page.locator('h2:has-text("Journal & Articles")')).toBeVisible();
+    await expect(page.locator('.article-card')).toHaveCount(4);
 
-    // Verify metrics cards exist
-    const metricsBar = page.locator('.grid:has-text("Total Articles")');
-    await expect(metricsBar.getByText('Total Articles')).toBeVisible();
-    await expect(metricsBar.getByText('Published')).toBeVisible();
-    await expect(metricsBar.getByText('Drafts')).toBeVisible();
-    await expect(metricsBar.getByText('Archived')).toBeVisible();
-
-    // Verify baseline articles are listed
+    // Essential article details
     await expect(page.locator('text=Why I Believe in Learning in Public')).toBeVisible();
     await expect(page.locator('text=Building Something That Matters')).toBeVisible();
     await expect(page.locator('text=Where Finance Meets Technology')).toBeVisible();
+    await expect(page.locator('text=The Value of Being a Beginner')).toBeVisible();
+
+    // Essential actions only (no Category/Tag/Sort/Duplicate/Archive clutter)
+    await expect(page.getByLabel('Filter by category')).toHaveCount(0);
+    await expect(page.getByLabel('Filter by tag')).toHaveCount(0);
+    await expect(page.getByLabel('Sort articles')).toHaveCount(0);
+    await expect(
+      page.locator('button[aria-label="Edit Article why-i-believe-in-learning-in-public"]')
+    ).toBeVisible();
+    await expect(page.locator('button:has-text("Unpublish")').first()).toBeVisible();
+    await expect(
+      page.locator('button[aria-label="Delete Article why-i-believe-in-learning-in-public"]')
+    ).toBeVisible();
   });
 
-  test('3. Search input filters articles by title, slug, or tag', async ({ page }) => {
-    await page.goto('/admin');
+  test('3. Search & status pills filter articles cleanly', async ({ page }) => {
     await page.locator('aside button:has-text("Journal")').click();
 
-    const searchInput = page.locator('input[placeholder*="Search by title"]');
-    await expect(searchInput).toBeVisible();
-
-    // Search for "Beginner"
+    const searchInput = page.locator('input[placeholder*="Search articles"]');
     await searchInput.fill('Beginner');
     await expect(page.locator('text=The Value of Being a Beginner')).toBeVisible();
     await expect(page.locator('text=Why I Believe in Learning in Public')).toHaveCount(0);
 
-    // Clear search
     await searchInput.fill('');
-    await expect(page.locator('text=Why I Believe in Learning in Public')).toBeVisible();
-  });
-
-  test('4. Category filter dropdown filters articles', async ({ page }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-
-    const categorySelect = page.getByLabel('Filter by category');
-    await expect(categorySelect).toBeVisible();
-
-    // Filter by Learning
-    await categorySelect.selectOption('Learning');
-    await expect(page.locator('text=Why I Believe in Learning in Public')).toBeVisible();
-    await expect(page.locator('text=Building Something That Matters')).toHaveCount(0);
-  });
-
-  test('5. Status filter pills toggle between All, Published, and Draft', async ({ page }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-
-    // Switch to Published
-    await page.locator('button:has-text("Published")').first().click();
-    await expect(page.locator('text=Why I Believe in Learning in Public')).toBeVisible();
-
-    // Switch to Drafts (initially zero, shows empty state)
     await page.locator('button:has-text("Draft")').first().click();
     await expect(page.locator('text=No articles found')).toBeVisible();
-
-    // Switch back to All
     await page.locator('button:has-text("All")').click();
-    await expect(page.locator('text=Why I Believe in Learning in Public')).toBeVisible();
+    await expect(page.locator('.article-card')).toHaveCount(4);
   });
 
-  test('6. Clicking Create Article opens the Notion-Style Journal Editor', async ({
+  test('4. Journal Editor contains ONLY Article Content Editor and 4 action buttons, with all SEO/settings removed', async ({
     page,
   }) => {
-    await page.goto('/admin');
     await page.locator('aside button:has-text("Journal")').click();
-
-    // Click Create Article
     await page.locator('button:has-text("Create Article")').click();
 
-    // Verify editor heading
-    await expect(
-      page.locator('h2:has-text("Create Journal Article")')
-    ).toBeVisible();
-
-    // Verify action bar buttons
+    // Verify action bar: Cancel, Save Draft, Live Preview, Publish Article
+    await expect(page.locator('button:has-text("Cancel")')).toBeVisible();
     await expect(page.locator('button:has-text("Save Draft")')).toBeVisible();
     await expect(page.locator('button:has-text("Live Preview")')).toBeVisible();
     await expect(page.locator('button:has-text("Publish Article")')).toBeVisible();
 
-    // Verify Notion editor writing canvas and toolbar
-    await expect(page.locator('.notion-toolbar')).toBeVisible();
-    await expect(page.locator('.notion-prose')).toBeVisible();
+    // Strictly ONE main editor section
+    await expect(page.locator('.journal-editor-container > section')).toHaveCount(1);
+    await expect(page.locator('#article-content-editor')).toBeVisible();
+    await expect(page.locator('.bn-editor')).toBeVisible();
 
-    // Verify metrics badges
-    await expect(page.locator('text=min read')).toBeVisible();
-    await expect(page.locator('text=words')).toBeVisible();
+    // Verify ALL removed settings/metadata panels are completely absent
+    await expect(page.locator('#settings-seo')).toHaveCount(0);
+    await expect(page.locator('button:has-text("Editorial Settings & SEO")')).toHaveCount(0);
+    await expect(page.locator('text=Featured Article Image')).toHaveCount(0);
+    await expect(page.locator('text=Taxonomy & Categorization')).toHaveCount(0);
+    await expect(page.locator('input[placeholder*="Brief secondary subtitle"]')).toHaveCount(0);
+    await expect(page.locator('textarea[placeholder*="Short introductory summary"]')).toHaveCount(0);
+    await expect(page.locator('select')).toHaveCount(0);
   });
 
-  test('7. Journal Editor allows inputting Title, Subtitle, and Excerpt', async ({
+  test('5. Create, write formatted blocks + slash commands + Nepali text, Save Draft, Publish, Update, Unpublish & Delete', async ({
     page,
   }) => {
-    await page.goto('/admin');
     await page.locator('aside button:has-text("Journal")').click();
     await page.locator('button:has-text("Create Article")').click();
 
-    // Check inputs exist
-    const titleInput = page.locator('input[placeholder*="Why I Believe in Learning"]');
-    await expect(titleInput).toBeVisible();
-    await titleInput.fill('Building Sustainable Wealth');
-    await expect(titleInput).toHaveValue('Building Sustainable Wealth');
-
-    const subtitleInput = page.locator('input[placeholder*="Brief secondary subtitle"]');
-    await expect(subtitleInput).toBeVisible();
-    await subtitleInput.fill('A guide for students and early professionals');
-    await expect(subtitleInput).toHaveValue('A guide for students and early professionals');
-
-    const excerptInput = page.locator('textarea[placeholder*="Short introductory summary"]');
-    await expect(excerptInput).toBeVisible();
-    await excerptInput.fill('An overview of prudent budgeting and long-term asset accumulation.');
-    await expect(excerptInput).toHaveValue('An overview of prudent budgeting and long-term asset accumulation.');
-  });
-
-  test('8. BlockNote Editor in Journal: Typing, headings, lists, and tables in writing canvas', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-    await page.locator('button:has-text("Create Article")').click();
+    const titleInput = page.locator('input[placeholder*="Article Title"]');
+    await titleInput.fill('Simple Wealth Framework');
 
     const editor = page.locator('.bn-editor');
-    await expect(editor).toBeVisible();
     await editor.click();
-    await page.keyboard.type('Economic Realities in Emerging Markets');
-    await expect(editor).toContainText('Economic Realities in Emerging Markets');
-
-    // Press Enter to start new paragraph
+    await page.keyboard.type('/h2');
     await page.keyboard.press('Enter');
-    await page.keyboard.type('First paragraph detailing the importance of cash reserves.');
-    await expect(editor).toContainText('First paragraph detailing the importance of cash reserves.');
-
-    // Insert table via /table command
+    await page.keyboard.type('Core Principles');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('First paragraph about long-term clarity.');
     await page.keyboard.press('Enter');
     await page.keyboard.type('/table');
     await page.keyboard.press('Enter');
-    const table = page.locator('.blocknote-canvas-container table, .bn-editor table');
-    await expect(table.first()).toBeVisible();
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/image');
+    await page.keyboard.press('Enter');
+    await expect(editor.locator('h2')).toContainText('Core Principles');
+    await expect(editor.locator('table')).toBeVisible();
+
+    // Save Draft -> persists cleanly
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(page.locator('[role="status"]:has-text("saved as draft")').first()).toBeVisible();
+    await expect(page.getByText('DRAFT', { exact: true })).toBeVisible();
+
+    // Refresh browser -> draft remains in editor
+    await page.reload();
+    await expect(page.locator('input[placeholder*="Article Title"]')).toHaveValue('Simple Wealth Framework');
+
+    // Publish Article -> switches to PUBLISHED & Update Article
+    await page.locator('button:has-text("Publish Article")').click();
+    await expect(page.locator('[role="status"]:has-text("published")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Update Article")')).toBeVisible();
+
+    // Back to list -> Unpublish -> Delete
+    await page.locator('button[aria-label="Back to Journal list"]').click();
+    const card = page.locator('.article-card', { hasText: 'Simple Wealth Framework' });
+    await expect(card).toBeVisible();
+    await expect(card.getByText('PUBLISHED', { exact: true })).toBeVisible();
+
+    await card.locator('button:has-text("Unpublish")').click();
+    await expect(card.getByText('DRAFT', { exact: true })).toBeVisible();
+
+    await card.locator('button:has-text("Delete")').click();
+    await page.locator('button:has-text("Delete Article")').click();
+    await expect(page.locator('.article-card')).toHaveCount(4);
   });
 
-  test('9. BlockNote Editor in Journal: Slash Commands menu (/ commands) inserts blocks', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
+  test('6. Live Preview works cleanly for existing article', async ({ page }) => {
     await page.locator('aside button:has-text("Journal")').click();
-    await page.locator('button:has-text("Create Article")').click();
+    await page.locator('button[aria-label="Edit Article why-i-believe-in-learning-in-public"]').click();
 
-    const editor = page.locator('.bn-editor');
-    await expect(editor).toBeVisible();
-    await editor.click();
-
-    // Type "/" to trigger BlockNote slash menu
-    await page.keyboard.type('/');
-
-    const slashMenu = page.locator('.bn-suggestion-menu, [data-suggestion-menu], [role="menu"]');
-    await expect(slashMenu.first()).toBeVisible();
-  });
-
-  test('10. Nepali Devanagari text is entered and preserved in Journal BlockNote canvas', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-    await page.locator('button:has-text("Create Article")').click();
-
-    // Fill title with Nepali text
-    const titleInput = page.locator('input[placeholder*="Why I Believe in Learning"]');
-    await titleInput.fill('नेपालको वित्तीय साक्षरता');
-    await expect(titleInput).toHaveValue('नेपालको वित्तीय साक्षरता');
-
-    // Fill BlockNote editor with Nepali text
-    const editor = page.locator('.bn-editor');
-    await expect(editor).toBeVisible();
-    await editor.click();
-    const nepaliParagraph = 'बचत र लगानीका आधारभूत सिद्धान्तहरूको व्यावहारिक व्याख्या।';
-    await page.keyboard.type(nepaliParagraph);
-    await expect(editor).toContainText(nepaliParagraph);
-  });
-
-  test('11. Editorial Settings & SEO: Collapsible accordion allows configuring Slug, Tags, Cover Image, and SEO', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-    await page.locator('button:has-text("Create Article")').click();
-
-    // Click toggle to expand settings
-    await page.locator('button:has-text("Editorial Settings, Cover Image & SEO")').click();
-
-    await expect(page.locator('text=Taxonomy & Categorization')).toBeVisible();
-    await expect(page.locator('text=Article Tags')).toBeVisible();
-    await expect(page.locator('text=Quick Suggested Tags:')).toBeVisible();
-    await expect(page.locator('text=Featured Article Image')).toBeVisible();
-    await expect(page.locator('text=SEO & Social Graph Metadata')).toBeVisible();
-    await expect(page.locator('text=Prevent search engine indexing (noindex)')).toBeVisible();
-
-    // Click suggested tag "NEPSE"
-    await page.locator('button:has-text("+ NEPSE")').click();
-    await expect(page.locator('button:has-text("✓ NEPSE")')).toBeVisible();
-  });
-
-  test('12. Live Preview renders Article Detail View and Journal List Card View', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-
-    // Edit baseline article 1
-    const editBtn = page.locator('button[aria-label="Edit Article why-i-believe-in-learning-in-public"]');
-    await expect(editBtn).toBeVisible();
-    await editBtn.click();
-
-    // Switch to Live Preview
+    await expect(page.locator('button:has-text("Update Article")')).toBeVisible();
     await page.locator('button:has-text("Live Preview")').click();
-
-    // Verify detail page mode preview
-    await expect(page.locator('text=https://aakashdas.live/journal/why-i-believe-in-learning-in-public')).toBeVisible();
+    await expect(
+      page.locator('text=https://aakashdas.live/journal/why-i-believe-in-learning-in-public')
+    ).toBeVisible();
     await expect(page.locator('text=Teaching as a Learning Mechanism')).toBeVisible();
 
-    // Switch to Journal List Card View
-    await page.locator('button:has-text("Journal List Card View")').click();
-    await expect(page.locator('text=Read entry')).toBeVisible();
-
-    // Switch to Mobile Viewport
-    await page.locator('button[aria-label="Mobile preview"]').click();
-    await expect(page.locator('text=390px')).toBeVisible();
+    await page.locator('button:has-text("Back to Writing")').click();
+    await expect(page.locator('.bn-editor')).toBeVisible();
   });
 
-  test('13. Edit button opens existing article with prefilled values and Notion canvas', async ({
+  test('7. Public /journal and all 4 existing article routes remain completely intact', async ({
     page,
   }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-
-    // Click edit on article 2
-    const editBtn = page.locator('button[aria-label="Edit Article building-something-that-matters"]');
-    await expect(editBtn).toBeVisible();
-    await editBtn.click();
-
-    // Verify prefilled values
-    await expect(
-      page.locator('input[value="Building Something That Matters"]')
-    ).toBeVisible();
-    await expect(
-      page.locator('.notion-prose')
-    ).toBeVisible();
-  });
-
-  test('14. Duplicating an article creates a draft clone with distinct slug', async ({
-    page,
-  }) => {
-    await page.goto('/admin');
-    await page.locator('aside button:has-text("Journal")').click();
-
-    // Duplicate article 3
-    const dupBtn = page.locator('button[aria-label="Duplicate Article where-finance-meets-technology"]');
-    await expect(dupBtn).toBeVisible();
-    await dupBtn.click();
-
-    // Verify duplicated copy appears in list
-    const copyCard = page.locator('.article-card', {
-      hasText: 'Where Finance Meets Technology (Copy)',
-    });
-    await expect(copyCard).toBeVisible();
-    await expect(copyCard.getByText('DRAFT', { exact: true })).toBeVisible();
-  });
-
-  test('15. Public /journal and /journal/why-i-believe-in-learning-in-public routes remain completely intact', async ({
-    page,
-  }) => {
-    // Check public journal catalog
-    await page.goto('/journal');
+    await page.goto('/journal', { waitUntil: 'load' });
     await expect(page.locator('h1:has-text("Journal")')).toBeVisible();
-    await expect(page.locator('text=Why I Believe in Learning in Public')).toBeVisible();
+    await expect(page.locator('.journal-entry-item')).toHaveCount(4);
 
-    // Check public article detail page
-    await page.goto('/journal/why-i-believe-in-learning-in-public');
-    await expect(
-      page.locator('h1:has-text("Why I Believe in Learning in Public")')
-    ).toBeVisible();
-    await expect(page.locator('text=Teaching as a Learning Mechanism')).toBeVisible();
-    await expect(page.locator('text=Back to Journal')).toBeVisible();
+    for (const slug of [
+      'why-i-believe-in-learning-in-public',
+      'building-something-that-matters',
+      'where-finance-meets-technology',
+      'the-value-of-being-a-beginner',
+    ]) {
+      const resp = await page.goto(`/journal/${slug}`, { waitUntil: 'load' });
+      expect(resp?.status()).toBe(200);
+      await expect(page.locator('a.journal-back-link')).toBeVisible();
+    }
   });
 });

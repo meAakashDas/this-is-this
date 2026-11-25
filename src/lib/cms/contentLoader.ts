@@ -401,6 +401,11 @@ export function getAdjacentPublicResources(currentNumber: string): {
  * Maps CMS JournalDocument to public JournalEntry format.
  */
 function mapDocToJournalEntry(doc: JournalDocument): JournalEntry {
+  const hasRichEditorHtml =
+    !(doc.content?.sections?.length) ||
+    (doc.updatedBy === 'aakashdas.photo@gmail.com' &&
+      Boolean(doc.blocknoteHtml || doc.contentHtml));
+
   return {
     id: doc.id || doc.slug,
     slug: doc.slug,
@@ -410,6 +415,7 @@ function mapDocToJournalEntry(doc: JournalDocument): JournalEntry {
     publishedAt: doc.publishedAt,
     readTime: doc.readTime,
     isSample: doc.isSample ?? false,
+    ...(hasRichEditorHtml ? { contentHtml: doc.blocknoteHtml || doc.contentHtml } : {}),
     content: {
       lead: doc.content?.lead || doc.excerpt,
       sections: (doc.content?.sections || []).map((sec) => ({

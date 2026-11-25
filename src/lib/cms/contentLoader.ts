@@ -351,6 +351,10 @@ function mapDocToResource(doc: ResourceDocument): Resource {
     downloadUrl: doc.downloadUrl && !doc.downloadUrl.startsWith('blob:') ? doc.downloadUrl : undefined,
     pdfPreviewUrl: doc.pdfPreviewUrl && !doc.pdfPreviewUrl.startsWith('blob:') ? doc.pdfPreviewUrl : undefined,
     docxUrl: doc.docxUrl && !doc.docxUrl.startsWith('blob:') ? doc.docxUrl : undefined,
+    contentVersion: doc.contentVersion,
+    generatedPdf: doc.generatedPdf && !doc.generatedPdf.url?.startsWith('blob:') ? doc.generatedPdf : undefined,
+    generatedDocx: doc.generatedDocx && !doc.generatedDocx.url?.startsWith('blob:') ? doc.generatedDocx : undefined,
+    lastGeneratedAt: doc.lastGeneratedAt,
     attachments: (doc.attachments || [])
       .filter((att) => att.visible !== false && att.url && !att.url.startsWith('blob:'))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))

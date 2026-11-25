@@ -28,6 +28,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "firebase": "^13.4.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.77.0",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.8.1",

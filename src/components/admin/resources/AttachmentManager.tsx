@@ -13,19 +13,17 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { CmsAttachment } from '../../../types/cms/resource.ts';
-import { tryGetFirebaseStorage } from '../../../lib/firebase/index.ts';
 import {
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  deleteObject,
-  type FirebaseStorage,
-} from 'firebase/storage';
+  uploadBinaryPermanently,
+  deleteStoredBinarySafely,
+  formatFileSizeBytes as formatBytes,
+} from '../../../lib/cms/storageUpload.ts';
 
 interface AttachmentManagerProps {
   resourceNumber: string;
   attachments: CmsAttachment[];
   stagedIds?: Set<string>;
+  documentContentBytes?: number;
   onChange: (attachments: CmsAttachment[], meta?: { attachmentsMutated?: boolean; stagedAttachmentId?: string }) => void;
   onQueueBinaryCleanup?: (storagePath: string) => void;
   isDevPreview?: boolean;
@@ -48,22 +46,6 @@ const SUPPORTED_EXTENSIONS = [
 
 const MAX_DOC_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_IMG_SIZE = 10 * 1024 * 1024; // 10 MB
-// Cloud Firestore hard limit is 1 MiB (1,048,576 bytes).
-// Keep inline fallback binaries compact so the full document never exceeds 1 MiB.
-const MAX_INLINE_FIRESTORE_BYTES = 550 * 1024;
-const MAX_TOTAL_INLINE_BYTES = 700 * 1024;
-const STORAGE_TIMEOUT_MS = 4000;
-
-// Session cache so unprovisioned Spark-plan Storage is not retried repeatedly on every file
-let firebaseStorageUnavailable = false;
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
 
 function getFormatName(ext: string): string {
   switch (ext.toLowerCase()) {
@@ -91,21 +73,6 @@ function getFormatName(ext: string): string {
   }
 }
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-      } else {
-        reject(new Error('Failed to read file as permanent Data URI.'));
-      }
-    };
-    reader.onerror = () => reject(new Error(`Failed to read "${file.name}".`));
-    reader.readAsDataURL(file);
-  });
-}
-
 function estimateInlineDataUriBytes(attachmentsList: CmsAttachment[]): number {
   let total = 0;
   for (const att of attachmentsList) {
@@ -117,203 +84,17 @@ function estimateInlineDataUriBytes(attachmentsList: CmsAttachment[]): number {
 }
 
 /**
- * Attempts Firebase Storage upload with a strict fail-fast timeout so Spark-plan
- * projects without Storage never hang at "Processing attachment...".
- */
-async function uploadToFirebaseStorageFast(
-  storage: FirebaseStorage,
-  storagePath: string,
-  file: File,
-  onProgress: (pct: number) => void
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const fileRef = ref(storage, storagePath);
-    const task = uploadBytesResumable(fileRef, file, {
-      contentType: file.type || 'application/octet-stream',
-    });
-
-    let settled = false;
-    let timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      try {
-        task.cancel();
-      } catch {
-        // ignore cancel error
-      }
-      firebaseStorageUnavailable = true;
-      reject(new Error('Firebase Storage timed out / unavailable on this project.'));
-    }, STORAGE_TIMEOUT_MS);
-
-    const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        try {
-          task.cancel();
-        } catch {
-          // ignore
-        }
-        firebaseStorageUnavailable = true;
-        reject(new Error('Firebase Storage stalled / unavailable on this project.'));
-      }, STORAGE_TIMEOUT_MS);
-    };
-
-    task.on(
-      'state_changed',
-      (snap) => {
-        if (settled) return;
-        if (snap.bytesTransferred > 0) {
-          resetTimer();
-        }
-        const pct = snap.totalBytes > 0 ? Math.round((snap.bytesTransferred / snap.totalBytes) * 85) : 25;
-        onProgress(Math.max(15, pct));
-      },
-      (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        firebaseStorageUnavailable = true;
-        reject(err);
-      },
-      async () => {
-        if (settled) return;
-        clearTimeout(timer);
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          settled = true;
-          resolve(url);
-        } catch (err) {
-          settled = true;
-          firebaseStorageUnavailable = true;
-          reject(err);
-        }
-      }
-    );
-  });
-}
-
-async function uploadToGitHubDownloadsIfConfigured(
-  file: File,
-  resourceNumber: string,
-  onProgress: (pct: number) => void
-): Promise<{ url: string; storagePath: string } | null> {
-  if (typeof window === 'undefined') return null;
-  const token = sessionStorage.getItem('admin_gh_dispatch_token')?.trim();
-  if (!token) return null;
-
-  onProgress(40);
-  const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const repoFileName = `resource-${resourceNumber}-${cleanFileName}`;
-  const repoPath = `public/downloads/${repoFileName}`;
-  const apiUrl = `https://api.github.com/repos/meAakashDas/this-is-this/contents/${repoPath}`;
-
-  let existingSha: string | undefined;
-  try {
-    const checkRes = await fetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-      },
-    });
-    if (checkRes.ok) {
-      const existingJson = await checkRes.json();
-      existingSha = existingJson.sha;
-    }
-  } catch {
-    // ignore check error
-  }
-
-  onProgress(65);
-  const dataUrl = await fileToDataUrl(file);
-  const base64Content = dataUrl.split(',')[1] || '';
-
-  const putRes = await fetch(apiUrl, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message: `chore(resources): upload ${repoFileName} for resource #${resourceNumber}`,
-      content: base64Content,
-      branch: 'main',
-      ...(existingSha ? { sha: existingSha } : {}),
-    }),
-  });
-
-  if (!putRes.ok) {
-    const errBody = await putRes.json().catch(() => ({}));
-    throw new Error(errBody.message || `GitHub upload failed (${putRes.status})`);
-  }
-
-  onProgress(100);
-  return {
-    url: `/downloads/${repoFileName}`,
-    storagePath: `github:${repoPath}`,
-  };
-}
-
-/**
  * Safely deletes a stored binary from Firebase Storage or GitHub (after Firestore write succeeds).
  */
 export async function cleanupObsoleteAttachmentBinary(storagePath: string): Promise<void> {
-  if (!storagePath) return;
-
-  if (storagePath.startsWith('github:')) {
-    if (typeof window === 'undefined') return;
-    const token = sessionStorage.getItem('admin_gh_dispatch_token')?.trim();
-    if (!token) return;
-    const repoPath = storagePath.replace(/^github:/, '');
-    const apiUrl = `https://api.github.com/repos/meAakashDas/this-is-this/contents/${repoPath}`;
-    try {
-      const checkRes = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github+json',
-        },
-      });
-      if (!checkRes.ok) return;
-      const existingJson = await checkRes.json();
-      if (!existingJson?.sha) return;
-      await fetch(apiUrl, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: `chore(resources): remove obsolete attachment ${repoPath}`,
-          sha: existingJson.sha,
-          branch: 'main',
-        }),
-      });
-    } catch {
-      // Non-fatal cleanup error
-    }
-    return;
-  }
-
-  if (firebaseStorageUnavailable) return;
-  const storage = tryGetFirebaseStorage();
-  if (!storage) return;
-  try {
-    await Promise.race([
-      deleteObject(ref(storage, storagePath)),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), STORAGE_TIMEOUT_MS)),
-    ]);
-  } catch {
-    firebaseStorageUnavailable = true;
-  }
+  return deleteStoredBinarySafely(storagePath);
 }
 
 export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   resourceNumber,
   attachments,
   stagedIds,
+  documentContentBytes = 0,
   onChange,
   onQueueBinaryCleanup,
   isDevPreview = false,
@@ -353,72 +134,23 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     existingPool: CmsAttachment[]
   ): Promise<{ url: string; storagePath?: string }> => {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const repoFileName = `resource-${resourceNumber}-${cleanFileName}`;
     const storagePath = `uploads/resources/${resourceNumber}/${Date.now()}-${cleanFileName}`;
+    const existingInlineBytes =
+      estimateInlineDataUriBytes(existingPool) + documentContentBytes;
 
-    if (isDevPreview) {
-      if (file.size <= MAX_INLINE_FIRESTORE_BYTES) {
-        setUploadProgress(65);
-        const dataUrl = await fileToDataUrl(file);
-        setUploadProgress(100);
-        return { url: dataUrl };
-      }
-      throw new Error(
-        `Cannot store "${file.name}" (${formatBytes(file.size)}) in local preview: exceeds ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit.`
-      );
-    }
-
-    // 1. Firebase Storage (fail-fast when not provisioned)
-    const storage = !firebaseStorageUnavailable ? tryGetFirebaseStorage() : null;
-    if (storage) {
-      try {
-        setUploadProgress(20);
-        const publicUrl = await uploadToFirebaseStorageFast(storage, storagePath, file, (pct) => {
-          setUploadProgress(pct);
-        });
-        setUploadProgress(100);
-        return { url: publicUrl, storagePath };
-      } catch (storageErr) {
-        console.warn('[AttachmentManager] Firebase Storage unavailable, using permanent fallback:', storageErr);
-      }
-    }
-
-    // 2. GitHub Repository (`public/downloads/`) if PAT configured in Publishing
-    let ghFailureReason: string | null = null;
-    try {
-      const ghResult = await uploadToGitHubDownloadsIfConfigured(file, resourceNumber, (pct) => {
-        setUploadProgress(pct);
-      });
-      if (ghResult) {
-        return {
-          url: ghResult.url,
-          storagePath: ghResult.storagePath,
-        };
-      }
-    } catch (ghErr: any) {
-      ghFailureReason = ghErr?.message || 'GitHub upload failed';
-      console.warn('[AttachmentManager] GitHub upload failed:', ghErr);
-    }
-
-    // 3. Permanent inline Data URI in Cloud Firestore
-    if (file.size <= MAX_INLINE_FIRESTORE_BYTES) {
-      setUploadProgress(70);
-      const dataUrl = await fileToDataUrl(file);
-      const projectedBytes = estimateInlineDataUriBytes(existingPool) + dataUrl.length;
-      if (projectedBytes > MAX_TOTAL_INLINE_BYTES * 1.4) {
-        throw new Error(
-          `Adding "${file.name}" exceeds Cloud Firestore's 1 MiB document size limit across inline files. Remove an unused inline file or enable Firebase Storage / GitHub upload token.`
-        );
-      }
-      setUploadProgress(100);
-      return { url: dataUrl };
-    }
-
-    // 4. Reject larger files honestly when Storage & GitHub upload are unavailable
-    throw new Error(
-      ghFailureReason
-        ? `Cannot upload "${file.name}" (${formatBytes(file.size)}): GitHub upload failed (${ghFailureReason}), Firebase Storage is disabled on Spark plan, and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit.`
-        : `Cannot upload "${file.name}" (${formatBytes(file.size)}): Firebase Storage is not provisioned on the free Spark plan and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit. Configure a GitHub token in Publishing to store larger files.`
-    );
+    return uploadBinaryPermanently({
+      fileName: file.name,
+      repoFileName,
+      storagePath,
+      mimeType: file.type || 'application/octet-stream',
+      byteSize: file.size,
+      file,
+      existingInlineBytes,
+      isDevPreview,
+      commitMessage: `chore(resources): upload ${repoFileName} for resource #${resourceNumber}`,
+      onProgress: (pct) => setUploadProgress(pct),
+    });
   };
 
   const handleFiles = async (files: FileList | null) => {

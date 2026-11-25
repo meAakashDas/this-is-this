@@ -25,6 +25,17 @@ export interface CmsExternalLink {
   description?: string;
 }
 
+export interface GeneratedDocumentMeta {
+  url: string;
+  fileName: string;
+  fileSize: string;
+  byteSize?: number;
+  mimeType: string;
+  storagePath?: string;
+  generatedAt: string;
+  contentVersion: string;
+}
+
 export interface ResourceDocument extends CmsDocumentMeta {
   // Identification
   resourceNumber: string; // Immutable 3-digit ID: "001", "002"
@@ -56,6 +67,11 @@ export interface ResourceDocument extends CmsDocumentMeta {
   downloadUrl?: string;
   pdfPreviewUrl?: string;
   docxUrl?: string;
+  contentVersion?: string;
+  generatedPdf?: GeneratedDocumentMeta;
+  generatedDocx?: GeneratedDocumentMeta;
+  lastGeneratedAt?: string;
+  lastGenerationError?: string;
   cardActionLabel?: string; // e.g. "Open"
   detailActionLabel?: string; // e.g. "Download Resources"
 

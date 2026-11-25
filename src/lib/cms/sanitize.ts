@@ -37,16 +37,31 @@ export function sanitizeAssetUrl(url: unknown, fallback: string = ''): string {
 }
 
 /**
- * Recursively removes all undefined properties from an object or array.
- * Preserves Date, RegExp, and primitive values.
+ * Recursively removes all undefined properties (and non-finite numbers like NaN/Infinity)
+ * from objects and filters undefined/non-finite elements from arrays.
+ * Preserves valid values such as false, 0, empty string "", Date, and RegExp.
  */
 export function removeUndefinedFields<T>(obj: T): T {
   if (obj === null || obj === undefined) {
     return obj;
   }
 
+  if (typeof obj === 'number' && !Number.isFinite(obj)) {
+    return undefined as unknown as T;
+  }
+
   if (Array.isArray(obj)) {
-    return obj.map((item) => removeUndefinedFields(item)) as unknown as T;
+    const cleanedItems: any[] = [];
+    for (const item of obj) {
+      if (item === undefined || (typeof item === 'number' && !Number.isFinite(item))) {
+        continue;
+      }
+      const cleanItem = removeUndefinedFields(item);
+      if (cleanItem !== undefined) {
+        cleanedItems.push(cleanItem);
+      }
+    }
+    return cleanedItems as unknown as T;
   }
 
   if (typeof obj === 'object') {
@@ -56,8 +71,15 @@ export function removeUndefinedFields<T>(obj: T): T {
 
     const clean: Record<string, any> = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined) {
-        clean[key] = removeUndefinedFields(value);
+      if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+        continue;
+      }
+      if (typeof value === 'number' && !Number.isFinite(value)) {
+        continue;
+      }
+      const cleanValue = removeUndefinedFields(value);
+      if (cleanValue !== undefined) {
+        clean[key] = cleanValue;
       }
     }
     return clean as T;
@@ -79,22 +101,36 @@ export function wrapNestedArraysForFirestore<T>(value: T): T {
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => {
+    const outArr: any[] = [];
+    for (const item of value) {
+      if (item === undefined || (typeof item === 'number' && !Number.isFinite(item))) {
+        continue;
+      }
       const sanitizedItem = wrapNestedArraysForFirestore(item);
+      if (sanitizedItem === undefined) continue;
       if (Array.isArray(sanitizedItem)) {
-        return {
+        outArr.push({
           __fsNestedArray: true,
           items: sanitizedItem,
-        };
+        });
+      } else {
+        outArr.push(sanitizedItem);
       }
-      return sanitizedItem;
-    }) as unknown as T;
+    }
+    return outArr as unknown as T;
   }
 
   const out: Record<string, any> = {};
   for (const [key, val] of Object.entries(value)) {
-    if (val !== undefined) {
-      out[key] = wrapNestedArraysForFirestore(val);
+    if (val === undefined || typeof val === 'function' || typeof val === 'symbol') {
+      continue;
+    }
+    if (typeof val === 'number' && !Number.isFinite(val)) {
+      continue;
+    }
+    const cleanVal = wrapNestedArraysForFirestore(val);
+    if (cleanVal !== undefined) {
+      out[key] = cleanVal;
     }
   }
   return out as T;
@@ -278,6 +314,9 @@ export function validateFirestoreDocumentPayload(payload: unknown, rootPath: str
   const walk = (val: unknown, fieldPath: string) => {
     if (val === undefined) {
       throw new Error(`Invalid Firestore payload: field "${fieldPath}" is undefined.`);
+    }
+    if (typeof val === 'number' && !Number.isFinite(val)) {
+      throw new Error(`Invalid Firestore payload: field "${fieldPath}" is non-finite (${String(val)}).`);
     }
     if (val === null || typeof val !== 'object') {
       return;

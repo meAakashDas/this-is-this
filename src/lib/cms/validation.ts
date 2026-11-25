@@ -326,6 +326,17 @@ export const youtubeEmbedSchema = z.object({
   caption: z.string().optional(),
 });
 
+export const generatedDocumentMetaSchema = z.object({
+  url: nonBlobStringSchema.min(1),
+  fileName: z.string().min(1),
+  fileSize: z.string().min(1),
+  byteSize: z.number().int().nonnegative().optional(),
+  mimeType: z.string().min(1),
+  storagePath: z.string().optional(),
+  generatedAt: z.string().min(1),
+  contentVersion: z.string().min(1),
+});
+
 export const resourceStatusSchema = z.enum(['draft', 'published', 'archived']);
 
 export const resourceSchema = z.object({
@@ -358,6 +369,11 @@ export const resourceSchema = z.object({
   downloadUrl: nonBlobStringSchema.optional(),
   pdfPreviewUrl: nonBlobStringSchema.optional(),
   docxUrl: nonBlobStringSchema.optional(),
+  contentVersion: z.string().optional(),
+  generatedPdf: generatedDocumentMetaSchema.optional(),
+  generatedDocx: generatedDocumentMetaSchema.optional(),
+  lastGeneratedAt: z.string().optional(),
+  lastGenerationError: z.string().optional(),
   cardActionLabel: z.string().default('Open'),
   detailActionLabel: z.string().default('Download Resources'),
   attachments: z.array(attachmentSchema).default([]),

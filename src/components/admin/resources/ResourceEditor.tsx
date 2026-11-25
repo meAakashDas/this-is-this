@@ -16,6 +16,10 @@ import {
   blockNoteToHtml,
   blockNoteToContentBlocks,
 } from '../../../utils/blockNoteMigration.ts';
+import {
+  computeResourceContentVersion,
+  generateAndStoreResourceExports,
+} from '../../../utils/clientDocumentExport.ts';
 import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
 import { validateAndFormatResourceNumber } from '../../../utils/resourceValidation.ts';
 import type {
@@ -30,7 +34,7 @@ interface ResourceEditorProps {
   existingResources?: Array<{ id: string; resourceNumber: string; title?: string }>;
   defaultAutoNumber?: string;
   existingSlugs?: { number: string; slug: string }[];
-  onSave: (doc: ResourceDocument) => Promise<void>;
+  onSave: (doc: ResourceDocument) => Promise<ResourceDocument | void>;
   onCancel: () => void;
   isDevPreview?: boolean;
 }
@@ -111,6 +115,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
   );
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [savingStage, setSavingStage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -160,28 +165,20 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     const visibleAttachments = attachments.filter(
       (a) => a.visible !== false && !a.url?.trim().toLowerCase().startsWith('blob:')
     );
-    const visiblePdfs = visibleAttachments.filter(
-      (a) => a.fileExtension?.toLowerCase() === 'pdf' || a.isPreviewable
+
+    // Keep generated Resource Document exports strictly independent from manual attachments.
+    const existingPdfPreview = sanitizeAssetUrl(
+      initialResource?.generatedPdf?.url || initialResource?.pdfPreviewUrl,
+      ''
     );
-    const visibleDocx = visibleAttachments.filter(
-      (a) => a.fileExtension?.toLowerCase() === 'docx'
+    const existingDocxUrl = sanitizeAssetUrl(
+      initialResource?.generatedDocx?.url || initialResource?.docxUrl,
+      ''
     );
-
-    const existingPdfPreview = sanitizeAssetUrl(initialResource?.pdfPreviewUrl, '');
-    const existingDownloadUrl = sanitizeAssetUrl(initialResource?.downloadUrl, '');
-    const existingDocxUrl = sanitizeAssetUrl(initialResource?.docxUrl, '');
-
-    const resolvedPdfPreviewUrl = attachmentsMutated
-      ? (visiblePdfs[0]?.url || '')
-      : (existingPdfPreview || visiblePdfs[0]?.url || '');
-
-    const resolvedDownloadUrl = attachmentsMutated
-      ? (visiblePdfs[0]?.url || visibleAttachments[0]?.url || '')
-      : (existingDownloadUrl || visiblePdfs[0]?.url || visibleAttachments[0]?.url || '');
-
-    const resolvedDocxUrl = attachmentsMutated
-      ? (visibleDocx[0]?.url || '')
-      : (existingDocxUrl || visibleDocx[0]?.url || '');
+    const existingDownloadUrl = sanitizeAssetUrl(
+      initialResource?.downloadUrl || existingPdfPreview || visibleAttachments[0]?.url,
+      ''
+    );
 
     const safeSlug =
       initialResource?.slug?.trim() ||
@@ -214,9 +211,9 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       order: initialResource?.order ?? 0,
       publishedAt: initialResource?.publishedAt || now.split('T')[0],
       updatedAtDate: now.split('T')[0],
-      downloadUrl: resolvedDownloadUrl || '',
-      pdfPreviewUrl: resolvedPdfPreviewUrl || '',
-      docxUrl: resolvedDocxUrl || '',
+      downloadUrl: existingDownloadUrl || '',
+      pdfPreviewUrl: existingPdfPreview || '',
+      docxUrl: existingDocxUrl || '',
       cardActionLabel: initialResource?.cardActionLabel || 'Open',
       detailActionLabel: initialResource?.detailActionLabel || 'Download Resources',
       attachments: visibleAttachments,
@@ -289,13 +286,17 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     }
 
     setIsSaving(true);
+    setSavingStage('Saving Resource to database...');
     try {
       const doc = buildDocument(targetStatus, resolvedNumber);
-      await onSave(doc);
+      const nextContentVersion = await computeResourceContentVersion(doc);
+      doc.contentVersion = nextContentVersion;
 
-      // Clean up obsolete binaries ONLY after Firestore save has been confirmed
+      const persisted = (await onSave(doc)) || doc;
+
+      // Clean up obsolete manual binaries ONLY after Firestore save has been confirmed
       if (!isDevPreview && pendingCleanupPathsRef.current.size > 0) {
-        const stillInUse = new Set(doc.attachments.map((a) => a.storagePath).filter(Boolean));
+        const stillInUse = new Set(persisted.attachments.map((a) => a.storagePath).filter(Boolean));
         const pathsToDelete = Array.from(pendingCleanupPathsRef.current).filter(
           (p) => !stillInUse.has(p)
         );
@@ -303,20 +304,96 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
         await Promise.allSettled(pathsToDelete.map((p) => cleanupObsoleteAttachmentBinary(p)));
       }
 
+      // Regenerate PDF & DOCX automatically when content version changed or exports are missing
+      const needsRegeneration =
+        !persisted.generatedPdf?.url ||
+        !persisted.generatedDocx?.url ||
+        persisted.generatedPdf.contentVersion !== nextContentVersion ||
+        persisted.generatedDocx.contentVersion !== nextContentVersion ||
+        !persisted.pdfPreviewUrl ||
+        !persisted.docxUrl;
+
+      let exportStatusNote = '';
+      let exportGenerationFailed = false;
+
+      if (needsRegeneration) {
+        try {
+          const inlineAttachmentBytes = persisted.attachments.reduce(
+            (sum, att) => sum + (att.url?.startsWith('data:') ? att.url.length : 0),
+            0
+          );
+          const canvasBytes = JSON.stringify({
+            blocknoteJson: persisted.blocknoteJson || [],
+            blocknoteHtml: persisted.blocknoteHtml || '',
+          }).length;
+
+          const prevPdfPath = initialResource?.generatedPdf?.storagePath;
+          const prevDocxPath = initialResource?.generatedDocx?.storagePath;
+
+          const exportsBundle = await generateAndStoreResourceExports(persisted, {
+            isDevPreview,
+            existingDocOverheadBytes: inlineAttachmentBytes + canvasBytes + 8192,
+            onStage: (stage) => setSavingStage(stage),
+          });
+
+          setSavingStage('Saving generated PDF & DOCX metadata...');
+          const updatedWithExports: ResourceDocument = {
+            ...persisted,
+            contentVersion: exportsBundle.contentVersion,
+            lastGeneratedAt: exportsBundle.lastGeneratedAt,
+            generatedPdf: exportsBundle.generatedPdf,
+            generatedDocx: exportsBundle.generatedDocx,
+            pdfPreviewUrl: exportsBundle.pdfPreviewUrl,
+            docxUrl: exportsBundle.docxUrl,
+            downloadUrl: persisted.attachments.length > 0
+              ? persisted.downloadUrl || exportsBundle.pdfPreviewUrl
+              : exportsBundle.pdfPreviewUrl,
+            lastGenerationError: undefined,
+          };
+
+          await onSave(updatedWithExports);
+
+          if (!isDevPreview) {
+            const activePaths = new Set([
+              ...updatedWithExports.attachments.map((a) => a.storagePath).filter(Boolean),
+              exportsBundle.generatedPdf.storagePath,
+              exportsBundle.generatedDocx.storagePath,
+            ]);
+            const obsoleteExports = [prevPdfPath, prevDocxPath].filter(
+              (p): p is string => Boolean(p && !activePaths.has(p))
+            );
+            if (obsoleteExports.length > 0) {
+              await Promise.allSettled(obsoleteExports.map((p) => cleanupObsoleteAttachmentBinary(p)));
+            }
+          }
+
+          exportStatusNote = ` Auto-generated PDF (${exportsBundle.generatedPdf.fileSize}) & DOCX (${exportsBundle.generatedDocx.fileSize}).`;
+        } catch (exportErr: any) {
+          exportGenerationFailed = true;
+          const errDetail = exportErr?.message || 'Document generation failed';
+          console.error('[ResourceEditor] Auto PDF/DOCX generation failed:', exportErr);
+          setErrorMsg(
+            `Resource #${resolvedNumber} content saved, but automatic PDF/DOCX generation failed: ${errDetail}. Previously valid generated files were preserved.`
+          );
+        }
+      }
+
       setNumberInput(resolvedNumber);
       setStatus(targetStatus);
       setIsDirty(false);
       setAttachmentsMutated(false);
       setStagedAttachmentIds(new Set());
-      setSuccessMsg(
-        targetStatus === 'published'
-          ? isDevPreview
-            ? `Resource #${resolvedNumber} published in preview.`
-            : `Resource #${resolvedNumber} saved and published to Cloud Firestore.`
-          : isDevPreview
-          ? `Resource #${resolvedNumber} saved as draft in preview.`
-          : `Resource #${resolvedNumber} saved as draft in Cloud Firestore.`
-      );
+      if (!exportGenerationFailed) {
+        setSuccessMsg(
+          (targetStatus === 'published'
+            ? isDevPreview
+              ? `Resource #${resolvedNumber} published in preview.`
+              : `Resource #${resolvedNumber} saved and published to Cloud Firestore.`
+            : isDevPreview
+              ? `Resource #${resolvedNumber} saved as draft in preview.`
+              : `Resource #${resolvedNumber} saved as draft in Cloud Firestore.`) + exportStatusNote
+        );
+      }
     } catch (err: any) {
       console.error('Failed to save resource:', err);
       // Do NOT clear unsaved content or change status when save fails
@@ -325,6 +402,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       );
     } finally {
       setIsSaving(false);
+      setSavingStage(null);
     }
   };
 
@@ -440,6 +518,12 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       </div>
 
       {/* Save Feedback Banners */}
+      {isSaving && savingStage && (
+        <div role="status" className="p-3 rounded-xl border border-border bg-secondary/60 text-muted-foreground text-xs flex items-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+          <span>{savingStage}</span>
+        </div>
+      )}
       {errorMsg && (
         <div role="alert" className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -472,6 +556,15 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
           resourceNumber={resourceNumber}
           attachments={attachments}
           stagedIds={stagedAttachmentIds}
+          documentContentBytes={
+            JSON.stringify({ blocknoteJson, contentHtml: '' }).length +
+            (initialResource?.generatedPdf?.url?.startsWith('data:')
+              ? initialResource.generatedPdf.url.length
+              : 0) +
+            (initialResource?.generatedDocx?.url?.startsWith('data:')
+              ? initialResource.generatedDocx.url.length
+              : 0)
+          }
           onChange={handleAttachmentsChange}
           onQueueBinaryCleanup={handleQueueBinaryCleanup}
           isDevPreview={isDevPreview}

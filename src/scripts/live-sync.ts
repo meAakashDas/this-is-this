@@ -322,6 +322,61 @@ function renderAttachmentsHtml(attachments: any[]): string {
     .join('');
 }
 
+function renderGeneratedDocumentSectionHtml(
+  data: any,
+  pdfUrl: string,
+  docxUrl: string,
+  num: string
+): string {
+  if (!pdfUrl && !docxUrl) return '';
+  const pdfFileName = data.generatedPdf?.fileName || `resource-${num}.pdf`;
+  const docxFileName = data.generatedDocx?.fileName || `resource-${num}.docx`;
+  const pdfSize = data.generatedPdf?.fileSize
+    ? `<span class="text-xs font-mono text-muted-foreground">${escapeHtml(data.generatedPdf.fileSize)}</span>`
+    : '';
+  const docxSize = data.generatedDocx?.fileSize
+    ? `<span class="text-xs font-mono text-muted-foreground">${escapeHtml(data.generatedDocx.fileSize)}</span>`
+    : '';
+
+  return `
+    <div class="section-header">
+      <h2 id="generated-documents-heading" class="section-heading text-xl sm:text-[22px] font-semibold tracking-tight text-foreground m-0">
+        Download Resource Document
+      </h2>
+    </div>
+    <div class="generated-documents-list flex flex-col gap-3">
+      ${pdfUrl ? `
+        <div class="generated-doc-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="text-sm font-semibold tracking-tight text-foreground m-0">Download as PDF</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="file-type-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border border-border bg-secondary text-muted-foreground">PDF</span>
+              ${pdfSize}
+            </div>
+          </div>
+          <a href="${escapeHtml(pdfUrl)}" download="${escapeHtml(pdfFileName)}" class="generated-pdf-download-link btn btn-secondary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline">
+            <span>Download as PDF</span>
+          </a>
+        </div>
+      ` : ''}
+      ${docxUrl ? `
+        <div class="generated-doc-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="text-sm font-semibold tracking-tight text-foreground m-0">Download as DOCX</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="file-type-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border border-border bg-secondary text-muted-foreground">DOCX</span>
+              ${docxSize}
+            </div>
+          </div>
+          <a href="${escapeHtml(docxUrl)}" download="${escapeHtml(docxFileName)}" class="generated-docx-download-link btn btn-secondary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline">
+            <span>Download as DOCX</span>
+          </a>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 function renderDynamicResourceDetail(container: HTMLElement, data: any) {
   const num = escapeHtml(data.resourceNumber || '001');
   const title = escapeHtml(data.title || 'Untitled Resource');
@@ -331,13 +386,20 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
   const externalLinks = Array.isArray(data.externalLinks)
     ? data.externalLinks.filter((l: any) => isSafePublicUrl(l.url))
     : [];
-  const pdfUrl = isSafePublicUrl(data.pdfPreviewUrl)
+  const pdfUrl = isSafePublicUrl(data.generatedPdf?.url)
+    ? data.generatedPdf.url
+    : isSafePublicUrl(data.pdfPreviewUrl)
     ? data.pdfPreviewUrl
     : isSafePublicUrl(data.downloadUrl)
     ? data.downloadUrl
     : '';
-  const docxUrl = isSafePublicUrl(data.docxUrl) ? data.docxUrl : '';
+  const docxUrl = isSafePublicUrl(data.generatedDocx?.url)
+    ? data.generatedDocx.url
+    : isSafePublicUrl(data.docxUrl)
+    ? data.docxUrl
+    : '';
   const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
+  const generatedSectionInner = renderGeneratedDocumentSectionHtml(data, pdfUrl, docxUrl, num);
 
   container.innerHTML = `
     <div class="page-container resource-detail-page max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 pb-24">
@@ -394,6 +456,8 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
         ` : ''}
 
         ${bodyHtml ? `<section class="resource-section written-content-section space-y-6"><div class="main-educational-content space-y-6"><div class="resource-document-content resource-content editorial-reading-container max-w-none space-y-4">${bodyHtml}</div></div></section>` : ''}
+
+        ${generatedSectionInner ? `<section class="resource-section generated-documents-section space-y-4" aria-labelledby="generated-documents-heading">${generatedSectionInner}</section>` : ''}
 
         ${pdfUrl ? `
           <section id="view-as-pdf" class="resource-section pdf-preview-section rounded-xl border border-border bg-card overflow-hidden shadow-xs scroll-mt-20">
@@ -594,12 +658,45 @@ async function syncResourceDetail(db: any, resourceId: string) {
     }
 
     // Top action links & PDF preview sync
-    const pdfUrl = isSafePublicUrl(data.pdfPreviewUrl)
+    const pdfUrl = isSafePublicUrl(data.generatedPdf?.url)
+      ? data.generatedPdf.url
+      : isSafePublicUrl(data.pdfPreviewUrl)
       ? data.pdfPreviewUrl
       : isSafePublicUrl(data.downloadUrl)
       ? data.downloadUrl
       : '';
-    const docxUrl = isSafePublicUrl(data.docxUrl) ? data.docxUrl : '';
+    const docxUrl = isSafePublicUrl(data.generatedDocx?.url)
+      ? data.generatedDocx.url
+      : isSafePublicUrl(data.docxUrl)
+      ? data.docxUrl
+      : '';
+
+    const genSection = articleEl.querySelector<HTMLElement>('.generated-documents-section');
+    const genHtml = renderGeneratedDocumentSectionHtml(
+      data,
+      pdfUrl,
+      docxUrl,
+      String(data.resourceNumber || resourceId || '001')
+    );
+    if (genHtml) {
+      if (genSection) {
+        genSection.style.display = '';
+        genSection.innerHTML = genHtml;
+      } else {
+        const anchor =
+          articleEl.querySelector('.written-content-section') ||
+          articleEl.querySelector('.attachments-section') ||
+          articleEl.querySelector('header + div[role="separator"]');
+        const sec = document.createElement('section');
+        sec.className = 'resource-section generated-documents-section space-y-4';
+        sec.setAttribute('aria-labelledby', 'generated-documents-heading');
+        sec.innerHTML = genHtml;
+        if (anchor) anchor.after(sec);
+        else articleEl.appendChild(sec);
+      }
+    } else if (genSection) {
+      genSection.style.display = 'none';
+    }
 
     const savePdfBtn = articleEl.querySelector<HTMLAnchorElement>('a.btn-save-pdf');
     const downloadPdfBtn = articleEl.querySelector<HTMLAnchorElement>('a.btn-download-pdf');

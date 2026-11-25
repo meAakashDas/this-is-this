@@ -93,6 +93,17 @@ export interface YouTubeEmbedData {
   caption?: string;
 }
 
+export interface GeneratedResourceDocumentInfo {
+  url: string;
+  fileName: string;
+  fileSize: string;
+  byteSize?: number;
+  mimeType: string;
+  storagePath?: string;
+  generatedAt: string;
+  contentVersion: string;
+}
+
 export interface Resource {
   /** Immutable canonical document identifier in Firestore (preserved across display number edits). */
   id?: string;
@@ -119,6 +130,10 @@ export interface Resource {
   downloadUrl?: string; // Direct public URL (no auth, no paywall)
   pdfPreviewUrl?: string; // Direct URL to primary PDF for in-page preview
   docxUrl?: string; // Direct URL to Microsoft Word document (.docx)
+  contentVersion?: string; // Content hash tracking generated PDF/DOCX synchronization
+  generatedPdf?: GeneratedResourceDocumentInfo;
+  generatedDocx?: GeneratedResourceDocumentInfo;
+  lastGeneratedAt?: string;
   attachments?: Attachment[]; // Multiple downloadable attachments
   externalLinks?: ExternalResourceLink[]; // External reference links
   youtubeEmbed?: YouTubeEmbedData; // Privacy-conscious YouTube video embed

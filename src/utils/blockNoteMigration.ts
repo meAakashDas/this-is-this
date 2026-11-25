@@ -89,7 +89,12 @@ export function renderInlineContentToHtml(content: any): string {
         const linkText = Array.isArray(item.content)
           ? renderInlineContentToHtml(item.content)
           : escapeHtml(item.text || item.href || '');
-        const href = item.href ? escapeHtml(item.href) : '#';
+        const rawHref = typeof item.href === 'string' ? item.href.trim() : '';
+        const safeHref =
+          rawHref && !/^(javascript|vbscript|data:text\/html|blob:):?/i.test(rawHref)
+            ? rawHref
+            : '#';
+        const href = escapeHtml(safeHref);
         const isExternal = href.startsWith('http://') || href.startsWith('https://');
         return `<a href="${href}" class="text-primary underline font-medium hover:text-primary/80 transition-colors"${isExternal ? ' target="_blank" rel="noopener noreferrer"' : ''}>${linkText}</a>`;
       }
@@ -473,9 +478,9 @@ export function blockNoteToHtml(blocks: any[] = []): string {
       }
 
       case 'image': {
-        const url = block.props?.url || '';
+        const url = typeof block.props?.url === 'string' ? block.props.url.trim() : '';
         const caption = block.props?.caption || '';
-        if (url) {
+        if (url && !/^(javascript|vbscript|data:text\/html|blob:):?/i.test(url)) {
           htmlChunks.push(
             `<figure class="editorial-figure my-8 text-center"><img src="${escapeHtml(url)}" alt="${escapeHtml(caption || 'Resource illustration')}" loading="lazy" decoding="async" class="max-w-full h-auto rounded-lg border border-border mx-auto shadow-xs block" />${caption ? `<figcaption class="text-xs text-muted-foreground mt-2 font-mono">${escapeHtml(caption)}</figcaption>` : ''}</figure>`
           );

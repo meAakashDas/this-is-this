@@ -50,6 +50,12 @@ const pdfDownloadFilename = isPublished
 const docxDownloadFilename = isPublished
   ? getResourceExportFilename(resource!.resourceNumber, resource!.title, 'docx')
   : '';
+const effectivePdfUrl = isPublished
+  ? (resource!.generatedPdf?.url || resource!.pdfPreviewUrl || resource!.downloadUrl || '')
+  : '';
+const effectiveDocxUrl = isPublished
+  ? (resource!.generatedDocx?.url || resource!.docxUrl || '')
+  : '';
 
 function getFileExtension(format?: string, url?: string): string {
   const lowerFormat = (format || '').toLowerCase();
@@ -117,9 +123,9 @@ function getFileExtension(format?: string, url?: string): string {
 
           <!-- Action Buttons below Publication Date -->
           <div class="resource-top-actions flex items-center gap-2.5 pt-2 flex-wrap" aria-label="Resource actions">
-            {(resource!.pdfPreviewUrl || resource!.downloadUrl) && (
+            {effectivePdfUrl && (
               <a
-                href={resource!.pdfPreviewUrl || resource!.downloadUrl}
+                href={effectivePdfUrl}
                 download={pdfDownloadFilename}
                 class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
                 aria-label={`Save ${resource!.title} as PDF`}
@@ -129,9 +135,9 @@ function getFileExtension(format?: string, url?: string): string {
               </a>
             )}
 
-            {resource!.docxUrl && (
+            {effectiveDocxUrl && (
               <a
-                href={resource!.docxUrl}
+                href={effectiveDocxUrl}
                 download={docxDownloadFilename}
                 class="action-btn btn-save-docx btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
                 aria-label={`Save ${resource!.title} as DOCX`}
@@ -141,7 +147,7 @@ function getFileExtension(format?: string, url?: string): string {
               </a>
             )}
 
-            {resource!.pdfPreviewUrl && (
+            {effectivePdfUrl && (
               <a
                 href="#view-as-pdf"
                 class="action-btn btn-view-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
@@ -291,8 +297,82 @@ function getFileExtension(format?: string, url?: string): string {
           </section>
         )}
 
+        <!-- 3b. Generated Resource Documents (Distinct from manual attachments) -->
+        {(resource!.generatedPdf?.url || resource!.pdfPreviewUrl || resource!.generatedDocx?.url || resource!.docxUrl) && (
+          <section
+            class="resource-section generated-documents-section space-y-4"
+            aria-labelledby="generated-documents-heading"
+          >
+            <div class="section-header">
+              <h2 id="generated-documents-heading" class="section-heading text-xl sm:text-[22px] font-semibold tracking-tight text-foreground m-0">
+                Download Resource Document
+              </h2>
+            </div>
+
+            <div class="generated-documents-list flex flex-col gap-3">
+              {(resource!.generatedPdf?.url || resource!.pdfPreviewUrl) && (
+                <div class="generated-doc-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
+                  <div class="flex flex-col gap-1.5">
+                    <h3 class="text-sm font-semibold tracking-tight text-foreground m-0">
+                      Download as PDF
+                    </h3>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="file-type-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border border-border bg-secondary text-muted-foreground">
+                        PDF
+                      </span>
+                      {resource!.generatedPdf?.fileSize && (
+                        <span class="text-xs font-mono text-muted-foreground">
+                          {resource!.generatedPdf.fileSize}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <a
+                    href={resource!.generatedPdf?.url || resource!.pdfPreviewUrl}
+                    download={resource!.generatedPdf?.fileName || pdfDownloadFilename}
+                    class="generated-pdf-download-link btn btn-secondary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"
+                    aria-label={`Download ${resource!.title} as PDF`}
+                  >
+                    <Icon name="download" size={13} />
+                    <span>Download as PDF</span>
+                  </a>
+                </div>
+              )}
+
+              {(resource!.generatedDocx?.url || resource!.docxUrl) && (
+                <div class="generated-doc-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
+                  <div class="flex flex-col gap-1.5">
+                    <h3 class="text-sm font-semibold tracking-tight text-foreground m-0">
+                      Download as DOCX
+                    </h3>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="file-type-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border border-border bg-secondary text-muted-foreground">
+                        DOCX
+                      </span>
+                      {resource!.generatedDocx?.fileSize && (
+                        <span class="text-xs font-mono text-muted-foreground">
+                          {resource!.generatedDocx.fileSize}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <a
+                    href={resource!.generatedDocx?.url || resource!.docxUrl}
+                    download={resource!.generatedDocx?.fileName || docxDownloadFilename}
+                    class="generated-docx-download-link btn btn-secondary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"
+                    aria-label={`Download ${resource!.title} as DOCX`}
+                  >
+                    <Icon name="file-text" size={13} />
+                    <span>Download as DOCX</span>
+                  </a>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         <!-- 10. View as PDF Section -->
-        {resource!.pdfPreviewUrl && (
+        {effectivePdfUrl && (
           <section id="view-as-pdf" class="resource-section pdf-preview-section rounded-xl border border-border bg-card overflow-hidden shadow-xs scroll-mt-20" aria-labelledby="pdf-preview-heading">
             <div class="preview-header flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border bg-secondary/50 flex-wrap">
               <h2 id="pdf-preview-heading" class="section-heading text-base sm:text-lg font-semibold tracking-tight text-foreground m-0">
@@ -301,7 +381,7 @@ function getFileExtension(format?: string, url?: string): string {
 
               <div class="preview-actions-bar flex items-center gap-2 flex-wrap">
                 <a
-                  href={resource!.pdfPreviewUrl}
+                  href={effectivePdfUrl}
                   download={pdfDownloadFilename}
                   class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
                   aria-label={`Download ${resource!.title} PDF`}
@@ -310,9 +390,9 @@ function getFileExtension(format?: string, url?: string): string {
                   <span>Download PDF</span>
                 </a>
 
-                {resource!.docxUrl && (
+                {effectiveDocxUrl && (
                   <a
-                    href={resource!.docxUrl}
+                    href={effectiveDocxUrl}
                     download={docxDownloadFilename}
                     class="preview-action-btn btn-save-docx btn btn-primary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline"
                     aria-label={`Save ${resource!.title} as DOCX`}
@@ -326,20 +406,20 @@ function getFileExtension(format?: string, url?: string): string {
 
             <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
               <object
-                data={resource!.pdfPreviewUrl}
+                data={effectivePdfUrl}
                 type="application/pdf"
                 class="pdf-object w-full h-full border-0 block"
                 aria-label={`PDF document preview of ${resource!.title}`}
               >
                 <iframe
-                  src={resource!.pdfPreviewUrl}
+                  src={effectivePdfUrl}
                   title={`PDF Preview: ${resource!.title}`}
                   class="pdf-iframe w-full h-full border-0"
                   loading="lazy"
                 >
                   <p class="pdf-fallback-msg p-6 text-center text-sm text-muted-foreground m-0">
                     Your browser does not support inline PDF viewing.{' '}
-                    <a href={resource!.pdfPreviewUrl} download class="underline text-foreground">
+                    <a href={effectivePdfUrl} download={pdfDownloadFilename} class="underline text-foreground">
                       Click here to download the PDF directly
                     </a>
                     .

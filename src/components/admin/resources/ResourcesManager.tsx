@@ -378,13 +378,13 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     } else {
       try {
         await deleteResource(targetResource?.id || idOrNumber);
-        if (targetResource?.attachments?.length) {
-          await Promise.allSettled(
-            targetResource.attachments
-              .map((a) => a.storagePath)
-              .filter((p): p is string => Boolean(p))
-              .map((p) => cleanupObsoleteAttachmentBinary(p))
-          );
+        const obsoletePaths = [
+          ...(targetResource?.attachments || []).map((a) => a.storagePath),
+          targetResource?.generatedPdf?.storagePath,
+          targetResource?.generatedDocx?.storagePath,
+        ].filter((p): p is string => Boolean(p));
+        if (obsoletePaths.length > 0) {
+          await Promise.allSettled(obsoletePaths.map((p) => cleanupObsoleteAttachmentBinary(p)));
         }
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
@@ -399,13 +399,13 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     }
   };
 
-  const handleSaveEditor = async (doc: ResourceDocument) => {
+  const handleSaveEditor = async (doc: ResourceDocument): Promise<ResourceDocument> => {
     setStatusFeedback(null);
 
     if (isDevPreview) {
       const targetInt = parseInt(String(doc.resourceNumber || ''), 10);
-      const isEditing = Boolean(selectedResource?.id);
-      const currentDocId = selectedResource?.id;
+      const currentDocId = (doc.id && doc.id.trim()) || selectedResource?.id;
+      const isEditing = Boolean(currentDocId);
 
       const conflict = resources.find((r) => {
         const rId = r.id || r.resourceNumber;
@@ -445,8 +445,9 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
           ? `Resource #${savedDoc.resourceNumber} published (Dev Preview).`
           : `Resource #${savedDoc.resourceNumber} saved as draft (Dev Preview).`
       );
+      return savedDoc;
     } else {
-      const existingDocId = selectedResource?.id;
+      const existingDocId = (doc.id && doc.id.trim()) || selectedResource?.id;
       const existing = existingDocId ? await getResourceById(existingDocId) : null;
 
       const savedDoc = existing
@@ -461,6 +462,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         ? `Resource #${savedDoc.resourceNumber} saved & published to Cloud Firestore.`
         : `Resource #${savedDoc.resourceNumber} saved as ${savedDoc.status || 'draft'} in Cloud Firestore.`;
       toast.success(msg);
+      return savedDoc;
     }
   };
 

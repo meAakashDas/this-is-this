@@ -40,6 +40,7 @@ export interface NormalizedResourceDocument {
   targetAudience?: string;
   summaryPoints?: string[];
   contentHtml?: string;
+  blocknoteJson?: any[];
   contentBlocks: ContentBlock[];
   attachments: NormalizedAttachment[];
   youtube?: NormalizedYouTube;
@@ -141,15 +142,22 @@ export function normalizeResourceDocument(
     url: s.url,
   }));
 
-  // Derive content blocks from blocknoteJson, contentBlocks, or contentHtml
+  const hasCanvasJson = Array.isArray(resource.blocknoteJson) && resource.blocknoteJson.length > 0;
   let contentBlocks = resource.contentBlocks || [];
-  if (resource.blocknoteJson && Array.isArray(resource.blocknoteJson) && resource.blocknoteJson.length > 0) {
+  if (hasCanvasJson) {
     contentBlocks = blockNoteToContentBlocks(resource.blocknoteJson);
   } else if (contentBlocks.length === 0 && resource.contentHtml) {
     contentBlocks = htmlToContentBlocks(resource.contentHtml);
   }
 
-  const effectiveHtml = resource.blocknoteHtml || resource.contentHtml || (resource.blocknoteJson ? blockNoteToHtml(resource.blocknoteJson) : undefined);
+  const effectiveHtml =
+    resource.blocknoteHtml ||
+    resource.contentHtml ||
+    (hasCanvasJson ? blockNoteToHtml(resource.blocknoteJson) : undefined);
+
+  // Avoid duplicating legacy summaryPoints / targetAudience when rich Document Canvas
+  // content already serves as the single source of truth.
+  const hasRichCanvas = hasCanvasJson || Boolean(effectiveHtml && effectiveHtml.trim());
 
   return {
     resourceNumber: resource.resourceNumber,
@@ -158,9 +166,10 @@ export function normalizeResourceDocument(
     updatedAt: resource.updatedAt,
     description: resource.description,
     category: resource.category,
-    targetAudience: resource.targetAudience,
-    summaryPoints: resource.summaryPoints || [],
+    targetAudience: hasRichCanvas ? undefined : resource.targetAudience,
+    summaryPoints: hasRichCanvas ? [] : (resource.summaryPoints || []),
     contentHtml: effectiveHtml,
+    blocknoteJson: hasCanvasJson ? resource.blocknoteJson : undefined,
     contentBlocks,
     attachments,
     youtube,
@@ -342,6 +351,21 @@ export function generateResourcePdfHtml(
         `<a href="${escapeHtml(s.url)}" class="footer-social-link" target="_blank" rel="noopener">${escapeHtml(s.platform)}</a>`
     )
     .join(' <span class="footer-sep">&bull;</span> ');
+
+  const hasMeaningfulDesc =
+    Boolean(doc.description?.trim()) &&
+    doc.description.trim().toLowerCase() !== doc.title.trim().toLowerCase() &&
+    !/^resource #\d+$/i.test(doc.description.trim());
+
+  const aboutSectionHtml = hasMeaningfulDesc
+    ? `
+  <!-- About Resource -->
+  <section class="doc-section">
+    <h2 class="section-title">About Resource</h2>
+    <p class="overview-text">${escapeHtml(doc.description)}</p>
+  </section>
+  `
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -742,11 +766,7 @@ export function generateResourcePdfHtml(
     </div>
   </header>
 
-  <!-- About Resource -->
-  <section class="doc-section">
-    <h2 class="section-title">About Resource</h2>
-    <p class="overview-text">${escapeHtml(doc.description)}</p>
-  </section>
+  ${aboutSectionHtml}
 
   <!-- Downloadable Resources -->
   ${attachmentsHtml}

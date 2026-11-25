@@ -330,4 +330,62 @@ test.describe('Simplified 2-Section Resource Editor QA', () => {
     await expect(page.locator(`[data-resource-id="${customDocId}"]`)).toContainText('NO. 020');
     await expect(page.locator('text=NO. 015')).toHaveCount(0);
   });
+
+  test('9. Auto-generates real PDF and DOCX on save, updates contentVersion on Resource #003 edits, and preserves Resource #001 manual downloads alongside Download Resource Document', async ({
+    page,
+  }) => {
+    await page.locator('aside button:has-text("Resources")').click();
+    await page.locator('button[aria-label="Edit Resource 003"]').click();
+    await expect(page.locator('#resource-number-field')).toHaveValue('003');
+
+    // Edit Document Canvas on Resource #003 (heading, paragraph, list, table)
+    const editor = page.locator('.blocknote-canvas-container [contenteditable="true"]').first();
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/h2');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Updated Section 003 Heading');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Fresh generated content paragraph.');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/table');
+    await page.keyboard.press('Enter');
+
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("Auto-generated PDF")').first()
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[role="alert"]')).toHaveCount(0);
+
+    // Reload and verify edits + generatedPdf/generatedDocx metadata persisted cleanly
+    await page.reload({ waitUntil: 'load' });
+    const persisted = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '003') || null;
+    });
+    expect(persisted).toBeTruthy();
+    expect(persisted.contentVersion).toBeTruthy();
+    expect(persisted.generatedPdf?.url).toMatch(/^data:application\/pdf;base64,/);
+    expect(persisted.generatedDocx?.url).toMatch(
+      /^data:application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document;base64,/
+    );
+    expect(persisted.generatedPdf.contentVersion).toBe(persisted.contentVersion);
+    expect(persisted.generatedDocx.contentVersion).toBe(persisted.contentVersion);
+    const decodedPdfHeader = Buffer.from(
+      persisted.generatedPdf.url.split(',')[1],
+      'base64'
+    )
+      .subarray(0, 5)
+      .toString('ascii');
+    expect(decodedPdfHeader).toBe('%PDF-');
+
+    // Verify public /resources/001 displays both Download Resources (manual) and Download Resource Document (generated)
+    await page.goto('/resources/001', { waitUntil: 'load' });
+    await expect(page.locator('h2:has-text("Download Resources")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Download Resource Document")')).toBeVisible();
+    await expect(page.locator('.generated-pdf-download-link')).toContainText('Download as PDF');
+    await expect(page.locator('.generated-docx-download-link')).toContainText('Download as DOCX');
+  });
 });

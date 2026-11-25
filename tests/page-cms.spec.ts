@@ -57,36 +57,54 @@ test.describe('Simplified Homepage & About Page CMS QA', () => {
     await expect(page.locator('text=Homepage draft saved to local preview state.')).toBeVisible();
   });
 
-  test('3. Clicking About tab opens simplified About editor with Intro, Work, Media, Education, and Experience', async ({
+  test('3. Clicking About tab opens single-page About editor with all 5 sections and Save Draft / Publish / Update', async ({
     page,
   }) => {
     const pane = page.locator('section[aria-label="Admin Content Pane"]');
     await page.locator('aside button:has-text("About")').click();
     await expect(page.locator('h1:has-text("About")')).toBeVisible();
 
-    for (const tab of ['Intro', 'Work', 'Media', 'Education', 'Experience']) {
-      await expect(pane.getByRole('button', { name: tab, exact: true })).toBeVisible();
-    }
+    // Verify zero tabs & zero Live Preview in About editor
     await expect(pane.locator('button:has-text("Live Preview")')).toHaveCount(0);
+    await expect(pane.locator('button[title="Move up"]')).toHaveCount(0);
+    await expect(pane.locator('button[title="Move down"]')).toHaveCount(0);
 
+    // All 5 sections appear directly on one single page
+    await expect(pane.locator('h2:has-text("Introduction & Biography")')).toBeVisible();
+    await expect(pane.locator('h2:has-text("My Work")')).toBeVisible();
+    await expect(pane.locator('h2:has-text("Conversations & Media")')).toBeVisible();
+    await expect(pane.locator('h2:has-text("Education")')).toBeVisible();
+    await expect(pane.locator('h2:has-text("Professional Experience")')).toBeVisible();
+
+    // Verify existing data loaded cleanly
     await expect(page.locator('#about-heading-input')).toHaveValue('About Aakash Das');
     await expect(page.locator('text=Paragraph 01')).toBeVisible();
+    await expect(page.locator('input[value="RisePaisa"]').first()).toBeVisible();
+    await expect(page.locator('input[value="The Amit Show"]')).toBeVisible();
+    await expect(page.locator('input[value="Information Technology"]')).toBeVisible();
+    await expect(page.locator('input[value="Founder & Lead Educator"]')).toBeVisible();
+
+    // Add paragraph & Add new initiative
     await page.locator('button:has-text("Add Paragraph")').click();
     await expect(page.locator('text=Paragraph 04')).toBeVisible();
 
-    await pane.getByRole('button', { name: 'Work', exact: true }).click();
-    await expect(page.locator('input[value="RisePaisa"]')).toBeVisible();
+    await page.locator('input[aria-label="New work title"]').fill('Fiscal Note');
+    await page.locator('textarea[aria-label="New work description"]').fill('Research notes');
+    await page.locator('button:has-text("Add Initiative")').click();
+    await expect(page.locator('input[value="Fiscal Note"]')).toBeVisible();
 
-    await pane.getByRole('button', { name: 'Media', exact: true }).click();
-    await expect(page.locator('input[value="The Amit Show"]')).toBeVisible();
+    // Save Draft -> persists across reload
+    await pane.getByRole('button', { name: 'Save Draft', exact: true }).click();
+    await expect(page.locator('text=About page draft saved to local preview state.')).toBeVisible();
 
-    await pane.getByRole('button', { name: 'Education', exact: true }).click();
-    await expect(page.locator('input[value="Information Technology"]')).toBeVisible();
+    await page.reload();
+    await expect(page.locator('input[value="Fiscal Note"]')).toBeVisible({ timeout: 8000 });
 
-    await pane.getByRole('button', { name: 'Experience', exact: true }).click();
-    await expect(page.locator('input[value="Founder & Lead Educator"]')).toBeVisible();
+    // Delete added work item & Publish / Update
+    await page.locator('button[aria-label="Delete work item 4"]').click();
+    await expect(page.locator('input[value="Fiscal Note"]')).toHaveCount(0);
 
-    await pane.getByRole('button', { name: 'Publish', exact: true }).click();
+    await pane.getByRole('button', { name: 'Publish / Update', exact: true }).click();
     await expect(page.locator('text=About page published to local preview state.')).toBeVisible();
   });
 });

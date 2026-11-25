@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Save,
-  RotateCcw,
   CheckCircle2,
   AlertCircle,
   Loader2,
   Send,
   Plus,
   Trash2,
-  ArrowUp,
-  ArrowDown,
 } from 'lucide-react';
 import { WorkEditor } from './WorkEditor.tsx';
 import { EducationEditor } from './EducationEditor.tsx';
@@ -23,8 +20,6 @@ import type {
   CmsEducationEntry,
   CmsExperienceEntry,
 } from '../../../types/cms/pages.ts';
-
-type AboutSubTab = 'intro' | 'work' | 'media' | 'education' | 'experience';
 
 interface AboutEditorProps {
   isDevPreview?: boolean;
@@ -132,7 +127,6 @@ const DEFAULT_ABOUT_STATE: AboutPageDocument = {
 const DEV_STORAGE_KEY = 'aakashdas_cms_about_preview';
 
 export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }) => {
-  const [activeSubTab, setActiveSubTab] = useState<AboutSubTab>('intro');
   const [title, setTitle] = useState(DEFAULT_ABOUT_STATE.title);
   const [introParagraphs, setIntroParagraphs] = useState<string[]>(
     DEFAULT_ABOUT_STATE.introParagraphs
@@ -152,30 +146,19 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
 
-  const fixedSectionOrder = ['about-intro', 'work', 'media', 'education', 'experience', 'contact'];
-  const fixedSectionVisibility = {
-    'about-intro': true,
-    work: true,
-    media: true,
-    education: true,
-    experience: true,
-    contact: true,
-  };
-
   const applyLoadedData = (data: Partial<AboutPageDocument>) => {
     setLoadedData(data);
-    if (data.title) setTitle(data.title);
-    if (data.introParagraphs && data.introParagraphs.length > 0) {
-      setIntroParagraphs(data.introParagraphs);
-    } else {
-      setIntroParagraphs(DEFAULT_ABOUT_STATE.introParagraphs);
-    }
+    setTitle(data.title || DEFAULT_ABOUT_STATE.title);
+    setIntroParagraphs(
+      data.introParagraphs && data.introParagraphs.length > 0
+        ? data.introParagraphs
+        : DEFAULT_ABOUT_STATE.introParagraphs
+    );
     setWorkEntries(
       data.workEntries && data.workEntries.length > 0
         ? data.workEntries
@@ -196,7 +179,6 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
         ? data.experienceEntries
         : DEFAULT_ABOUT_STATE.experienceEntries
     );
-    setIsDirty(false);
   };
 
   useEffect(() => {
@@ -234,60 +216,39 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
     };
   }, [isDevPreview]);
 
-  const markDirty = () => {
-    if (!isDirty) setIsDirty(true);
-  };
-
   const handleUpdateParagraph = (index: number, text: string) => {
     const updated = [...introParagraphs];
     updated[index] = text;
     setIntroParagraphs(updated);
-    markDirty();
   };
 
   const handleAddParagraph = () => {
     setIntroParagraphs([...introParagraphs, '']);
-    markDirty();
   };
 
   const handleDeleteParagraph = (index: number) => {
     if (introParagraphs.length <= 1) return;
     setIntroParagraphs(introParagraphs.filter((_, i) => i !== index));
-    markDirty();
   };
 
-  const handleMoveParagraphUp = (index: number) => {
-    if (index === 0) return;
-    const updated = [...introParagraphs];
-    const temp = updated[index - 1];
-    updated[index - 1] = updated[index];
-    updated[index] = temp;
-    setIntroParagraphs(updated);
-    markDirty();
+  const buildPayload = (): Partial<AboutPageDocument> => {
+    const filteredParagraphs = introParagraphs.filter((p) => p.trim().length > 0);
+    return {
+      title: title.trim() || loadedData.title || DEFAULT_ABOUT_STATE.title,
+      introParagraphs:
+        filteredParagraphs.length > 0
+          ? filteredParagraphs
+          : loadedData.introParagraphs || DEFAULT_ABOUT_STATE.introParagraphs,
+      workEntries,
+      mediaEntries,
+      educationEntries,
+      experienceEntries,
+      contact: loadedData.contact || DEFAULT_ABOUT_STATE.contact,
+      seo: loadedData.seo || DEFAULT_ABOUT_STATE.seo,
+      sectionOrder: loadedData.sectionOrder || DEFAULT_ABOUT_STATE.sectionOrder,
+      sectionVisibility: loadedData.sectionVisibility || DEFAULT_ABOUT_STATE.sectionVisibility,
+    };
   };
-
-  const handleMoveParagraphDown = (index: number) => {
-    if (index === introParagraphs.length - 1) return;
-    const updated = [...introParagraphs];
-    const temp = updated[index + 1];
-    updated[index + 1] = updated[index];
-    updated[index] = temp;
-    setIntroParagraphs(updated);
-    markDirty();
-  };
-
-  const buildPayload = (): Partial<AboutPageDocument> => ({
-    title: title.trim() || DEFAULT_ABOUT_STATE.title,
-    introParagraphs: introParagraphs.filter((p) => p.trim().length > 0),
-    workEntries,
-    mediaEntries,
-    educationEntries,
-    experienceEntries,
-    contact: loadedData.contact || { visible: true, showEmail: true, showSocial: true },
-    seo: loadedData.seo || DEFAULT_ABOUT_STATE.seo,
-    sectionOrder: fixedSectionOrder,
-    sectionVisibility: fixedSectionVisibility,
-  });
 
   const handleSave = async (publish: boolean) => {
     if (publish) setIsPublishing(true);
@@ -300,7 +261,6 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
       if (isDevPreview && typeof window !== 'undefined') {
         sessionStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(payload));
         setLoadedData(payload);
-        setIsDirty(false);
         setStatusMessage({
           type: 'success',
           text: publish
@@ -312,7 +272,6 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
 
       await saveAboutPageContent(payload);
       setLoadedData(payload);
-      setIsDirty(false);
       setStatusMessage({
         type: 'success',
         text: publish
@@ -330,11 +289,6 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
     }
   };
 
-  const handleReset = () => {
-    applyLoadedData(loadedData);
-    setStatusMessage(null);
-  };
-
   if (isLoading) {
     return (
       <div className="py-12 flex items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -344,41 +298,15 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
     );
   }
 
-  const tabs: Array<{ id: AboutSubTab; label: string }> = [
-    { id: 'intro', label: 'Intro' },
-    { id: 'work', label: 'Work' },
-    { id: 'media', label: 'Media' },
-    { id: 'education', label: 'Education' },
-    { id: 'experience', label: 'Experience' },
-  ];
-
   return (
-    <div className="space-y-5 max-w-3xl pb-10">
-      {/* Header & Actions */}
+    <div className="space-y-6 max-w-3xl pb-10">
+      {/* Header & Two Controls: Save Draft, Publish / Update */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
-        <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground m-0">
-            About
-          </h1>
-          {isDirty && (
-            <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-              Unsaved changes
-            </span>
-          )}
-        </div>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground m-0">
+          About
+        </h1>
 
         <div className="flex items-center gap-2">
-          {isDirty && (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => handleSave(false)}
@@ -404,7 +332,7 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
             ) : (
               <Send className="w-3.5 h-3.5" />
             )}
-            <span>Publish</span>
+            <span>Publish / Update</span>
           </button>
         </div>
       </div>
@@ -436,155 +364,99 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
         </div>
       )}
 
-      {/* Simple Section Filter Tabs */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer ${
-              activeSubTab === tab.id
-                ? 'bg-primary text-primary-foreground'
-                : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Section 1: Introduction & Biography */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground m-0">Introduction & Biography</h2>
 
-      {/* Section Panel */}
-      <div>
-        {activeSubTab === 'intro' && (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-card p-5 space-y-2">
-              <label htmlFor="about-heading-input" className="text-xs font-medium text-foreground block">
-                Page Heading
-              </label>
-              <input
-                id="about-heading-input"
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  markDirty();
-                }}
-                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                placeholder="About Aakash Das"
-              />
-            </div>
+        <div className="space-y-1.5">
+          <label htmlFor="about-heading-input" className="text-xs font-medium text-foreground block">
+            Page Heading
+          </label>
+          <input
+            id="about-heading-input"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            placeholder="About Aakash Das"
+          />
+        </div>
 
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground m-0">Paragraphs</h2>
-                <button
-                  type="button"
-                  onClick={handleAddParagraph}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Paragraph</span>
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {introParagraphs.map((para, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 rounded-lg border border-border bg-background space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-muted-foreground">
-                        Paragraph {String(idx + 1).padStart(2, '0')}
-                      </span>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveParagraphUp(idx)}
-                          disabled={idx === 0}
-                          title="Move up"
-                          className="w-7 h-7 inline-flex items-center justify-center rounded border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-30 cursor-pointer"
-                        >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveParagraphDown(idx)}
-                          disabled={idx === introParagraphs.length - 1}
-                          title="Move down"
-                          className="w-7 h-7 inline-flex items-center justify-center rounded border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-30 cursor-pointer"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                        {introParagraphs.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteParagraph(idx)}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/15 cursor-pointer ml-0.5"
-                            title="Delete paragraph"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <textarea
-                      rows={3}
-                      value={para}
-                      onChange={(e) => handleUpdateParagraph(idx, e.target.value)}
-                      placeholder="Enter biography paragraph..."
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 leading-relaxed resize-y"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="space-y-2.5 pt-2 border-t border-border/60">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">Biography Paragraphs</span>
+            <button
+              type="button"
+              onClick={handleAddParagraph}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Paragraph</span>
+            </button>
           </div>
-        )}
 
-        {activeSubTab === 'work' && (
-          <WorkEditor
-            workEntries={workEntries}
-            onChange={(updated) => {
-              setWorkEntries(updated);
-              markDirty();
-            }}
-          />
-        )}
+          <div className="space-y-2.5">
+            {introParagraphs.map((para, idx) => (
+              <div
+                key={idx}
+                className="p-3 rounded-lg border border-border bg-background space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    Paragraph {String(idx + 1).padStart(2, '0')}
+                  </span>
+                  {introParagraphs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteParagraph(idx)}
+                      aria-label={`Delete paragraph ${idx + 1}`}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/15 text-[11px] font-medium cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
+                  )}
+                </div>
 
-        {activeSubTab === 'media' && (
-          <MediaMentionsEditor
-            mediaEntries={mediaEntries}
-            onChange={(updated) => {
-              setMediaEntries(updated);
-              markDirty();
-            }}
-          />
-        )}
+                <textarea
+                  rows={3}
+                  value={para}
+                  onChange={(e) => handleUpdateParagraph(idx, e.target.value)}
+                  placeholder="Enter biography paragraph..."
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 leading-relaxed resize-y"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-        {activeSubTab === 'education' && (
-          <EducationEditor
-            educationEntries={educationEntries}
-            onChange={(updated) => {
-              setEducationEntries(updated);
-              markDirty();
-            }}
-          />
-        )}
+      {/* Section 2: My Work */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground m-0">My Work</h2>
+        <WorkEditor workEntries={workEntries} onChange={setWorkEntries} />
+      </section>
 
-        {activeSubTab === 'experience' && (
-          <ExperienceEditor
-            experienceEntries={experienceEntries}
-            onChange={(updated) => {
-              setExperienceEntries(updated);
-              markDirty();
-            }}
-          />
-        )}
-      </div>
+      {/* Section 3: Conversations & Media */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground m-0">Conversations & Media</h2>
+        <MediaMentionsEditor mediaEntries={mediaEntries} onChange={setMediaEntries} />
+      </section>
+
+      {/* Section 4: Education */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground m-0">Education</h2>
+        <EducationEditor educationEntries={educationEntries} onChange={setEducationEntries} />
+      </section>
+
+      {/* Section 5: Professional Experience */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground m-0">Professional Experience</h2>
+        <ExperienceEditor
+          experienceEntries={experienceEntries}
+          onChange={setExperienceEntries}
+        />
+      </section>
     </div>
   );
 };

@@ -356,7 +356,7 @@ function getFileExtension(format?: string, url?: string): string {
             <div class="adjacent-links-row flex items-stretch justify-between gap-4 flex-col sm:flex-row">
               {adjacent.prev ? (
                 <a
-                  href={`/resources/${adjacent.prev.resourceNumber}`}
+                  href={`/resources/${adjacent.prev.id || adjacent.prev.resourceNumber}`}
                   class="adjacent-nav-link adjacent-prev flex items-center gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm no-underline text-inherit"
                   aria-label={`Previous Resource: ${adjacent.prev.title}`}
                 >
@@ -372,7 +372,7 @@ function getFileExtension(format?: string, url?: string): string {
 
               {adjacent.next ? (
                 <a
-                  href={`/resources/${adjacent.next.resourceNumber}`}
+                  href={`/resources/${adjacent.next.id || adjacent.next.resourceNumber}`}
                   class="adjacent-nav-link adjacent-next flex items-center justify-between gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm sm:ml-auto text-right no-underline text-inherit"
                   aria-label={`Next Resource: ${adjacent.next.title}`}
                 >

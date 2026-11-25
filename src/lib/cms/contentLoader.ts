@@ -284,6 +284,7 @@ export function getPublicAboutPage(): AboutPageDocument {
  */
 function mapDocToResource(doc: ResourceDocument): Resource {
   return {
+    id: doc.id || doc.resourceNumber,
     resourceNumber: doc.resourceNumber,
     slug: doc.slug,
     title: doc.title,
@@ -354,35 +355,48 @@ export function getPublicResources(): Resource[] {
 }
 
 /**
- * Resolves a published resource by its permanent number (e.g. "001").
+ * Resolves a published resource by canonical ID or display number (e.g. "001", "015", "res-...").
  */
-export function getPublicResourceByNumber(number: string): Resource | undefined {
+export function getPublicResourceByNumber(numberOrId: string): Resource | undefined {
   if (snapshot.resources && snapshot.resources.length > 0) {
+    const raw = String(numberOrId || '').trim();
+    const padded = /^\d+$/.test(raw) && raw.length < 3 ? raw.padStart(3, '0') : raw;
     const found = snapshot.resources.find(
-      (r) => r.published && r.resourceNumber === number
+      (r) =>
+        r.published &&
+        r.status !== 'draft' &&
+        r.status !== 'archived' &&
+        (r.id === raw || r.resourceNumber === raw || r.resourceNumber === padded)
     );
     return found ? mapDocToResource(found) : undefined;
   }
-  return defaultGetPublishedResourceByNumber(number);
+  return defaultGetPublishedResourceByNumber(numberOrId);
 }
 
 /**
- * Returns list of published resource numbers for static path generation.
+ * Returns list of published route identifiers (canonical IDs plus display numbers) for static paths.
  */
 export function getAllPublicResourceNumbers(): string[] {
-  return getPublicResources().map((r) => r.resourceNumber);
+  const routes = new Set<string>();
+  for (const r of getPublicResources()) {
+    if (r.id) routes.add(r.id);
+    if (r.resourceNumber) routes.add(r.resourceNumber);
+  }
+  return Array.from(routes);
 }
 
 /**
- * Returns adjacent published resources (previous and next) in numeric order.
+ * Returns adjacent published resources (previous and next) in catalog order.
  */
-export function getAdjacentPublicResources(currentNumber: string): {
+export function getAdjacentPublicResources(currentNumberOrId: string): {
   prev?: Resource;
   next?: Resource;
 } {
   const published = getPublicResources();
+  const raw = String(currentNumberOrId || '').trim();
+  const padded = /^\d+$/.test(raw) && raw.length < 3 ? raw.padStart(3, '0') : raw;
   const currentIndex = published.findIndex(
-    (r) => r.resourceNumber === currentNumber
+    (r) => r.id === raw || r.resourceNumber === raw || r.resourceNumber === padded
   );
 
   if (currentIndex === -1) {

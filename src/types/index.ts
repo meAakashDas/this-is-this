@@ -94,9 +94,11 @@ export interface YouTubeEmbedData {
 }
 
 export interface Resource {
+  /** Immutable canonical document identifier in Firestore (preserved across display number edits). */
+  id?: string;
   /**
-   * Permanent unique identifier (e.g. "001", "002").
-   * Preserves leading zeroes. Immutable once assigned.
+   * Formatted display resource number (e.g. "001", "015", "100").
+   * Preserves leading zeroes.
    */
   resourceNumber: string;
   slug?: string;

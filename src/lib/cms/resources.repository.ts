@@ -329,30 +329,93 @@ export async function getResourceById(id: string): Promise<ResourceDocument | nu
 }
 
 /**
+ * Generates an immutable internal Firestore document ID distinct from the editable display number.
+ */
+function generateImmutableResourceDocId(): string {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 7);
+  return `res-${ts}-${rand}`;
+}
+
+/**
+ * Computes the next sequential positive integer resource number padded to at least 3 digits.
+ */
+export function getNextAvailableResourceNumber(resources: ResourceDocument[]): string {
+  const used = new Set<number>();
+  let maxNum = 0;
+  for (const r of resources) {
+    const parsed = parseInt(String(r.resourceNumber || ''), 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      used.add(parsed);
+      if (parsed > maxNum) maxNum = parsed;
+    }
+  }
+  let candidate = maxNum + 1;
+  while (used.has(candidate)) {
+    candidate += 1;
+  }
+  return String(candidate).padStart(3, '0');
+}
+
+/**
+ * Checks whether a display resourceNumber conflicts with any other resource in Firestore.
+ */
+async function assertUniqueResourceNumber(
+  targetNumber: string,
+  excludeDocId?: string
+): Promise<void> {
+  const targetInt = parseInt(targetNumber, 10);
+  const all = await getAllResourcesForAdmin();
+  const conflict = all.find((r) => {
+    const rDocId = r.id || r.resourceNumber;
+    if (excludeDocId && rDocId === excludeDocId) return false;
+    return parseInt(String(r.resourceNumber || ''), 10) === targetInt || r.resourceNumber === targetNumber;
+  });
+  if (conflict) {
+    throw new CmsConflictError(
+      `Resource number NO. ${targetNumber} is already assigned to "${conflict.title}".`
+    );
+  }
+}
+
+/**
  * Creates a brand new resource document.
- * Enforces permanent 3-digit ID formatting and prevents accidental overwrites.
+ * Generates an immutable Firestore document ID (never using the editable display number),
+ * auto-assigns the next sequential resource number when omitted, and prevents duplicates.
  */
 export async function createResource(
-  data: Omit<ResourceDocument, 'id' | 'createdAt' | 'updatedAt'>,
+  data: Omit<ResourceDocument, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
   adminEmail: string = 'aakashdas.photo@gmail.com'
 ): Promise<ResourceDocument> {
   const db = getFirebaseFirestore();
 
-  const numValidation = validateResourceNumber(data.resourceNumber);
-  if (!numValidation.valid || !numValidation.value) {
-    throw new CmsError(numValidation.error || 'Invalid resource number', 'VALIDATION_ERROR');
+  let resourceNumber: string;
+  const rawInput = data.resourceNumber ? String(data.resourceNumber).trim() : '';
+  if (!rawInput) {
+    const existingAll = await getAllResourcesForAdmin();
+    resourceNumber = getNextAvailableResourceNumber(existingAll);
+  } else {
+    const numValidation = validateResourceNumber(rawInput);
+    if (!numValidation.valid || !numValidation.value) {
+      throw new CmsError(
+        numValidation.error || 'Resource number must be a positive integer.',
+        'VALIDATION_ERROR'
+      );
+    }
+    resourceNumber = numValidation.value;
   }
-  const resourceNumber = numValidation.value;
 
-  const existing = await getResourceByNumber(resourceNumber);
-  if (existing) {
-    throw new CmsConflictError(`Resource #${resourceNumber} already exists in Firestore.`);
-  }
+  await assertUniqueResourceNumber(resourceNumber);
+
+  // Never use the numeric display number as the Firestore document ID
+  const explicitId = data.id && String(data.id).trim();
+  const immutableDocId =
+    explicitId && !/^\d+$/.test(explicitId) ? explicitId : generateImmutableResourceDocId();
 
   const now = new Date().toISOString();
   const fullDoc: ResourceDocument = {
     ...data,
-    id: resourceNumber,
+    id: immutableDocId,
     resourceNumber,
     coverImage: sanitizeAssetUrl(data.coverImage, '') || undefined,
     downloadUrl: sanitizeAssetUrl(data.downloadUrl, '') || undefined,
@@ -367,8 +430,8 @@ export async function createResource(
   const validated = validateResource(fullDoc);
 
   try {
-    const docRef = doc(db, COLLECTION, resourceNumber);
-    await setDoc(docRef, sanitizeForFirestore(validated, resourceNumber));
+    const docRef = doc(db, COLLECTION, immutableDocId);
+    await setDoc(docRef, sanitizeForFirestore(validated, immutableDocId));
     clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
@@ -379,8 +442,7 @@ export async function createResource(
 
 /**
  * Updates an existing resource document.
- * Safely targets the canonical database document, preserves stable ID,
- * and preserves all unedited fields (attachments, BlockNote content, SEO metadata).
+ * Preserves the canonical Firestore document ID & public URL even when display resourceNumber changes.
  */
 export async function updateResource(
   rawIdentifier: string,
@@ -394,41 +456,35 @@ export async function updateResource(
     throw new CmsError('Resource identifier is required for update.', 'VALIDATION_ERROR');
   }
 
-  // Resilient lookup of the existing record
-  const existing = (await getResourceByNumber(trimmedId)) || (await getResourceById(trimmedId));
+  // Resilient lookup by canonical doc ID first, then by display resourceNumber
+  const existing = (await getResourceById(trimmedId)) || (await getResourceByNumber(trimmedId));
   if (!existing) {
     throw new CmsNotFoundError('Resource', trimmedId);
   }
 
-  // Canonical document ID (must stay stable)
+  // Canonical document ID stays immutable forever (preserves URLs & bookmarks)
   const canonicalDocId = existing.id || existing.resourceNumber || trimmedId;
 
-  // Determine resourceNumber (validate if changed)
+  // Validate new display resourceNumber if provided
   let targetResourceNumber = existing.resourceNumber;
-  if (data.resourceNumber && data.resourceNumber.trim() !== '') {
-    const numValidation = validateResourceNumber(data.resourceNumber);
+  if ('resourceNumber' in data && data.resourceNumber !== undefined) {
+    const numValidation = validateResourceNumber(String(data.resourceNumber));
     if (!numValidation.valid || !numValidation.value) {
-      throw new CmsError(numValidation.error || 'Invalid resource number', 'VALIDATION_ERROR');
+      throw new CmsError(
+        numValidation.error || 'Resource number must be a positive integer.',
+        'VALIDATION_ERROR'
+      );
     }
     targetResourceNumber = numValidation.value;
+    await assertUniqueResourceNumber(targetResourceNumber, canonicalDocId);
   }
-
-  // If resourceNumber changed, verify no collision and migrate canonical doc ID
-  const isNumberMigrating = targetResourceNumber !== canonicalDocId;
-  if (isNumberMigrating) {
-    const conflict = await getResourceByNumber(targetResourceNumber);
-    if (conflict && conflict.id !== canonicalDocId) {
-      throw new CmsConflictError(`Resource #${targetResourceNumber} already exists in Firestore.`);
-    }
-  }
-  const finalDocId = isNumberMigrating ? targetResourceNumber : canonicalDocId;
 
   const now = new Date().toISOString();
   const rawAttachments = data.attachments !== undefined ? data.attachments : (existing.attachments || []);
   const merged: ResourceDocument = {
     ...existing,
     ...data,
-    id: finalDocId,
+    id: canonicalDocId,
     resourceNumber: targetResourceNumber,
     coverImage: sanitizeAssetUrl(
       'coverImage' in data ? data.coverImage : existing.coverImage,
@@ -459,17 +515,10 @@ export async function updateResource(
   const validated = validateResource(merged);
 
   try {
-    const docRef = doc(db, COLLECTION, finalDocId);
+    const docRef = doc(db, COLLECTION, canonicalDocId);
     // Write full sanitized document (since `merged` already preserves `existing` fields)
     // so removed fields like cleared pdfPreviewUrl/docxUrl are actually deleted in Firestore.
-    await setDoc(docRef, sanitizeForFirestore(validated, finalDocId));
-    if (isNumberMigrating) {
-      try {
-        await deleteDoc(doc(db, COLLECTION, canonicalDocId));
-      } catch {
-        // Non-fatal if old ID did not exist
-      }
-    }
+    await setDoc(docRef, sanitizeForFirestore(validated, canonicalDocId));
     clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
@@ -594,28 +643,15 @@ export async function deleteResource(rawIdentifier: string): Promise<void> {
     throw new CmsError('Resource identifier is required for delete.', 'VALIDATION_ERROR');
   }
 
-  const existing = (await getResourceByNumber(trimmedId)) || (await getResourceById(trimmedId));
-  const targetDocId = existing?.id || existing?.resourceNumber || trimmedId;
+  const existing = (await getResourceById(trimmedId)) || (await getResourceByNumber(trimmedId));
+  const targetDocId = existing?.id || trimmedId;
 
   try {
     const docRef = doc(db, COLLECTION, targetDocId);
     await deleteDoc(docRef);
 
-    // Also delete non-padded or padded variant if different
-    const padded = trimmedId.padStart(3, '0');
-    if (padded !== targetDocId) {
-      try {
-        await deleteDoc(doc(db, COLLECTION, padded));
-      } catch {}
-    }
-
     // Invalidate client-side live sync cache
-    if (typeof window !== 'undefined') {
-      try {
-        sessionStorage.removeItem('risepaisa_live_resources');
-        sessionStorage.removeItem('risepaisa_live_timestamp');
-      } catch {}
-    }
+    clearLiveSyncCache('resources');
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to delete resource #${targetDocId}: ${msg}`, 'DELETE_FAILED');

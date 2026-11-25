@@ -89,9 +89,10 @@ export const ResourceList: React.FC<ResourceListProps> = ({
 
             return (
               <div
-                key={res.resourceNumber}
+                key={res.id || res.resourceNumber}
                 className="resource-card px-3.5 py-3 rounded-lg border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 data-resource-number={res.resourceNumber}
+                data-resource-id={res.id || res.resourceNumber}
               >
                 {/* Number, Title, Status */}
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -176,7 +177,7 @@ export const ResourceList: React.FC<ResourceListProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onDelete(deleteTarget.resourceNumber);
+                  onDelete(deleteTarget.id || deleteTarget.resourceNumber);
                   setDeleteTarget(null);
                 }}
                 className="px-3 py-1.5 text-xs font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"

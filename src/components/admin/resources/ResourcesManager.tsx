@@ -16,6 +16,7 @@ import {
   unpublishResource,
   archiveResource,
   getBaselineFallbackResources,
+  getNextAvailableResourceNumber,
 } from '../../../lib/cms/resources.repository.ts';
 import type { ResourceDocument } from '../../../types/cms/resource.ts';
 
@@ -26,12 +27,7 @@ interface ResourcesManagerProps {
 const DEV_STORAGE_KEY = 'aakashdas_cms_resources_preview';
 
 function calculateNextNumber(resources: ResourceDocument[]): string {
-  const nums = resources
-    .map((r) => parseInt(r.resourceNumber, 10))
-    .filter((n) => !isNaN(n));
-  const max = Math.max(...nums, 4);
-  const next = max + 1;
-  return String(next).padStart(3, '0');
+  return getNextAvailableResourceNumber(resources);
 }
 
 export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview = false }) => {
@@ -41,6 +37,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   const [recordNotFoundId, setRecordNotFoundId] = useState<string | null>(null);
   const [viewState, setViewState] = useState<'list' | 'editor' | 'preview'>('list');
   const [selectedResource, setSelectedResource] = useState<ResourceDocument | null>(null);
+  const [editorSessionKey, setEditorSessionKey] = useState<string>('editor-init');
   const [statusFeedback, setStatusFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -110,6 +107,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
               if (mounted) {
                 if (found) {
                   setSelectedResource(found);
+                  setEditorSessionKey(found.id || found.resourceNumber);
                   setViewState('editor');
                   setRecordNotFoundId(null);
                 } else {
@@ -140,6 +138,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
                 contentBlocks: [],
               };
               setSelectedResource(newDoc as ResourceDocument);
+              setEditorSessionKey(`create-${Date.now()}`);
               setViewState('editor');
             }
           }
@@ -197,6 +196,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
       contentBlocks: [],
     };
     setSelectedResource(newDoc as ResourceDocument);
+    setEditorSessionKey(`create-${Date.now()}`);
     setViewState('editor');
     setRecordNotFoundId(null);
     updateUrlParam(null, true);
@@ -204,7 +204,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
 
   const handleEdit = async (resource: ResourceDocument) => {
     setStatusFeedback(null);
-    const canonicalId = resource.resourceNumber || resource.id;
+    const canonicalId = resource.id || resource.resourceNumber;
     updateUrlParam(canonicalId);
     setRecordNotFoundId(null);
     setIsRecordLoading(true);
@@ -212,24 +212,27 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     try {
       if (isDevPreview) {
         const foundLocal = resources.find(
-          (r) => r.resourceNumber === canonicalId || r.id === canonicalId
+          (r) => r.id === canonicalId || r.resourceNumber === resource.resourceNumber
         );
         if (foundLocal) {
           setSelectedResource(foundLocal);
+          setEditorSessionKey(foundLocal.id || foundLocal.resourceNumber);
           setViewState('editor');
           return;
         }
       }
 
       const fullRecord =
-        (await getResourceByNumber(canonicalId)) ||
         (await getResourceById(canonicalId)) ||
+        (await getResourceByNumber(resource.resourceNumber)) ||
         resource;
       setSelectedResource(fullRecord);
+      setEditorSessionKey(fullRecord.id || fullRecord.resourceNumber);
       setViewState('editor');
     } catch (err) {
       console.warn('Error loading fresh resource record, using cached:', err);
       setSelectedResource(resource);
+      setEditorSessionKey(canonicalId);
       setViewState('editor');
     } finally {
       setIsRecordLoading(false);
@@ -291,8 +294,9 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     };
 
     if (isDevPreview) {
+      const targetId = resource.id || resource.resourceNumber;
       const updatedList = resources.map((r) =>
-        r.resourceNumber === resource.resourceNumber ? updatedResource : r
+        (r.id || r.resourceNumber) === targetId ? updatedResource : r
       );
       persistDevChanges(updatedList);
       toast.success(willPublish ? `Resource #${resource.resourceNumber} published.` : `Resource #${resource.resourceNumber} unpublished.`);
@@ -331,8 +335,9 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     };
 
     if (isDevPreview) {
+      const targetId = resource.id || resource.resourceNumber;
       const updatedList = resources.map((r) =>
-        r.resourceNumber === resource.resourceNumber ? updatedResource : r
+        (r.id || r.resourceNumber) === targetId ? updatedResource : r
       );
       persistDevChanges(updatedList);
       toast.success(isCurrentlyArchived ? `Restored #${resource.resourceNumber} to draft.` : `Archived #${resource.resourceNumber}.`);
@@ -358,18 +363,21 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     }
   };
 
-  const handleDelete = async (resourceNumber: string) => {
+  const handleDelete = async (idOrNumber: string) => {
     setStatusFeedback(null);
     const targetResource = resources.find(
-      (r) => r.resourceNumber === resourceNumber || r.id === resourceNumber
+      (r) => r.id === idOrNumber || r.resourceNumber === idOrNumber
     );
+    const displayNum = targetResource?.resourceNumber || idOrNumber;
     if (isDevPreview) {
-      const updatedList = resources.filter((r) => r.resourceNumber !== resourceNumber);
+      const updatedList = resources.filter(
+        (r) => (r.id || r.resourceNumber) !== (targetResource?.id || targetResource?.resourceNumber || idOrNumber)
+      );
       persistDevChanges(updatedList);
-      toast.success(`Resource #${resourceNumber} deleted from preview.`);
+      toast.success(`Resource #${displayNum} deleted from preview.`);
     } else {
       try {
-        await deleteResource(resourceNumber);
+        await deleteResource(targetResource?.id || idOrNumber);
         if (targetResource?.attachments?.length) {
           await Promise.allSettled(
             targetResource.attachments
@@ -380,7 +388,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         }
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
-        const msg = `Resource #${resourceNumber} permanently deleted from Cloud Firestore.`;
+        const msg = `Resource #${displayNum} permanently deleted from Cloud Firestore.`;
         toast.success(msg);
         setStatusFeedback({ type: 'success', message: msg });
       } catch (err: any) {
@@ -395,45 +403,60 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     setStatusFeedback(null);
 
     if (isDevPreview) {
-      const lookupId = selectedResource?.id || selectedResource?.resourceNumber || doc.id || doc.resourceNumber;
-      const existingIndex = resources.findIndex(
-        (r) => r.id === lookupId || r.resourceNumber === lookupId
-      );
-      let updatedList: ResourceDocument[];
-      if (existingIndex >= 0) {
-        updatedList = [...resources];
-        updatedList[existingIndex] = { ...doc, id: doc.resourceNumber };
-      } else {
-        updatedList = [...resources, doc];
+      const targetInt = parseInt(String(doc.resourceNumber || ''), 10);
+      const isEditing = Boolean(selectedResource?.id);
+      const currentDocId = selectedResource?.id;
+
+      const conflict = resources.find((r) => {
+        const rId = r.id || r.resourceNumber;
+        if (isEditing && rId === currentDocId) return false;
+        return parseInt(String(r.resourceNumber || ''), 10) === targetInt;
+      });
+      if (conflict) {
+        throw new Error(
+          `Resource number NO. ${doc.resourceNumber} is already assigned to "${conflict.title}".`
+        );
       }
+
+      let savedDoc: ResourceDocument;
+      let updatedList: ResourceDocument[];
+      if (isEditing) {
+        const existingIndex = resources.findIndex(
+          (r) => (r.id || r.resourceNumber) === currentDocId
+        );
+        savedDoc = { ...doc, id: currentDocId! };
+        updatedList = [...resources];
+        if (existingIndex >= 0) {
+          updatedList[existingIndex] = savedDoc;
+        } else {
+          updatedList.push(savedDoc);
+        }
+      } else {
+        const newDocId = `res-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        savedDoc = { ...doc, id: newDocId };
+        updatedList = [...resources, savedDoc];
+      }
+
       persistDevChanges(updatedList);
-      setSelectedResource(doc);
-      updateUrlParam(doc.resourceNumber);
+      setSelectedResource(savedDoc);
+      updateUrlParam(savedDoc.id || savedDoc.resourceNumber);
       toast.success(
-        doc.published
-          ? `Resource #${doc.resourceNumber} published (Dev Preview).`
-          : `Resource #${doc.resourceNumber} saved as draft (Dev Preview).`
+        savedDoc.published
+          ? `Resource #${savedDoc.resourceNumber} published (Dev Preview).`
+          : `Resource #${savedDoc.resourceNumber} saved as draft (Dev Preview).`
       );
     } else {
-      const originalLookupId =
-        selectedResource?.id ||
-        selectedResource?.resourceNumber ||
-        doc.id ||
-        doc.resourceNumber;
-
-      const existing =
-        (await getResourceById(originalLookupId)) ||
-        (await getResourceByNumber(originalLookupId)) ||
-        (await getResourceByNumber(doc.resourceNumber));
+      const existingDocId = selectedResource?.id;
+      const existing = existingDocId ? await getResourceById(existingDocId) : null;
 
       const savedDoc = existing
-        ? await updateResource(existing.id || existing.resourceNumber, doc)
+        ? await updateResource(existing.id, doc)
         : await createResource(doc);
 
       const refreshed = await getAllResourcesForAdmin();
       setResources(refreshed);
       setSelectedResource(savedDoc);
-      updateUrlParam(savedDoc.resourceNumber);
+      updateUrlParam(savedDoc.id || savedDoc.resourceNumber);
       const msg = savedDoc.published
         ? `Resource #${savedDoc.resourceNumber} saved & published to Cloud Firestore.`
         : `Resource #${savedDoc.resourceNumber} saved as ${savedDoc.status || 'draft'} in Cloud Firestore.`;
@@ -485,9 +508,15 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   if (viewState === 'editor') {
     return (
       <ResourceEditor
-        key={selectedResource?.id || selectedResource?.resourceNumber || 'new'}
+        key={editorSessionKey}
         initialResource={selectedResource || undefined}
         existingNumbers={resources.map((r) => r.resourceNumber)}
+        existingResources={resources.map((r) => ({
+          id: r.id || r.resourceNumber,
+          resourceNumber: r.resourceNumber,
+          title: r.title,
+        }))}
+        defaultAutoNumber={calculateNextNumber(resources)}
         existingSlugs={resources.map((r) => ({ number: r.resourceNumber, slug: r.slug }))}
         onSave={handleSaveEditor}
         onCancel={handleCancelEditor}

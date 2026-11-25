@@ -57,9 +57,9 @@ const publishedResources = getPublicResources();
       {publishedResources.length > 0 ? (
         <div class="resources-library-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6" role="list">
           {publishedResources.map((res) => (
-            <article class="resource-row-card group rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all flex flex-col h-full p-5 sm:p-6" role="listitem" data-resource-number={res.resourceNumber}>
+            <article class="resource-row-card group rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all flex flex-col h-full p-5 sm:p-6" role="listitem" data-resource-number={res.resourceNumber} data-resource-id={res.id || res.resourceNumber}>
               <a
-                href={`/resources/${res.resourceNumber}`}
+                href={`/resources/${res.id || res.resourceNumber}`}
                 class="resource-card-link flex flex-col flex-1 no-underline text-inherit"
                 aria-label={`Open Resource ${res.resourceNumber}: ${res.title}`}
               >

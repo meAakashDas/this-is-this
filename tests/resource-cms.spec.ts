@@ -237,4 +237,97 @@ test.describe('Simplified 2-Section Resource Editor QA', () => {
     await expect(page.locator('text=Save as PDF')).toBeVisible();
     await expect(page.locator('text=Download Resources')).toBeVisible();
   });
+
+  test('8. Supports auto sequential numbering, custom numbers, duplicate validation, and editing existing resource numbers with immutable IDs', async ({
+    page,
+  }) => {
+    await page.locator('aside button:has-text("Resources")').click();
+    await expect(page.locator('button:has-text("Create Resource")')).toBeVisible();
+
+    // 1. Create with blank Resource Number -> auto-assigns next sequential number (NO. 004 in Dev Preview)
+    await page.locator('button:has-text("Create Resource")').click();
+    const numInput = page.locator('#resource-number-field');
+    await expect(numInput).toBeVisible();
+    await expect(numInput).toHaveValue('');
+    await expect(numInput).toHaveAttribute('placeholder', /Auto \(004\)/);
+    await expect(page.locator('text=NO. 004').first()).toBeVisible();
+
+    const editor = page.locator('.blocknote-canvas-container [contenteditable="true"]').first();
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.type('Auto Numbered Resource');
+
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("saved as draft")').first()
+    ).toBeVisible();
+
+    // Verify URL uses immutable non-display doc ID (res-...), not ?id=004
+    const autoCreatedUrl = new URL(page.url());
+    const autoDocId = autoCreatedUrl.searchParams.get('id');
+    expect(autoDocId).toBeTruthy();
+    expect(autoDocId).toMatch(/^res-/);
+
+    // Return to list, reload, and verify NO. 004 persists
+    await page.locator('button[title="Back to Resources"]').click();
+    await expect(page.locator('text=NO. 004')).toBeVisible();
+    await page.reload({ waitUntil: 'load' });
+    await page.locator('aside button:has-text("Resources")').click();
+    await expect(page.locator('text=NO. 004')).toBeVisible();
+
+    // 2. Duplicate & invalid number validation on Create
+    await page.locator('button:has-text("Create Resource")').click();
+    await numInput.fill('0');
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(page.locator('[role="alert"]')).toContainText(/positive integer/i);
+
+    await numInput.fill('1');
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(page.locator('[role="alert"]')).toContainText(/already assigned/i);
+
+    // 3. Create with custom number (15 -> formatted NO. 015)
+    await numInput.fill('15');
+    await expect(page.locator('text=NO. 015').first()).toBeVisible();
+    await editor.click();
+    await page.keyboard.type('Custom Fifteen Resource');
+
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("saved as draft")').first()
+    ).toBeVisible();
+
+    const customUrl = new URL(page.url());
+    const customDocId = customUrl.searchParams.get('id');
+    expect(customDocId).toBeTruthy();
+    expect(customDocId).toMatch(/^res-/);
+    expect(customDocId).not.toBe('015');
+
+    // Return to list, reload, and verify NO. 015 persists
+    await page.locator('button[title="Back to Resources"]').click();
+    const customRow = page.locator(`[data-resource-id="${customDocId}"]`);
+    await expect(customRow).toContainText('NO. 015');
+    await page.reload({ waitUntil: 'load' });
+    await page.locator('aside button:has-text("Resources")').click();
+    await expect(page.locator(`[data-resource-id="${customDocId}"]`)).toContainText('NO. 015');
+
+    // 4. Edit existing resource number (015 -> 20) while preserving immutable ID
+    await page.locator(`[data-resource-id="${customDocId}"] button:has-text("Edit")`).click();
+    await expect(numInput).toHaveValue('015');
+    await numInput.fill('20');
+    await expect(page.locator('text=NO. 020').first()).toBeVisible();
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("saved as draft")').first()
+    ).toBeVisible();
+
+    // Immutable doc ID stays identical across number edit
+    expect(new URL(page.url()).searchParams.get('id')).toBe(customDocId);
+
+    // Reload editor directly, confirm NO. 020 persists, then return to list and confirm ResourceList
+    await page.reload({ waitUntil: 'load' });
+    await expect(page.locator('#resource-number-field')).toHaveValue('020');
+    await page.locator('button[title="Back to Resources"]').click();
+    await expect(page.locator(`[data-resource-id="${customDocId}"]`)).toContainText('NO. 020');
+    await expect(page.locator('text=NO. 015')).toHaveCount(0);
+  });
 });

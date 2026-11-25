@@ -41,7 +41,10 @@ export const urlOrPathSchema = z
 export const resourceNumberSchema = z
   .string()
   .trim()
-  .regex(/^\d{1,6}$/, 'Resource number must be between 1 and 6 digits')
+  .regex(/^\d{1,6}$/, 'Resource number must be a positive integer (1 to 6 digits)')
+  .refine((val) => parseInt(val, 10) > 0, {
+    message: 'Resource number must be a positive integer (1 or greater)',
+  })
   .transform((val) => (val.length < 3 ? val.padStart(3, '0') : val));
 
 export const slugSchema = z

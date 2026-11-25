@@ -41,14 +41,14 @@ export const resourceNumberSchema = {
         },
       };
     }
-    if (!/^\d+$/.test(trimmed)) {
+    if (!/^\d+$/.test(trimmed) || parseInt(trimmed, 10) <= 0) {
       return {
         success: false as const,
         error: {
           issues: [
             {
               message:
-                'Resource numbers contain digits only. Please enter a number like 001.',
+                'Resource numbers must be positive integers (1 or greater, e.g. 001).',
             },
           ],
         },

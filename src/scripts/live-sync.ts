@@ -189,20 +189,37 @@ async function syncResourcesCatalog(db: any) {
   const emptyCard = grid.querySelector('.empty-resources-card');
   if (emptyCard) emptyCard.remove();
 
+  const validIds = new Set(liveResources.map((r) => String(r.id || r.resourceNumber)));
   const validNumbers = new Set(liveResources.map((r) => String(r.resourceNumber)));
-  Array.from(grid.querySelectorAll<HTMLElement>('[data-resource-number]')).forEach((card) => {
+  Array.from(grid.querySelectorAll<HTMLElement>('.resource-row-card')).forEach((card) => {
+    const id = card.getAttribute('data-resource-id');
     const num = card.getAttribute('data-resource-number');
-    if (num && !validNumbers.has(num)) {
+    if ((id && !validIds.has(id)) && (num && !validNumbers.has(num))) {
       card.remove();
     }
   });
 
   liveResources.forEach((res) => {
+    const docIdStr = String(res.id || res.resourceNumber);
     const numStr = String(res.resourceNumber);
-    let card = grid.querySelector<HTMLElement>(`[data-resource-number="${numStr}"]`);
+    let card =
+      grid.querySelector<HTMLElement>(`[data-resource-id="${CSS.escape(docIdStr)}"]`) ||
+      grid.querySelector<HTMLElement>(`[data-resource-number="${CSS.escape(numStr)}"]`);
     const labelText = res.cardActionLabel || 'Open';
+    const targetHref = `/resources/${docIdStr}`;
 
     if (card) {
+      card.setAttribute('data-resource-id', docIdStr);
+      card.setAttribute('data-resource-number', numStr);
+      const linkEl = card.querySelector<HTMLAnchorElement>('a.resource-card-link');
+      if (linkEl) {
+        linkEl.href = targetHref;
+        linkEl.setAttribute('aria-label', `Open Resource ${numStr}: ${res.title || ''}`);
+      }
+      const numEl = card.querySelector('.resource-num');
+      if (numEl && numEl.textContent?.trim() !== `NO. ${numStr}`) {
+        numEl.textContent = `NO. ${numStr}`;
+      }
       const titleEl = card.querySelector('.resource-title');
       const descEl = card.querySelector('.resource-desc');
       if (titleEl && res.title && titleEl.textContent !== res.title) {
@@ -216,9 +233,10 @@ async function syncResourcesCatalog(db: any) {
       card.className =
         'resource-row-card group rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all flex flex-col h-full p-5 sm:p-6';
       card.setAttribute('role', 'listitem');
+      card.setAttribute('data-resource-id', docIdStr);
       card.setAttribute('data-resource-number', numStr);
       card.innerHTML = `
-        <a href="/resources/${escapeHtml(numStr)}" class="resource-card-link flex flex-col flex-1 no-underline text-inherit" aria-label="Open Resource ${escapeHtml(numStr)}: ${escapeHtml(res.title)}">
+        <a href="${escapeHtml(targetHref)}" class="resource-card-link flex flex-col flex-1 no-underline text-inherit" aria-label="Open Resource ${escapeHtml(numStr)}: ${escapeHtml(res.title)}">
           <div class="resource-card-header flex items-center justify-between gap-2 mb-3 sm:mb-3.5">
             <span class="resource-num inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border bg-secondary text-muted-foreground">
               NO. ${escapeHtml(numStr)}
@@ -410,8 +428,11 @@ async function syncResourceDetail(db: any, resourceId: string) {
   const mainContent = document.getElementById('main-content');
 
   try {
-    const padded = resourceId.padStart(3, '0');
-    let snap = await getDoc(doc(db, 'resources', padded));
+    const padded = /^\d+$/.test(resourceId) && resourceId.length < 3 ? resourceId.padStart(3, '0') : resourceId;
+    let snap = await getDoc(doc(db, 'resources', resourceId));
+    if (!snap.exists() && padded !== resourceId) {
+      snap = await getDoc(doc(db, 'resources', padded));
+    }
 
     if (!snap.exists()) {
       const q = query(
@@ -472,10 +493,53 @@ async function syncResourceDetail(db: any, resourceId: string) {
 
     if (!articleEl) return;
 
-    // Update Header fields
+    // Update Header & Breadcrumb fields
     const numBadge = articleEl.querySelector('.resource-num-badge');
     if (numBadge && data.resourceNumber) {
       numBadge.textContent = `NO. ${data.resourceNumber}`;
+    }
+
+    const crumbCurrent = articleEl.querySelector('.crumb-current');
+    if (crumbCurrent && data.resourceNumber) {
+      crumbCurrent.textContent = `Resource #${data.resourceNumber}`;
+    }
+
+    // Sync Adjacent Previous / Next Resource links cleanly using immutable doc IDs
+    const navAdjacentEl = articleEl.querySelector<HTMLElement>('.resource-adjacent-nav .adjacent-links-row');
+    if (navAdjacentEl) {
+      const liveList = await fetchPublishedResourcesLive(db);
+      if (liveList && liveList.length > 0) {
+        const currentDocId = snap.id || data.id || resourceId;
+        const idx = liveList.findIndex(
+          (r) =>
+            String(r.id) === String(currentDocId) ||
+            String(r.resourceNumber) === String(data.resourceNumber)
+        );
+        if (idx !== -1) {
+          const prevRes = idx > 0 ? liveList[idx - 1] : null;
+          const nextRes = idx < liveList.length - 1 ? liveList[idx + 1] : null;
+          navAdjacentEl.innerHTML = `
+            ${prevRes ? `
+              <a href="/resources/${escapeHtml(prevRes.id || prevRes.resourceNumber)}" class="adjacent-nav-link adjacent-prev flex items-center gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm no-underline text-inherit" aria-label="Previous Resource: ${escapeHtml(prevRes.title)}">
+                <span class="nav-dir-arrow text-muted-foreground" aria-hidden="true">←</span>
+                <div class="nav-text-group flex flex-col gap-0.5 min-w-0">
+                  <span class="nav-label text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground">Previous Resource</span>
+                  <span class="nav-resource-title text-sm font-semibold text-foreground truncate">${escapeHtml(prevRes.title)}</span>
+                </div>
+              </a>
+            ` : '<div class="adjacent-empty flex-1"></div>'}
+            ${nextRes ? `
+              <a href="/resources/${escapeHtml(nextRes.id || nextRes.resourceNumber)}" class="adjacent-nav-link adjacent-next flex items-center justify-between gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm sm:ml-auto text-right no-underline text-inherit" aria-label="Next Resource: ${escapeHtml(nextRes.title)}">
+                <div class="nav-text-group flex flex-col gap-0.5 min-w-0 text-left sm:text-right">
+                  <span class="nav-label text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground">Next Resource</span>
+                  <span class="nav-resource-title text-sm font-semibold text-foreground truncate">${escapeHtml(nextRes.title)}</span>
+                </div>
+                <span class="nav-dir-arrow text-muted-foreground" aria-hidden="true">→</span>
+              </a>
+            ` : '<div class="adjacent-empty flex-1"></div>'}
+          `;
+        }
+      }
     }
 
     const titleEl = articleEl.querySelector('.resource-detail-title');
@@ -928,7 +992,7 @@ async function syncHomepage(db: any) {
       let displayed = liveResources;
       if (Array.isArray(customIds) && customIds.length > 0) {
         const matched = customIds
-          .map((id) => liveResources.find((r) => String(r.resourceNumber) === String(id)))
+          .map((id) => liveResources.find((r) => String(r.id) === String(id) || String(r.resourceNumber) === String(id)))
           .filter(Boolean);
         if (matched.length > 0) displayed = matched;
       }
@@ -937,8 +1001,8 @@ async function syncHomepage(db: any) {
       featuredList.innerHTML = displayed
         .map(
           (res) => `
-          <article class="featured-card group relative rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong hover:shadow-sm transition-all duration-200 flex flex-col p-6 sm:p-6.5" role="listitem" data-featured-resource-number="${escapeHtml(res.resourceNumber)}">
-            <a href="/resources/${escapeHtml(res.resourceNumber)}" class="featured-card-link flex flex-col flex-1 no-underline text-inherit" aria-label="Resource ${escapeHtml(res.resourceNumber)}: ${escapeHtml(res.title)}">
+          <article class="featured-card group relative rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong hover:shadow-sm transition-all duration-200 flex flex-col p-6 sm:p-6.5" role="listitem" data-featured-resource-number="${escapeHtml(res.resourceNumber)}" data-featured-resource-id="${escapeHtml(res.id || res.resourceNumber)}">
+            <a href="/resources/${escapeHtml(res.id || res.resourceNumber)}" class="featured-card-link flex flex-col flex-1 no-underline text-inherit" aria-label="Resource ${escapeHtml(res.resourceNumber)}: ${escapeHtml(res.title)}">
               <div class="card-meta-row flex items-center mb-3.5">
                 <span class="res-num-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium tracking-wider border border-border/80 bg-secondary/80 text-muted-foreground">
                   NO. ${escapeHtml(res.resourceNumber)}

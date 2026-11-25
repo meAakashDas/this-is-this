@@ -17,6 +17,7 @@ import {
   blockNoteToContentBlocks,
 } from '../../../utils/blockNoteMigration.ts';
 import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
+import { validateAndFormatResourceNumber } from '../../../utils/resourceValidation.ts';
 import type {
   ResourceDocument,
   CmsAttachment,
@@ -26,6 +27,8 @@ import type {
 interface ResourceEditorProps {
   initialResource?: Partial<ResourceDocument>;
   existingNumbers: string[];
+  existingResources?: Array<{ id: string; resourceNumber: string; title?: string }>;
+  defaultAutoNumber?: string;
   existingSlugs?: { number: string; slug: string }[];
   onSave: (doc: ResourceDocument) => Promise<void>;
   onCancel: () => void;
@@ -34,11 +37,37 @@ interface ResourceEditorProps {
 
 export const ResourceEditor: React.FC<ResourceEditorProps> = ({
   initialResource,
+  existingNumbers,
+  existingResources = [],
+  defaultAutoNumber,
   onSave,
   onCancel,
   isDevPreview = false,
 }) => {
-  const resourceNumber = (initialResource?.resourceNumber || '001').trim().padStart(3, '0');
+  const isNewRecord = !initialResource?.id;
+  const fallbackAutoNumber = (() => {
+    if (defaultAutoNumber) return defaultAutoNumber;
+    const nums = existingNumbers
+      .map((n) => parseInt(String(n || ''), 10))
+      .filter((n) => !Number.isNaN(n) && n > 0);
+    const next = (nums.length > 0 ? Math.max(...nums) : 0) + 1;
+    return String(next).padStart(3, '0');
+  })();
+
+  const [numberInput, setNumberInput] = useState<string>(
+    isNewRecord ? '' : (initialResource?.resourceNumber || '').trim()
+  );
+
+  const previewResourceNumber = (() => {
+    const trimmed = numberInput.trim();
+    if (!trimmed) {
+      return isNewRecord ? fallbackAutoNumber : (initialResource?.resourceNumber || '001');
+    }
+    const res = validateAndFormatResourceNumber(trimmed);
+    return res.valid && res.resourceNumber ? res.resourceNumber : trimmed;
+  })();
+
+  const resourceNumber = previewResourceNumber;
   const displayTitle =
     initialResource?.title?.trim() || `Resource #${resourceNumber}`;
 
@@ -121,7 +150,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
    * (title, category, date, slug, resourceNumber, SEO, coverImage, ordering, etc.)
    * while updating Downloadable Files and Resource Content.
    */
-  const buildDocument = (targetStatus: ResourceStatus): ResourceDocument => {
+  const buildDocument = (targetStatus: ResourceStatus, resolvedNumber: string): ResourceDocument => {
     const now = new Date().toISOString();
     const isPub = targetStatus === 'published';
 
@@ -156,26 +185,26 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
 
     const safeSlug =
       initialResource?.slug?.trim() ||
-      (initialResource?.title || `resource-${resourceNumber}`)
+      (initialResource?.title || `resource-${resolvedNumber}`)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') ||
-      `resource-${resourceNumber}`;
+      `resource-${resolvedNumber}`;
 
     return {
       ...initialResource,
-      id: initialResource?.id || resourceNumber,
-      resourceNumber,
+      id: initialResource?.id || '',
+      resourceNumber: resolvedNumber,
       createdAt: initialResource?.createdAt || now,
       updatedAt: now,
       updatedBy: 'aakashdas.photo@gmail.com',
-      title: initialResource?.title?.trim() || `Resource #${resourceNumber}`,
+      title: initialResource?.title?.trim() || `Resource #${resolvedNumber}`,
       slug: safeSlug,
       category: initialResource?.category?.trim() || 'Personal Finance',
       description:
         initialResource?.description?.trim() ||
         initialResource?.title?.trim() ||
-        `Resource #${resourceNumber}`,
+        `Resource #${resolvedNumber}`,
       tags: initialResource?.tags || [],
       author: initialResource?.author || 'Aakash Das',
       language: initialResource?.language || 'English',
@@ -199,10 +228,47 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       summaryPoints: initialResource?.summaryPoints || [],
       targetAudience: initialResource?.targetAudience || '',
       seo: initialResource?.seo || {
-        title: `Resource #${resourceNumber} — Aakash Das`,
+        title: `Resource #${resolvedNumber} — Aakash Das`,
         description: initialResource?.description || '',
       },
     } as ResourceDocument;
+  };
+
+  const resolveValidatedNumber = (): string => {
+    const raw = numberInput.trim();
+    if (!raw) {
+      if (isNewRecord) {
+        return fallbackAutoNumber;
+      }
+      throw new Error('Resource number is required and must be a positive integer (1 or greater).');
+    }
+
+    const validation = validateAndFormatResourceNumber(raw);
+    if (!validation.valid || !validation.resourceNumber) {
+      throw new Error(validation.error || 'Resource number must be a positive integer.');
+    }
+
+    const formatted = validation.resourceNumber;
+    const targetInt = parseInt(formatted, 10);
+    const currentDocId = initialResource?.id;
+
+    const pool: Array<{ id: string; resourceNumber: string; title?: string }> =
+      existingResources.length > 0
+        ? existingResources
+        : existingNumbers.map((n) => ({ id: n, resourceNumber: n }));
+
+    const duplicate = pool.find((item) => {
+      if (currentDocId && item.id === currentDocId) return false;
+      return parseInt(String(item.resourceNumber || ''), 10) === targetInt;
+    });
+
+    if (duplicate) {
+      throw new Error(
+        `Resource number NO. ${formatted} is already assigned${duplicate.title ? ` to "${duplicate.title}"` : ''}. Please choose a unique number.`
+      );
+    }
+
+    return formatted;
   };
 
   const handleSave = async (targetStatus: ResourceStatus) => {
@@ -214,9 +280,17 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       return;
     }
 
+    let resolvedNumber: string;
+    try {
+      resolvedNumber = resolveValidatedNumber();
+    } catch (numErr: any) {
+      setErrorMsg(numErr?.message || 'Invalid resource number.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const doc = buildDocument(targetStatus);
+      const doc = buildDocument(targetStatus, resolvedNumber);
       await onSave(doc);
 
       // Clean up obsolete binaries ONLY after Firestore save has been confirmed
@@ -229,6 +303,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
         await Promise.allSettled(pathsToDelete.map((p) => cleanupObsoleteAttachmentBinary(p)));
       }
 
+      setNumberInput(resolvedNumber);
       setStatus(targetStatus);
       setIsDirty(false);
       setAttachmentsMutated(false);
@@ -236,11 +311,11 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       setSuccessMsg(
         targetStatus === 'published'
           ? isDevPreview
-            ? `Resource #${resourceNumber} published in preview.`
-            : `Resource #${resourceNumber} saved and published to Cloud Firestore.`
+            ? `Resource #${resolvedNumber} published in preview.`
+            : `Resource #${resolvedNumber} saved and published to Cloud Firestore.`
           : isDevPreview
-          ? `Resource #${resourceNumber} saved as draft in preview.`
-          : `Resource #${resourceNumber} saved as draft in Cloud Firestore.`
+          ? `Resource #${resolvedNumber} saved as draft in preview.`
+          : `Resource #${resolvedNumber} saved as draft in Cloud Firestore.`
       );
     } catch (err: any) {
       console.error('Failed to save resource:', err);
@@ -300,6 +375,32 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-1.5 mr-1">
+            <label
+              htmlFor="resource-number-field"
+              className="text-xs font-medium text-muted-foreground whitespace-nowrap"
+            >
+              Resource Number
+            </label>
+            <input
+              id="resource-number-field"
+              type="number"
+              min={1}
+              max={999999}
+              step={1}
+              inputMode="numeric"
+              value={numberInput}
+              onChange={(e) => {
+                setNumberInput(e.target.value);
+                setIsDirty(true);
+                setErrorMsg(null);
+              }}
+              placeholder={isNewRecord ? `Auto (${fallbackAutoNumber})` : 'Number'}
+              aria-label="Resource Number"
+              className="w-24 px-2.5 py-1.5 text-xs font-mono rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
           <button
             type="button"
             onClick={onCancel}

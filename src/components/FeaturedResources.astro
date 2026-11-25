@@ -10,7 +10,7 @@ const customIds = home.sections?.featuredResources?.customResourceIds;
 let allPublished = getPublicResources();
 if (customIds && customIds.length > 0) {
   const filtered = customIds
-    .map((id) => allPublished.find((r) => r.resourceNumber === id))
+    .map((id) => allPublished.find((r) => r.id === id || r.resourceNumber === id))
     .filter((r): r is NonNullable<typeof r> => Boolean(r));
   if (filtered.length > 0) {
     allPublished = filtered;
@@ -39,9 +39,9 @@ const displayedResources = allPublished.slice(0, customCount);
 
   <div class="featured-list grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6" role="list">
     {displayedResources.map((res) => (
-      <article class="featured-card group relative rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong hover:shadow-sm transition-all duration-200 flex flex-col p-6 sm:p-6.5" role="listitem" data-featured-resource-number={res.resourceNumber}>
+      <article class="featured-card group relative rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong hover:shadow-sm transition-all duration-200 flex flex-col p-6 sm:p-6.5" role="listitem" data-featured-resource-number={res.resourceNumber} data-featured-resource-id={res.id || res.resourceNumber}>
         <a
-          href={`/resources/${res.resourceNumber}`}
+          href={`/resources/${res.id || res.resourceNumber}`}
           class="featured-card-link flex flex-col flex-1 no-underline text-inherit"
           aria-label={`Resource ${res.resourceNumber}: ${res.title}`}
         >

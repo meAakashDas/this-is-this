@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateHomePage, validateAboutPage } from './validation.ts';
+import { removeUndefinedFields } from './sanitize.ts';
 import { CmsError } from './errors.ts';
 import type { HomePageDocument, AboutPageDocument } from '../../types/cms/index.ts';
 
@@ -100,7 +101,7 @@ export async function saveHomePageContent(
 
   try {
     const docRef = doc(db, COLLECTION, 'home');
-    await setDoc(docRef, validated, { merge: true });
+    await setDoc(docRef, removeUndefinedFields(validated), { merge: true });
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -279,7 +280,7 @@ export async function saveAboutPageContent(
 
   try {
     const docRef = doc(db, COLLECTION, 'about');
-    await setDoc(docRef, validated, { merge: true });
+    await setDoc(docRef, removeUndefinedFields(validated), { merge: true });
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

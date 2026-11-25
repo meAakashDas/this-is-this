@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateSiteSettings } from './validation.ts';
+import { removeUndefinedFields } from './sanitize.ts';
 import { CmsError } from './errors.ts';
 import type { SiteSettingsDocument } from '../../types/cms/index.ts';
 
@@ -78,7 +79,7 @@ export async function saveSiteSettings(
 
   try {
     const docRef = doc(db, COLLECTION, DOCUMENT_ID);
-    await setDoc(docRef, validated, { merge: true });
+    await setDoc(docRef, removeUndefinedFields(validated), { merge: true });
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

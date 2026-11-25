@@ -209,7 +209,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           fileSize: formatBytes(file.size),
           url: objectUrl,
           fileExtension: ext,
-          mimeType: file.type || undefined,
+          mimeType: file.type || '',
           isPreviewable: isPdf,
           order: attachments.length + i + 1,
           visible: true,
@@ -221,15 +221,16 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         const storage = tryGetFirebaseStorage();
         if (!storage) {
           // On Spark plan without Storage, load as session preview and inform user
+          const permanentPath = `/downloads/${file.name}`;
           const att: CmsAttachment = {
             id: `att-${Date.now()}-${i}`,
             name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
             fileName: file.name,
             format: getFormatName(ext),
             fileSize: formatBytes(file.size),
-            url: objectUrl,
+            url: permanentPath,
             fileExtension: ext,
-            mimeType: file.type || undefined,
+            mimeType: file.type || '',
             isPreviewable: isPdf,
             order: attachments.length + i + 1,
             visible: true,
@@ -237,7 +238,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           };
           newAttachments.push(att);
           setUploadNotice(
-            `Firebase Storage is disabled on the free Spark plan. Place "${file.name}" in "public/downloads/" and link it permanently using "Link Local Asset / URL" below. A session preview has been added.`
+            `Firebase Storage is disabled on the free Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" in "public/downloads/" before committing.`
           );
           continue;
         }
@@ -262,7 +263,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
             url: publicUrl,
             storagePath,
             fileExtension: ext,
-            mimeType: file.type || undefined,
+            mimeType: file.type || '',
             isPreviewable: isPdf,
             order: attachments.length + i + 1,
             visible: true,
@@ -272,15 +273,16 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         } catch (uploadErr: any) {
           console.warn('[Storage upload warning on Spark plan]:', uploadErr);
           // Graceful fallback without crashing
+          const permanentPath = `/downloads/${file.name}`;
           const att: CmsAttachment = {
             id: `att-${Date.now()}-${i}`,
             name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
             fileName: file.name,
             format: getFormatName(ext),
             fileSize: formatBytes(file.size),
-            url: objectUrl,
+            url: permanentPath,
             fileExtension: ext,
-            mimeType: file.type || undefined,
+            mimeType: file.type || '',
             isPreviewable: isPdf,
             order: attachments.length + i + 1,
             visible: true,
@@ -288,7 +290,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           };
           newAttachments.push(att);
           setUploadNotice(
-            `Firebase Storage is not enabled on the Spark plan. Place "${file.name}" into "public/downloads/" and link it via "Link Local Asset / URL" to persist. Loaded as a session preview.`
+            `Firebase Storage is not enabled on the Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" into "public/downloads/".`
           );
         }
       }
@@ -321,7 +323,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         fileSize: formatBytes(file.size),
         url: objectUrl,
         fileExtension: ext,
-        mimeType: file.type || undefined,
+        mimeType: file.type || '',
         isPreviewable: isPdf,
         uploadedAt: new Date().toISOString(),
       };
@@ -329,21 +331,22 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     } else {
       const storage = tryGetFirebaseStorage();
       if (!storage) {
+        const permanentPath = `/downloads/${file.name}`;
         const updated = [...attachments];
         updated[replacingIndex] = {
           ...oldAtt,
           fileName: file.name,
           format: getFormatName(ext),
           fileSize: formatBytes(file.size),
-          url: objectUrl,
+          url: permanentPath,
           fileExtension: ext,
-          mimeType: file.type || undefined,
+          mimeType: file.type || '',
           isPreviewable: isPdf,
           uploadedAt: new Date().toISOString(),
         };
         onChange(updated);
         setUploadNotice(
-          `Firebase Storage is disabled on Spark plan. Place "${file.name}" into "public/downloads/" and update its path. Session preview loaded.`
+          `Firebase Storage is disabled on Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" into "public/downloads/".`
         );
       } else {
         try {
@@ -373,7 +376,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
             url: publicUrl,
             storagePath,
             fileExtension: ext,
-            mimeType: file.type || undefined,
+            mimeType: file.type || '',
             isPreviewable: isPdf,
             uploadedAt: new Date().toISOString(),
           };
@@ -381,21 +384,22 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           onChange(updated);
         } catch (replaceErr: any) {
           console.warn('[Replace file warning on Spark plan]:', replaceErr);
+          const permanentPath = `/downloads/${file.name}`;
           const updated = [...attachments];
           updated[replacingIndex] = {
             ...oldAtt,
             fileName: file.name,
             format: getFormatName(ext),
             fileSize: formatBytes(file.size),
-            url: objectUrl,
+            url: permanentPath,
             fileExtension: ext,
-            mimeType: file.type || undefined,
+            mimeType: file.type || '',
             isPreviewable: isPdf,
             uploadedAt: new Date().toISOString(),
           };
           onChange(updated);
           setUploadNotice(
-            `Firebase Storage is not enabled on Spark plan. Place "${file.name}" in "public/downloads/" and update the path.`
+            `Firebase Storage is not enabled on Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" in "public/downloads/".`
           );
         } finally {
           setUploadProgress(null);

@@ -406,8 +406,10 @@ export const WebsiteSettingsEditor: React.FC<WebsiteSettingsEditorProps> = ({
       visible: true,
       label: newNavLabel.trim(),
       href: newNavHref.trim(),
-      badge: newNavBadge.trim() || undefined,
     };
+    if (newNavBadge.trim()) {
+      newItem.badge = newNavBadge.trim();
+    }
 
     updateField('navItems', [...formData.navItems, newItem]);
     setNewNavLabel('');

@@ -626,12 +626,13 @@ export function blockNoteToContentBlocks(blocks: any[] = []): ContentBlock[] {
         const url = block.props?.url || '';
         const caption = block.props?.caption || '';
         if (url) {
-          result.push({
+          const imgBlock: any = {
             type: 'image',
             src: url,
             alt: caption || 'Resource Image',
-            caption: caption || undefined,
-          });
+          };
+          if (caption) imgBlock.caption = caption;
+          result.push(imgBlock);
         }
         break;
       }

@@ -19,7 +19,8 @@ import { ContactEditor, type ContactInfoState } from './ContactEditor.tsx';
 import { ProfilePreview } from './ProfilePreview.tsx';
 import { ImagePreview, ImageUploader, type ImageMetaInfo } from '../media/index.ts';
 import { getSiteSettings, saveSiteSettings } from '../../../lib/cms/siteSettings.repository.ts';
-import { getAboutPageContent, saveAboutPageContent } from '../../../lib/cms/pages.repository.ts';
+import { getAboutPageContent, saveAboutPageContent, saveHomePageContent } from '../../../lib/cms/pages.repository.ts';
+import { compressImageFile } from '../../../utils/imageCompressor.ts';
 
 type ProfileSubTab = 'identity' | 'bio' | 'social' | 'contact' | 'preview';
 
@@ -273,6 +274,10 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
         saveAboutPageContent({
           introParagraphs: formData.biographyParagraphs,
         }),
+        saveHomePageContent({
+          heroPhotoUrl: formData.profileImage,
+          heroPhotoAlt: formData.profileImageAlt || formData.fullName,
+        }),
       ]);
 
       setInitialData(formData);
@@ -498,16 +503,22 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = 'image/webp,image/jpeg,image/png';
-                    input.onchange = (e) => {
+                    input.onchange = async (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
-                        const url = URL.createObjectURL(file);
-                        setFormData((prev) => ({ ...prev, profileImage: url }));
-                        setImageMeta({
-                          name: file.name,
-                          sizeBytes: file.size,
-                          mimeType: file.type,
-                        });
+                        try {
+                          const compressed = await compressImageFile(file, 800, 800, 0.82);
+                          setFormData((prev) => ({ ...prev, profileImage: compressed.dataUrl }));
+                          setImageMeta({
+                            name: file.name,
+                            sizeBytes: compressed.sizeBytes,
+                            width: compressed.width,
+                            height: compressed.height,
+                            mimeType: compressed.mimeType,
+                          });
+                        } catch (err) {
+                          console.error('Failed to compress profile image:', err);
+                        }
                       }
                     };
                     input.click();

@@ -6,6 +6,7 @@ import '@blocknote/mantine/style.css';
 import { tryGetFirebaseStorage } from '../../../lib/firebase/index.ts';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { generateBlockId, blockNoteInlineToPlainText } from '../../../utils/blockNoteMigration.ts';
+import { compressImageFile } from '../../../utils/imageCompressor.ts';
 
 const VALID_BLOCKNOTE_TYPES = new Set([
   'paragraph',
@@ -107,9 +108,14 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
           }
         }
       } catch (err) {
-        console.warn('[BlockNote] Storage upload skipped/failed on Spark plan, using object URL preview:', err);
+        console.warn('[BlockNote] Storage upload skipped/failed on Spark plan, converting to Data URL:', err);
       }
-      return URL.createObjectURL(file);
+      try {
+        const compressed = await compressImageFile(file, 1200, 1200, 0.85);
+        return compressed.dataUrl;
+      } catch {
+        return URL.createObjectURL(file);
+      }
     },
   });
 

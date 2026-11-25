@@ -63,12 +63,12 @@ export const ExperienceEditor: React.FC<ExperienceEditorProps> = ({
       id: `exp-${Date.now()}`,
       organization: newOrg.trim(),
       position: newPosition.trim(),
-      period: newPeriod.trim() || undefined,
-      desc: newDesc.trim() || undefined,
-      status: newStatus.trim() || undefined,
       order: experienceEntries.length + 1,
       visible: true,
     };
+    if (newPeriod.trim()) newEntry.period = newPeriod.trim();
+    if (newDesc.trim()) newEntry.desc = newDesc.trim();
+    if (newStatus.trim()) newEntry.status = newStatus.trim();
 
     onChange([...experienceEntries, newEntry]);
     setNewOrg('');

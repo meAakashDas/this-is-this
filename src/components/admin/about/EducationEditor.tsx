@@ -68,14 +68,14 @@ export const EducationEditor: React.FC<EducationEditorProps> = ({
       id: `edu-${Date.now()}`,
       index: nextIndex,
       title: newTitle.trim(),
-      degree: newDegree.trim() || undefined,
-      institution: newInstitution.trim() || undefined,
-      period: newPeriod.trim() || undefined,
-      status: newStatus.trim() || undefined,
-      desc: newDesc.trim() || undefined,
       order: educationEntries.length + 1,
       visible: true,
     };
+    if (newDegree.trim()) newEntry.degree = newDegree.trim();
+    if (newInstitution.trim()) newEntry.institution = newInstitution.trim();
+    if (newPeriod.trim()) newEntry.period = newPeriod.trim();
+    if (newStatus.trim()) newEntry.status = newStatus.trim();
+    if (newDesc.trim()) newEntry.desc = newDesc.trim();
 
     onChange([...educationEntries, newEntry]);
     setNewTitle('');

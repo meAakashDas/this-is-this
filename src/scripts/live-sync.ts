@@ -412,6 +412,32 @@ async function syncFeaturedResources(db: any) {
 }
 
 /**
+ * 6. Synchronize Homepage Hero (Portrait & Headline)
+ */
+async function syncHomepageHero(db: any) {
+  const heroImg = document.querySelector<HTMLImageElement>('.hero-portrait-img');
+  if (!heroImg) return;
+
+  try {
+    const homeSnap = await getDoc(doc(db, 'pages', 'home'));
+    if (homeSnap.exists()) {
+      const data = homeSnap.data();
+      const photoUrl = data.heroPhotoUrl;
+      if (
+        photoUrl &&
+        typeof photoUrl === 'string' &&
+        !photoUrl.startsWith('blob:') &&
+        heroImg.src !== photoUrl
+      ) {
+        heroImg.src = photoUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('[LiveSync] Error syncing homepage hero:', err);
+  }
+}
+
+/**
  * Primary Controller Initialization
  */
 function initLiveSync() {
@@ -442,6 +468,7 @@ function initLiveSync() {
     if (slug) syncJournalDetail(db, slug);
   } else if (pathname === '/') {
     syncFeaturedResources(db);
+    syncHomepageHero(db);
   }
 }
 

@@ -4,6 +4,7 @@ import { UploadProgress } from './UploadProgress.tsx';
 import type { ImageMetaInfo } from './MediaMetadata.tsx';
 import { tryGetFirebaseStorage } from '../../../lib/firebase/index.ts';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { compressImageFile } from '../../../utils/imageCompressor.ts';
 
 interface ImageUploaderProps {
   currentImageUrl?: string;
@@ -53,40 +54,36 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       return;
     }
 
-    // Extract dimensions via Image object
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = objectUrl;
-
-    const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
-      img.onload = () => {
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.onerror = () => {
-        resolve({ width: 0, height: 0 });
-      };
-    });
-
-    const metadata: ImageMetaInfo = {
-      name: file.name,
-      sizeBytes: file.size,
-      width: dimensions.width,
-      height: dimensions.height,
-      mimeType: file.type,
-    };
-
-    // Development Preview Mode: immediate local preview without Firebase Storage upload
-    if (isDevPreview) {
-      onImageSelected(objectUrl, metadata, true);
+    // Compress and generate permanent Base64 Data URL
+    let compressed;
+    try {
+      compressed = await compressImageFile(file, 800, 800, 0.82);
+    } catch (compressionErr) {
+      console.warn('[Image Compression Warning]', compressionErr);
+      setError('Failed to process image file. Please try a different WebP, PNG, or JPEG image.');
       return;
     }
 
-    // Authenticated Mode: On Spark plan, Firebase Storage is not provisioned
+    const metadata: ImageMetaInfo = {
+      name: file.name,
+      sizeBytes: compressed.sizeBytes,
+      width: compressed.width,
+      height: compressed.height,
+      mimeType: compressed.mimeType,
+    };
+
+    // Development Preview Mode: immediate preview using permanent Data URL
+    if (isDevPreview) {
+      onImageSelected(compressed.dataUrl, metadata, true);
+      return;
+    }
+
+    // Authenticated Mode: On Spark plan without Storage, use permanent Data URL
     const storage = tryGetFirebaseStorage();
     if (!storage) {
-      onImageSelected(objectUrl, metadata, true);
+      onImageSelected(compressed.dataUrl, metadata, false);
       setNotice(
-        `Firebase Storage is disabled on the free Spark plan. Place this image into "public/images/" and select it via "Enter Path or URL" (e.g. /images/${file.name}) to persist. A local preview has been applied.`
+        'Image optimized and converted to permanent WebP data URL. Persists permanently in Cloud Firestore under Spark free tier.'
       );
       return;
     }
@@ -108,10 +105,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         (uploadErr) => {
           console.warn('[Storage Upload Warning on Spark plan]', uploadErr);
           setUploadProgress(null);
-          // Friendly fallback for Spark plan
-          onImageSelected(objectUrl, metadata, true);
+          // Seamless permanent fallback for Spark plan using Data URL
+          onImageSelected(compressed.dataUrl, metadata, false);
           setNotice(
-            `Firebase Storage is not enabled on the free Spark plan. Place "${file.name}" in "public/images/" and enter its path (/images/${file.name}) under "Enter Path or URL". Loaded as a local preview.`
+            'Firebase Storage is not enabled on the free Spark plan. Converted to a permanent WebP Data URL stored directly in Firestore.'
           );
         },
         async () => {
@@ -122,10 +119,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       );
     } catch (err) {
       setUploadProgress(null);
-      // Fallback without throwing uncaught exceptions
-      onImageSelected(objectUrl, metadata, true);
+      // Permanent fallback using Data URL
+      onImageSelected(compressed.dataUrl, metadata, false);
       setNotice(
-        `Firebase Storage is disabled on the Spark plan. Place this file in "public/images/" to persist. Local preview loaded.`
+        'Firebase Storage is disabled on Spark plan. Saved as permanent WebP Data URL in Firestore.'
       );
     }
   };

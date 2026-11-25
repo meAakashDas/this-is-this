@@ -437,6 +437,11 @@ async function fetchFromFirestore() {
       siteSettings.profileImage = '/images/aakash-das.webp';
     }
     const homePage = homeSnap.exists() ? homeSnap.data() : null;
+    if (homePage && homePage.heroPhotoUrl && homePage.heroPhotoUrl.startsWith('blob:')) {
+      homePage.heroPhotoUrl = (siteSettings && siteSettings.profileImage && !siteSettings.profileImage.startsWith('blob:'))
+        ? siteSettings.profileImage
+        : '/images/aakash-das.webp';
+    }
     const aboutPage = aboutSnap.exists() ? aboutSnap.data() : null;
     const resources = resourcesSnap.docs.map((d) => d.data());
     const journals = journalsSnap.docs.map((d) => d.data());

@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Sparkles, ExternalLink, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { ImagePreview, ImageUploader, type ImageMetaInfo } from '../media/index.ts';
+import { compressImageFile } from '../../../utils/imageCompressor.ts';
 
 export interface HeroFormState {
   heroHeadline: string;
@@ -89,11 +90,15 @@ export const HeroEditor: React.FC<HeroEditorProps> = ({
               const input = document.createElement('input');
               input.type = 'file';
               input.accept = 'image/webp,image/jpeg,image/png';
-              input.onchange = (e) => {
+              input.onchange = async (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) {
-                  const url = URL.createObjectURL(file);
-                  onChange({ ...hero, heroPhotoUrl: url });
+                  try {
+                    const compressed = await compressImageFile(file, 800, 800, 0.82);
+                    onChange({ ...hero, heroPhotoUrl: compressed.dataUrl });
+                  } catch (err) {
+                    console.error('Failed to compress hero image:', err);
+                  }
                 }
               };
               input.click();

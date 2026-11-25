@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateResource, validateResourceNumber } from './validation.ts';
+import { removeUndefinedFields } from './sanitize.ts';
 import { CmsError, CmsNotFoundError, CmsConflictError } from './errors.ts';
 import type { ResourceDocument } from '../../types/cms/index.ts';
 import snapshotData from '../../data/cms-snapshot.json' with { type: 'json' };
@@ -24,13 +25,14 @@ const COLLECTION = 'resources';
 
 /**
  * Sanitizes data for Firestore by converting nested arrays (e.g. in BlockNote tables
- * and content block tables) into Firestore-compatible formats.
+ * and content block tables) into Firestore-compatible formats and stripping any undefined values.
  */
 function sanitizeForFirestore(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj !== 'object') return obj;
 
-  const copy = Array.isArray(obj) ? [...obj] : { ...obj };
+  const cleaned = removeUndefinedFields(obj);
+  const copy = Array.isArray(cleaned) ? [...cleaned] : { ...cleaned };
 
   // BlockNote JSON can contain tables with nested cell arrays.
   // Serialize blocknoteJson to JSON string to guarantee 100% Firestore compatibility.
@@ -51,7 +53,7 @@ function sanitizeForFirestore(obj: any): any {
     });
   }
 
-  return copy;
+  return removeUndefinedFields(copy);
 }
 
 /**

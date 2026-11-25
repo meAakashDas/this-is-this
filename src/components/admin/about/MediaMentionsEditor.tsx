@@ -65,10 +65,10 @@ export const MediaMentionsEditor: React.FC<MediaMentionsEditorProps> = ({
       role: newRole.trim() || 'Podcast Guest',
       format: newFormat.trim() || 'Featured Interview',
       desc: newDesc.trim(),
-      url: newUrl.trim() || undefined,
       order: mediaEntries.length + 1,
       visible: true,
     };
+    if (newUrl.trim()) newEntry.url = newUrl.trim();
 
     onChange([...mediaEntries, newEntry]);
     setNewShow('');

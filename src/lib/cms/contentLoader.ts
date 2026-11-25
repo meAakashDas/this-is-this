@@ -109,7 +109,13 @@ export function getPublicSiteConfig() {
  */
 export function getPublicHomePage(): HomePageDocument {
   if (snapshot.homePage && snapshot.homePage.heroHeadline) {
-    return snapshot.homePage;
+    const hp = { ...snapshot.homePage };
+    if (!hp.heroPhotoUrl || hp.heroPhotoUrl.startsWith('blob:')) {
+      hp.heroPhotoUrl = (snapshot.siteSettings?.profileImage && !snapshot.siteSettings.profileImage.startsWith('blob:'))
+        ? snapshot.siteSettings.profileImage
+        : '/images/aakash-das.webp';
+    }
+    return hp;
   }
 
   return {

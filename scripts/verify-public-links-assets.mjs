@@ -117,7 +117,8 @@ async function verifyPublicLinksAndAssets() {
     // 3. Verify Downloadable Resources on /resources/001, 002, 003
     console.log('\n--- Verifying Download Links & Attachments on Public Resource Pages ---');
     for (const num of ['001', '002', '003']) {
-      await page.goto(`${BASE_URL}/resources/${num}`, { waitUntil: 'networkidle' });
+      await page.goto(`${BASE_URL}/resources/${num}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(500);
 
       // Find all download buttons/links
       const downloadLinks = await page.locator('a[download], a[href*="/downloads/"]').all();

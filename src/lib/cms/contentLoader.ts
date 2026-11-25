@@ -284,27 +284,43 @@ export function getPublicAboutPage(): AboutPageDocument {
 function mapDocToResource(doc: ResourceDocument): Resource {
   return {
     resourceNumber: doc.resourceNumber,
+    slug: doc.slug,
     title: doc.title,
     category: doc.category,
+    subcategory: doc.subcategory,
+    coverImage: doc.coverImage && !doc.coverImage.startsWith('blob:') ? doc.coverImage : undefined,
+    thumbnailAlt: doc.thumbnailAlt,
     publishedAt: doc.publishedAt,
     updatedAt: doc.updatedAtDate,
     published: doc.published,
     featured: doc.featured,
+    order: doc.order,
     downloadFormat: doc.downloadFormat,
     fileSize: doc.fileSize,
-    downloadUrl: doc.downloadUrl,
-    pdfPreviewUrl: doc.pdfPreviewUrl,
-    docxUrl: doc.docxUrl,
-    attachments: (doc.attachments || []).map((att) => ({
-      id: att.id,
-      name: att.name,
-      format: att.format,
-      fileSize: att.fileSize,
-      url: att.url,
-      isPreviewable: att.isPreviewable,
-    })),
+    downloadUrl: doc.downloadUrl && !doc.downloadUrl.startsWith('blob:') ? doc.downloadUrl : undefined,
+    pdfPreviewUrl: doc.pdfPreviewUrl && !doc.pdfPreviewUrl.startsWith('blob:') ? doc.pdfPreviewUrl : undefined,
+    docxUrl: doc.docxUrl && !doc.docxUrl.startsWith('blob:') ? doc.docxUrl : undefined,
+    attachments: (doc.attachments || [])
+      .filter((att) => att.visible !== false && att.url && !att.url.startsWith('blob:'))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((att) => ({
+        id: att.id,
+        name: att.name,
+        fileName: att.fileName,
+        format: att.format,
+        fileSize: att.fileSize,
+        fileExtension: att.fileExtension,
+        description: att.description,
+        url: att.url,
+        isPreviewable: att.isPreviewable,
+        visible: att.visible,
+      })),
+    externalLinks: (doc.externalLinks || []).filter(
+      (link) => link.url && !link.url.startsWith('blob:')
+    ),
     youtubeEmbed: doc.youtubeEmbed,
     description: doc.description,
+    fullDescription: doc.fullDescription,
     tags: doc.tags || [],
     summaryPoints: doc.summaryPoints || [],
     targetAudience: doc.targetAudience,
@@ -317,18 +333,21 @@ function mapDocToResource(doc: ResourceDocument): Resource {
 }
 
 /**
- * Returns all published resources, sorted by resource number.
+ * Returns all published resources, sorted by custom order (when > 0) then resource number.
  */
 export function getPublicResources(): Resource[] {
   if (snapshot.resources && snapshot.resources.length > 0) {
     return snapshot.resources
-      .filter((r) => r.published)
+      .filter((r) => r.published && r.status !== 'draft' && r.status !== 'archived')
       .map(mapDocToResource)
-      .sort((a, b) =>
-        a.resourceNumber.localeCompare(b.resourceNumber, undefined, {
+      .sort((a, b) => {
+        const orderA = a.order && a.order > 0 ? a.order : 9999;
+        const orderB = b.order && b.order > 0 ? b.order : 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.resourceNumber.localeCompare(b.resourceNumber, undefined, {
           numeric: true,
-        })
-      );
+        });
+      });
   }
   return defaultGetAllPublishedResources();
 }

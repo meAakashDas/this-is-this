@@ -20,7 +20,9 @@ import type {
 } from '../../../types/cms/journal.ts';
 import { BlockNoteEditor } from '../resources/BlockNoteEditor.tsx';
 import { JournalPreview } from './JournalPreview.tsx';
-import { ImageUploader } from '../media/ImageUploader.tsx';
+import { ImageUploader, ImagePreview } from '../media/index.ts';
+import { compressImageFile } from '../../../utils/imageCompressor.ts';
+import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
 import {
   JOURNAL_CATEGORIES,
   DEFAULT_JOURNAL_TAGS,
@@ -67,7 +69,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   const [language, setLanguage] = useState(initialArticle?.language || 'English');
 
   // Media State
-  const [coverImage, setCoverImage] = useState(initialArticle?.coverImage || '');
+  const [coverImage, setCoverImage] = useState(sanitizeAssetUrl(initialArticle?.coverImage, ''));
   const [thumbnailAlt, setThumbnailAlt] = useState(initialArticle?.thumbnailAlt || '');
   const [coverImageCaption, setCoverImageCaption] = useState(initialArticle?.coverImageCaption || '');
 
@@ -728,15 +730,46 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                   </div>
 
                   <div className="space-y-3">
-                    <ImageUploader
-                      currentImageUrl={coverImage}
-                      storagePathPrefix="uploads/journal"
-                      onImageSelected={(url: string) => {
-                        setCoverImage(url);
-                        setIsDirty(true);
-                      }}
-                      isDevPreview={isDevPreview}
-                    />
+                    {coverImage ? (
+                      <ImagePreview
+                        src={coverImage}
+                        alt={thumbnailAlt || title || 'Article cover image'}
+                        isTemporary={isDevPreview}
+                        onRemove={() => {
+                          setCoverImage('');
+                          setThumbnailAlt('');
+                          setIsDirty(true);
+                        }}
+                        onReplace={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/webp,image/jpeg,image/png';
+                          input.onchange = async (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              try {
+                                const compressed = await compressImageFile(file, 1200, 800, 0.84);
+                                setCoverImage(compressed.dataUrl);
+                                setIsDirty(true);
+                              } catch (err) {
+                                console.error('Failed to compress journal cover image:', err);
+                              }
+                            }
+                          };
+                          input.click();
+                        }}
+                      />
+                    ) : (
+                      <ImageUploader
+                        currentImageUrl={coverImage}
+                        storagePathPrefix="uploads/journal"
+                        onImageSelected={(url: string) => {
+                          setCoverImage(url);
+                          setIsDirty(true);
+                        }}
+                        isDevPreview={isDevPreview}
+                      />
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">

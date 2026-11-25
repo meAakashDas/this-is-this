@@ -31,6 +31,7 @@ import type {
 import type { SeoMetadata } from '../../../types/cms/common.ts';
 import { getSiteSettings, saveSiteSettings } from '../../../lib/cms/siteSettings.repository.ts';
 import { validateSiteSettings } from '../../../lib/cms/validation.ts';
+import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
 import { ImagePreview, ImageUploader, type ImageMetaInfo } from '../media/index.ts';
 
 type SettingsSubTab = 'identity' | 'contact' | 'social' | 'nav-footer' | 'seo' | 'preview';
@@ -235,6 +236,7 @@ export const WebsiteSettingsEditor: React.FC<WebsiteSettingsEditorProps> = ({
           const merged: SiteSettingsDocument = {
             ...DEFAULT_SETTINGS,
             ...live,
+            profileImage: sanitizeAssetUrl(live.profileImage, DEFAULT_SETTINGS.profileImage),
             footer: { ...DEFAULT_SETTINGS.footer, ...(live.footer || {}) },
             seo: { ...DEFAULT_SETTINGS.seo, ...(live.seo || {}) },
             navItems:

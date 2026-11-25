@@ -18,6 +18,13 @@ export interface CmsAttachment extends ReorderableItem {
   uploadedAt?: string;
 }
 
+export interface CmsExternalLink {
+  id: string;
+  label: string;
+  url: string;
+  description?: string;
+}
+
 export interface ResourceDocument extends CmsDocumentMeta {
   // Identification
   resourceNumber: string; // Immutable 3-digit ID: "001", "002"
@@ -52,8 +59,9 @@ export interface ResourceDocument extends CmsDocumentMeta {
   cardActionLabel?: string; // e.g. "Open"
   detailActionLabel?: string; // e.g. "Download Resources"
 
-  // Multiple Attachments
+  // Multiple Attachments & External Links
   attachments: CmsAttachment[];
+  externalLinks?: CmsExternalLink[];
 
   // Educational Content & Media (Notion-style continuous writing)
   contentHtml?: string;

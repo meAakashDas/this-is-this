@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateResource, validateResourceNumber } from './validation.ts';
-import { removeUndefinedFields } from './sanitize.ts';
+import { removeUndefinedFields, sanitizeAssetUrl, clearLiveSyncCache } from './sanitize.ts';
 import { CmsError, CmsNotFoundError, CmsConflictError } from './errors.ts';
 import type { ResourceDocument } from '../../types/cms/index.ts';
 import snapshotData from '../../data/cms-snapshot.json' with { type: 'json' };
@@ -199,10 +199,17 @@ export async function getPublishedResources(): Promise<ResourceDocument[]> {
     const colRef = collection(db, COLLECTION);
     const q = query(colRef, where('published', '==', true), orderBy('resourceNumber', 'asc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((docSnap) => ({
-      ...restoreFromFirestore(docSnap.data()),
-      id: docSnap.id,
-    }));
+    return snapshot.docs
+      .map((docSnap) => ({
+        ...restoreFromFirestore(docSnap.data()),
+        id: docSnap.id,
+      }))
+      .sort((a, b) => {
+        const orderA = a.order && a.order > 0 ? a.order : 9999;
+        const orderB = b.order && b.order > 0 ? b.order : 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.resourceNumber.localeCompare(b.resourceNumber, undefined, { numeric: true });
+      });
   } catch (error) {
     console.warn('[CMS] Failed to fetch published resources from Firestore, using fallback:', error);
     return getBaselineFallbackResources().filter((r) => r.published);
@@ -349,6 +356,11 @@ export async function createResource(
     ...data,
     id: resourceNumber,
     resourceNumber,
+    coverImage: sanitizeAssetUrl(data.coverImage, '') || undefined,
+    downloadUrl: sanitizeAssetUrl(data.downloadUrl, '') || undefined,
+    pdfPreviewUrl: sanitizeAssetUrl(data.pdfPreviewUrl, '') || undefined,
+    docxUrl: sanitizeAssetUrl(data.docxUrl, '') || undefined,
+    attachments: (data.attachments || []).filter((a) => !a.url?.trim().toLowerCase().startsWith('blob:')),
     createdAt: now,
     updatedAt: now,
     updatedBy: adminEmail,
@@ -359,6 +371,7 @@ export async function createResource(
   try {
     const docRef = doc(db, COLLECTION, resourceNumber);
     await setDoc(docRef, sanitizeForFirestore(validated));
+    clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -402,13 +415,40 @@ export async function updateResource(
     targetResourceNumber = numValidation.value;
   }
 
+  // If resourceNumber changed, verify no collision and migrate canonical doc ID
+  const isNumberMigrating = targetResourceNumber !== canonicalDocId;
+  if (isNumberMigrating) {
+    const conflict = await getResourceByNumber(targetResourceNumber);
+    if (conflict && conflict.id !== canonicalDocId) {
+      throw new CmsConflictError(`Resource #${targetResourceNumber} already exists in Firestore.`);
+    }
+  }
+  const finalDocId = isNumberMigrating ? targetResourceNumber : canonicalDocId;
+
   const now = new Date().toISOString();
+  const rawAttachments = data.attachments !== undefined ? data.attachments : (existing.attachments || []);
   const merged: ResourceDocument = {
     ...existing,
     ...data,
-    id: canonicalDocId,
+    id: finalDocId,
     resourceNumber: targetResourceNumber,
-    attachments: data.attachments !== undefined ? data.attachments : (existing.attachments || []),
+    coverImage: sanitizeAssetUrl(
+      data.coverImage !== undefined ? data.coverImage : existing.coverImage,
+      ''
+    ) || undefined,
+    downloadUrl: sanitizeAssetUrl(
+      data.downloadUrl !== undefined ? data.downloadUrl : existing.downloadUrl,
+      ''
+    ) || undefined,
+    pdfPreviewUrl: sanitizeAssetUrl(
+      data.pdfPreviewUrl !== undefined ? data.pdfPreviewUrl : existing.pdfPreviewUrl,
+      ''
+    ) || undefined,
+    docxUrl: sanitizeAssetUrl(
+      data.docxUrl !== undefined ? data.docxUrl : existing.docxUrl,
+      ''
+    ) || undefined,
+    attachments: rawAttachments.filter((a) => !a.url?.trim().toLowerCase().startsWith('blob:')),
     blocknoteJson: data.blocknoteJson !== undefined ? data.blocknoteJson : existing.blocknoteJson,
     blocknoteHtml: data.blocknoteHtml !== undefined ? data.blocknoteHtml : existing.blocknoteHtml,
     contentHtml: data.contentHtml !== undefined ? data.contentHtml : existing.contentHtml,
@@ -421,8 +461,16 @@ export async function updateResource(
   const validated = validateResource(merged);
 
   try {
-    const docRef = doc(db, COLLECTION, canonicalDocId);
-    await setDoc(docRef, sanitizeForFirestore(validated), { merge: true });
+    const docRef = doc(db, COLLECTION, finalDocId);
+    await setDoc(docRef, sanitizeForFirestore(validated), { merge: !isNumberMigrating });
+    if (isNumberMigrating) {
+      try {
+        await deleteDoc(doc(db, COLLECTION, canonicalDocId));
+      } catch {
+        // Non-fatal if old ID did not exist
+      }
+    }
+    clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

@@ -21,6 +21,7 @@ import { ImagePreview, ImageUploader, type ImageMetaInfo } from '../media/index.
 import { getSiteSettings, saveSiteSettings } from '../../../lib/cms/siteSettings.repository.ts';
 import { getAboutPageContent, saveAboutPageContent, saveHomePageContent } from '../../../lib/cms/pages.repository.ts';
 import { compressImageFile } from '../../../utils/imageCompressor.ts';
+import { isTemporaryBlobUrl, sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
 
 type ProfileSubTab = 'identity' | 'bio' | 'social' | 'contact' | 'preview';
 
@@ -190,6 +191,8 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
         ]);
 
         if (isMounted && settings) {
+          const hadBlob = isTemporaryBlobUrl(settings.profileImage);
+          const cleanImage = sanitizeAssetUrl(settings.profileImage, DEFAULT_STATE.profileImage);
           const loaded: ProfileFormState = {
             ...DEFAULT_STATE,
             fullName: settings.fullName || DEFAULT_STATE.fullName,
@@ -199,7 +202,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
             shortDescription: settings.shortDescription || DEFAULT_STATE.shortDescription,
             identity: settings.identity || DEFAULT_STATE.identity,
             location: settings.location || DEFAULT_STATE.location,
-            profileImage: settings.profileImage || DEFAULT_STATE.profileImage,
+            profileImage: cleanImage,
             socialLinks:
               settings.socialLinks && settings.socialLinks.length > 0
                 ? settings.socialLinks
@@ -217,7 +220,13 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
             },
           };
           setFormData(loaded);
-          setInitialData(loaded);
+          setInitialData(hadBlob ? { ...loaded, profileImage: settings.profileImage } : loaded);
+          if (hadBlob) {
+            setSaveStatus({
+              type: 'error',
+              message: 'Detected an expired temporary blob: profile image URL in Firestore and restored the default permanent image. Click "Save Profile" to update Firestore.',
+            });
+          }
         }
       } catch (err) {
         console.warn('[Profile Editor] Loaded default static profile baseline:', err);
@@ -256,6 +265,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
 
     // Authenticated Production Mode save: write to Cloud Firestore
     try {
+      const safeProfileImage = sanitizeAssetUrl(formData.profileImage, DEFAULT_STATE.profileImage);
       await Promise.all([
         saveSiteSettings({
           fullName: formData.fullName,
@@ -265,7 +275,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
           shortDescription: formData.shortDescription,
           identity: formData.identity,
           location: formData.location,
-          profileImage: formData.profileImage,
+          profileImage: safeProfileImage,
           email: formData.contact.email,
           phone: formData.contact.phone,
           whatsappNumber: formData.contact.whatsappNumber,
@@ -275,12 +285,14 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ isDevPreview = fal
           introParagraphs: formData.biographyParagraphs,
         }),
         saveHomePageContent({
-          heroPhotoUrl: formData.profileImage,
+          heroPhotoUrl: safeProfileImage,
           heroPhotoAlt: formData.profileImageAlt || formData.fullName,
         }),
       ]);
 
-      setInitialData(formData);
+      const syncedData = { ...formData, profileImage: safeProfileImage };
+      setFormData(syncedData);
+      setInitialData(syncedData);
       setIsSaving(false);
       setSaveStatus({
         type: 'success',

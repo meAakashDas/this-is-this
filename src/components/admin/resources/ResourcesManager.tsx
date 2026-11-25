@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { ResourceList } from './ResourceList.tsx';
 import { ResourceEditor } from './ResourceEditor.tsx';
 import { ResourcePreview } from './ResourcePreview.tsx';
@@ -22,22 +23,13 @@ interface ResourcesManagerProps {
 }
 
 const DEV_STORAGE_KEY = 'aakashdas_cms_resources_preview';
-const HIGHEST_NUM_KEY = 'aakashdas_highest_resource_number';
 
 function calculateNextNumber(resources: ResourceDocument[]): string {
-  let highestStored = 4;
-  if (typeof window !== 'undefined') {
-    const val = parseInt(sessionStorage.getItem(HIGHEST_NUM_KEY) || '4', 10);
-    if (!isNaN(val) && val >= 4) highestStored = val;
-  }
   const nums = resources
     .map((r) => parseInt(r.resourceNumber, 10))
     .filter((n) => !isNaN(n));
-  const max = Math.max(highestStored, ...nums, 4);
+  const max = Math.max(...nums, 4);
   const next = max + 1;
-  if (typeof window !== 'undefined') {
-    sessionStorage.setItem(HIGHEST_NUM_KEY, String(next));
-  }
   return String(next).padStart(3, '0');
 }
 
@@ -48,6 +40,10 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   const [recordNotFoundId, setRecordNotFoundId] = useState<string | null>(null);
   const [viewState, setViewState] = useState<'list' | 'editor' | 'preview'>('list');
   const [selectedResource, setSelectedResource] = useState<ResourceDocument | null>(null);
+  const [statusFeedback, setStatusFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   // Helper to sync URL search params
   const updateUrlParam = useCallback((id: string | null, isCreate: boolean = false) => {
@@ -90,7 +86,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
             sessionStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(loadedResources));
           }
         } else {
-          // Live Firestore fetch with resilient fallback
+          // Live Firestore fetch
           loadedResources = await getAllResourcesForAdmin();
         }
 
@@ -147,9 +143,15 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
             }
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Could not load resources, falling back to baseline:', err);
-        if (mounted) setResources(getBaselineFallbackResources());
+        if (mounted) {
+          setResources(getBaselineFallbackResources());
+          setStatusFeedback({
+            type: 'error',
+            message: err?.message || 'Could not load resources from Firestore.',
+          });
+        }
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -172,6 +174,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
 
   // Actions
   const handleCreate = () => {
+    setStatusFeedback(null);
     const nextNum = calculateNextNumber(resources);
     const newDoc: Partial<ResourceDocument> = {
       resourceNumber: nextNum,
@@ -199,6 +202,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   };
 
   const handleEdit = async (resource: ResourceDocument) => {
+    setStatusFeedback(null);
     const canonicalId = resource.resourceNumber || resource.id;
     updateUrlParam(canonicalId);
     setRecordNotFoundId(null);
@@ -216,7 +220,6 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         }
       }
 
-      // Retrieve fresh record from database
       const fullRecord =
         (await getResourceByNumber(canonicalId)) ||
         (await getResourceById(canonicalId)) ||
@@ -238,13 +241,15 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   };
 
   const handleDuplicate = async (resource: ResourceDocument) => {
+    setStatusFeedback(null);
     const nextNum = calculateNextNumber(resources);
+    const baseSlug = `${resource.slug}-copy-${nextNum}`;
     const duplicated: ResourceDocument = {
       ...resource,
       id: nextNum,
       resourceNumber: nextNum,
       title: `${resource.title} (Copy)`,
-      slug: `${resource.slug}-copy`,
+      slug: baseSlug,
       published: false,
       status: 'draft',
       createdAt: new Date().toISOString(),
@@ -255,18 +260,25 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     if (isDevPreview) {
       const updated = [...resources, duplicated];
       persistDevChanges(updated);
+      toast.success(`Duplicated into draft Resource #${nextNum}.`);
     } else {
       try {
         await createResource(duplicated);
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
-      } catch (err) {
-        console.error('Failed to duplicate resource in Firestore:', err);
+        const msg = `Duplicated Resource #${resource.resourceNumber} into draft #${nextNum}.`;
+        toast.success(msg);
+        setStatusFeedback({ type: 'success', message: msg });
+      } catch (err: any) {
+        const msg = err?.message || 'Failed to duplicate resource in Firestore.';
+        toast.error(msg);
+        setStatusFeedback({ type: 'error', message: msg });
       }
     }
   };
 
   const handleTogglePublish = async (resource: ResourceDocument) => {
+    setStatusFeedback(null);
     const willPublish = !resource.published;
     const updatedStatus = willPublish ? 'published' : 'draft';
 
@@ -282,6 +294,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         r.resourceNumber === resource.resourceNumber ? updatedResource : r
       );
       persistDevChanges(updatedList);
+      toast.success(willPublish ? `Resource #${resource.resourceNumber} published.` : `Resource #${resource.resourceNumber} unpublished.`);
     } else {
       try {
         if (willPublish) {
@@ -291,13 +304,21 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         }
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
-      } catch (err) {
-        console.error('Failed to toggle publish status:', err);
+        const msg = willPublish
+          ? `Resource #${resource.resourceNumber} published to Cloud Firestore.`
+          : `Resource #${resource.resourceNumber} unpublished and removed from public listing.`;
+        toast.success(msg);
+        setStatusFeedback({ type: 'success', message: msg });
+      } catch (err: any) {
+        const msg = err?.message || 'Failed to update publication status.';
+        toast.error(msg);
+        setStatusFeedback({ type: 'error', message: msg });
       }
     }
   };
 
   const handleArchive = async (resource: ResourceDocument) => {
+    setStatusFeedback(null);
     const isCurrentlyArchived = resource.status === 'archived';
     const newStatus = isCurrentlyArchived ? 'draft' : 'archived';
 
@@ -313,6 +334,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         r.resourceNumber === resource.resourceNumber ? updatedResource : r
       );
       persistDevChanges(updatedList);
+      toast.success(isCurrentlyArchived ? `Restored #${resource.resourceNumber} to draft.` : `Archived #${resource.resourceNumber}.`);
     } else {
       try {
         if (!isCurrentlyArchived) {
@@ -322,53 +344,86 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         }
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
-      } catch (err) {
-        console.error('Failed to archive resource:', err);
+        const msg = isCurrentlyArchived
+          ? `Resource #${resource.resourceNumber} restored to draft.`
+          : `Resource #${resource.resourceNumber} archived.`;
+        toast.success(msg);
+        setStatusFeedback({ type: 'success', message: msg });
+      } catch (err: any) {
+        const msg = err?.message || 'Failed to update archive status.';
+        toast.error(msg);
+        setStatusFeedback({ type: 'error', message: msg });
       }
     }
   };
 
   const handleDelete = async (resourceNumber: string) => {
+    setStatusFeedback(null);
     if (isDevPreview) {
       const updatedList = resources.filter((r) => r.resourceNumber !== resourceNumber);
       persistDevChanges(updatedList);
+      toast.success(`Resource #${resourceNumber} deleted from preview.`);
     } else {
       try {
         await deleteResource(resourceNumber);
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
-      } catch (err) {
-        console.error('Failed to delete resource in Firestore:', err);
+        const msg = `Resource #${resourceNumber} permanently deleted from Cloud Firestore.`;
+        toast.success(msg);
+        setStatusFeedback({ type: 'success', message: msg });
+      } catch (err: any) {
+        const msg = err?.message || 'Failed to delete resource in Firestore.';
+        toast.error(msg);
+        setStatusFeedback({ type: 'error', message: msg });
       }
     }
   };
 
   const handleSaveEditor = async (doc: ResourceDocument) => {
+    setStatusFeedback(null);
+
     if (isDevPreview) {
+      const lookupId = selectedResource?.id || selectedResource?.resourceNumber || doc.id || doc.resourceNumber;
       const existingIndex = resources.findIndex(
-        (r) => r.resourceNumber === doc.resourceNumber || r.id === doc.id
+        (r) => r.id === lookupId || r.resourceNumber === lookupId
       );
       let updatedList: ResourceDocument[];
       if (existingIndex >= 0) {
         updatedList = [...resources];
-        updatedList[existingIndex] = doc;
+        updatedList[existingIndex] = { ...doc, id: doc.resourceNumber };
       } else {
         updatedList = [...resources, doc];
       }
       persistDevChanges(updatedList);
+      toast.success(
+        doc.published
+          ? `Resource #${doc.resourceNumber} published (Dev Preview).`
+          : `Resource #${doc.resourceNumber} saved as draft (Dev Preview).`
+      );
     } else {
-      const canonicalId = doc.id || doc.resourceNumber;
+      const originalLookupId =
+        selectedResource?.id ||
+        selectedResource?.resourceNumber ||
+        doc.id ||
+        doc.resourceNumber;
+
       const existing =
-        (await getResourceByNumber(doc.resourceNumber)) ||
-        (await getResourceById(canonicalId));
+        (await getResourceById(originalLookupId)) ||
+        (await getResourceByNumber(originalLookupId)) ||
+        (await getResourceByNumber(doc.resourceNumber));
 
       if (existing) {
-        await updateResource(canonicalId, doc);
+        await updateResource(existing.id || existing.resourceNumber, doc);
       } else {
         await createResource(doc);
       }
       const refreshed = await getAllResourcesForAdmin();
       setResources(refreshed);
+      const msg = doc.published
+        ? `Resource #${doc.resourceNumber} saved & published to Cloud Firestore.`
+        : `Resource #${doc.resourceNumber} saved as ${doc.status || 'draft'} in Cloud Firestore.`;
+      toast.success(msg);
+      setStatusFeedback({ type: 'success', message: msg });
     }
 
     updateUrlParam(null);
@@ -394,7 +449,6 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     );
   }
 
-  // Not Found State for direct URL access to non-existent record
   if (recordNotFoundId && viewState === 'list') {
     return (
       <div className="p-8 max-w-xl mx-auto text-center space-y-4 border border-destructive/20 bg-destructive/5 rounded-2xl">
@@ -409,7 +463,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
             setRecordNotFoundId(null);
             updateUrlParam(null);
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Resources List</span>
@@ -439,14 +493,14 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
           <button
             type="button"
             onClick={handleCancelEditor}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
           >
             ← Back to Resources List
           </button>
           <button
             type="button"
             onClick={() => setViewState('editor')}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
           >
             Edit This Resource
           </button>
@@ -457,16 +511,45 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   }
 
   return (
-    <ResourceList
-      resources={resources}
-      onCreate={handleCreate}
-      onEdit={handleEdit}
-      onPreview={handlePreview}
-      onDuplicate={handleDuplicate}
-      onTogglePublish={handleTogglePublish}
-      onArchive={handleArchive}
-      onDelete={handleDelete}
-      isDevPreview={isDevPreview}
-    />
+    <div className="space-y-4">
+      {statusFeedback && (
+        <div
+          role="alert"
+          className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 ${
+            statusFeedback.type === 'success'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              : 'border-destructive/30 bg-destructive/10 text-destructive'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {statusFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            <span className="font-medium">{statusFeedback.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFeedback(null)}
+            className="text-[11px] underline cursor-pointer hover:opacity-80"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <ResourceList
+        resources={resources}
+        onCreate={handleCreate}
+        onEdit={handleEdit}
+        onPreview={handlePreview}
+        onDuplicate={handleDuplicate}
+        onTogglePublish={handleTogglePublish}
+        onArchive={handleArchive}
+        onDelete={handleDelete}
+        isDevPreview={isDevPreview}
+      />
+    </div>
   );
 };

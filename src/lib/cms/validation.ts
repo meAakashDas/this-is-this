@@ -13,12 +13,20 @@ import type {
 // Primitive & Helper Validators
 // =============================================================================
 
+export const nonBlobStringSchema = z
+  .string()
+  .refine((val) => !val.trim().toLowerCase().startsWith('blob:'), {
+    message: 'Temporary blob: URLs cannot be stored permanently in the database.',
+  });
+
 export const urlOrPathSchema = z
   .string()
   .refine(
     (val) => {
       if (!val) return false;
       const trimmed = val.trim();
+      if (trimmed.toLowerCase().startsWith('blob:')) return false;
+      if (trimmed.toLowerCase().startsWith('javascript:')) return false;
       if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
       try {
         const u = new URL(trimmed);
@@ -110,7 +118,7 @@ export const siteSettingsSchema = z.object({
   tagline: z.string(),
   positioning: z.string(),
   shortDescription: z.string(),
-  profileImage: z.string(),
+  profileImage: nonBlobStringSchema,
   email: z.string().email('Invalid primary email address'),
   phone: z.string(),
   whatsappNumber: z.string(),
@@ -137,7 +145,7 @@ export const homePageSchema = z.object({
   heroRoleBrand: z.string(),
   heroRoleUrl: urlOrPathSchema,
   heroTagline: z.string(),
-  heroPhotoUrl: z.string(),
+  heroPhotoUrl: nonBlobStringSchema,
   heroPhotoAlt: z.string(),
   primaryCta: z.object({
     text: z.string().min(1),
@@ -290,7 +298,7 @@ export const attachmentSchema = z.object({
   fileName: z.string().min(1),
   format: z.string().min(1),
   fileSize: z.string().min(1),
-  url: z.string().min(1),
+  url: nonBlobStringSchema.min(1),
   storagePath: z.string().optional(),
   fileExtension: z.string().min(1),
   mimeType: z.string().optional(),
@@ -300,6 +308,13 @@ export const attachmentSchema = z.object({
   order: z.number().int().nonnegative().default(0),
   visible: z.boolean().default(true),
   uploadedAt: z.string().optional(),
+});
+
+export const externalLinkSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1, 'Link label is required'),
+  url: urlOrPathSchema,
+  description: z.string().optional(),
 });
 
 export const youtubeEmbedSchema = z.object({
@@ -324,7 +339,7 @@ export const resourceSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   fullDescription: z.string().optional(),
   tags: z.array(z.string()),
-  coverImage: z.string().optional(),
+  coverImage: nonBlobStringSchema.optional(),
   thumbnailAlt: z.string().optional(),
   author: z.string().default('Aakash Das'),
   language: z.string().default('English'),
@@ -337,12 +352,13 @@ export const resourceSchema = z.object({
   updatedAtDate: z.string().optional(),
   downloadFormat: z.string().optional(),
   fileSize: z.string().optional(),
-  downloadUrl: z.string().optional(),
-  pdfPreviewUrl: z.string().optional(),
-  docxUrl: z.string().optional(),
+  downloadUrl: nonBlobStringSchema.optional(),
+  pdfPreviewUrl: nonBlobStringSchema.optional(),
+  docxUrl: nonBlobStringSchema.optional(),
   cardActionLabel: z.string().default('Open'),
   detailActionLabel: z.string().default('Download Resources'),
   attachments: z.array(attachmentSchema).default([]),
+  externalLinks: z.array(externalLinkSchema).optional(),
   contentHtml: z.string().optional(),
   contentJson: z.any().optional(),
   blocknoteJson: z.any().optional(),
@@ -417,7 +433,7 @@ export const journalSchema = z.object({
   excerpt: z.string().min(1, 'Excerpt is required'),
   author: z.string().default('Aakash Das'),
   language: z.string().default('English'),
-  coverImage: z.string().optional(),
+  coverImage: nonBlobStringSchema.optional(),
   thumbnailAlt: z.string().optional(),
   coverImageCaption: z.string().optional(),
   published: z.boolean().default(true),

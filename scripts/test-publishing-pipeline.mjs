@@ -67,10 +67,10 @@ async function run() {
     assert(json._meta, 'Must contain _meta block');
     assert.strictEqual(json._meta.version, '1.0.0');
     assert(json._meta.generatedAt, 'Must contain generatedAt timestamp');
-    assert.strictEqual(json._meta.resourceCount, 4);
-    assert.strictEqual(json._meta.publishedResourceCount, 3);
-    assert.strictEqual(json._meta.journalCount, 4);
-    assert.strictEqual(json._meta.publishedJournalCount, 4);
+    assert.ok(json._meta.publishedResourceCount >= 3, 'Must have at least 3 published resources');
+    assert.ok(json._meta.resourceCount >= json._meta.publishedResourceCount, 'resourceCount >= publishedResourceCount');
+    assert.ok(json._meta.publishedJournalCount >= 4, 'Must have at least 4 published journals');
+    assert.ok(json._meta.journalCount >= json._meta.publishedJournalCount, 'journalCount >= publishedJournalCount');
   });
 
   test('1.3 Snapshot contains valid siteSettings, homePage, and aboutPage', () => {

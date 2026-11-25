@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateJournal, validateSlug } from './validation.ts';
-import { removeUndefinedFields } from './sanitize.ts';
+import { removeUndefinedFields, sanitizeAssetUrl, clearLiveSyncCache } from './sanitize.ts';
 import { CmsError, CmsNotFoundError, CmsConflictError } from './errors.ts';
 import type { JournalDocument } from '../../types/cms/index.ts';
 import snapshotData from '../../data/cms-snapshot.json' with { type: 'json' };
@@ -346,6 +346,7 @@ export async function createJournal(
     ...data,
     id: slug,
     slug,
+    coverImage: sanitizeAssetUrl(data.coverImage, '') || undefined,
     createdAt: now,
     updatedAt: now,
     updatedBy: adminEmail,
@@ -356,6 +357,7 @@ export async function createJournal(
   try {
     const docRef = doc(db, COLLECTION, slug);
     await setDoc(docRef, sanitizeForFirestore(validated));
+    clearLiveSyncCache('journals');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -399,12 +401,25 @@ export async function updateJournal(
     targetSlug = slugValidation.value;
   }
 
+  const isSlugMigrating = targetSlug !== canonicalDocId;
+  if (isSlugMigrating) {
+    const conflict = await getJournalBySlug(targetSlug);
+    if (conflict && conflict.id !== canonicalDocId) {
+      throw new CmsConflictError(`Journal article with slug "${targetSlug}" already exists.`);
+    }
+  }
+  const finalDocId = isSlugMigrating ? targetSlug : canonicalDocId;
+
   const now = new Date().toISOString();
   const merged: JournalDocument = {
     ...existing,
     ...data,
-    id: canonicalDocId,
+    id: finalDocId,
     slug: targetSlug,
+    coverImage: sanitizeAssetUrl(
+      data.coverImage !== undefined ? data.coverImage : existing.coverImage,
+      ''
+    ) || undefined,
     blocknoteJson: data.blocknoteJson !== undefined ? data.blocknoteJson : existing.blocknoteJson,
     blocknoteHtml: data.blocknoteHtml !== undefined ? data.blocknoteHtml : existing.blocknoteHtml,
     contentHtml: data.contentHtml !== undefined ? data.contentHtml : existing.contentHtml,
@@ -418,8 +433,16 @@ export async function updateJournal(
   const validated = validateJournal(merged);
 
   try {
-    const docRef = doc(db, COLLECTION, canonicalDocId);
-    await setDoc(docRef, sanitizeForFirestore(validated), { merge: true });
+    const docRef = doc(db, COLLECTION, finalDocId);
+    await setDoc(docRef, sanitizeForFirestore(validated), { merge: !isSlugMigrating });
+    if (isSlugMigrating) {
+      try {
+        await deleteDoc(doc(db, COLLECTION, canonicalDocId));
+      } catch {
+        // Non-fatal
+      }
+    }
+    clearLiveSyncCache('journals');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

@@ -151,8 +151,8 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     await expect(page.locator('text=4 Published')).toBeVisible();
   });
 
-  // 7. Trigger Build Confirmation Modal & Execution Simulation
-  test('7. Trigger Build button opens confirmation modal and simulates deployment pipeline', async ({
+  // 7. Trigger Build Confirmation Modal & Dispatch Configuration
+  test('7. Trigger Build button opens confirmation modal and prompts for GitHub dispatch token when unconfigured', async ({
     page,
   }) => {
     await openAdmin(page);
@@ -166,21 +166,16 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     await expect(triggerBtn).toBeVisible();
     await triggerBtn.click();
 
-    // Verify confirmation modal
+    // Verify confirmation modal shows real inventory counts
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
     await expect(modal.locator('h2')).toContainText('Trigger Production Static Build?');
-    await expect(modal.locator('text=3 Published Educational Resources included')).toBeVisible();
-    await expect(modal.locator('text=Drafts (e.g. Resource #004) securely excluded')).toBeVisible();
+    await expect(modal.locator('text=/\\d+ Published Educational Resources included/')).toBeVisible();
+    await expect(modal.locator('text=/\\d+ Published Journal Articles included/')).toBeVisible();
 
-    // Click Confirm & Build Website
+    // Click Confirm & Build Website without token -> opens token configuration panel honestly (no fake build)
     await modal.locator('button:has-text("Confirm & Build Website")').click();
-
-    // Verify pipeline execution panel appears
-    await expect(page.locator('h3:has-text("Executing Publishing Pipeline")')).toBeVisible();
-
-    // Wait for completion (simulated ~3 seconds)
-    await expect(page.locator('text=Publishing pipeline complete!').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('input#gh-token')).toBeVisible({ timeout: 5000 });
   });
 
   // 8. Mobile Responsiveness of Publishing Dashboard

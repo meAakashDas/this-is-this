@@ -55,11 +55,18 @@ const workEntries = aboutPage.workEntries && aboutPage.workEntries.length > 0
       },
     ];
 
-const mediaEntry = (aboutPage.mediaEntries && aboutPage.mediaEntries[0]) || {
-  show: 'The Amit Show',
-  role: 'Podcast Guest',
-  desc: 'A conversation about building RisePaisa, content creation, audience growth, and my journey as a young entrepreneur and finance educator.',
-};
+const mediaEntries = (aboutPage.mediaEntries && aboutPage.mediaEntries.filter((m) => m.visible !== false).length > 0)
+  ? aboutPage.mediaEntries.filter((m) => m.visible !== false)
+  : [
+      {
+        show: 'The Amit Show',
+        role: 'Podcast Guest',
+        format: 'Featured Interview',
+        desc: 'A conversation about building RisePaisa, content creation, audience growth, and my journey as a young entrepreneur and finance educator.',
+      },
+    ];
+
+const experienceEntries = (aboutPage.experienceEntries || []).filter((e) => e.visible !== false);
 
 const educationEntries = aboutPage.educationEntries && aboutPage.educationEntries.length > 0
   ? aboutPage.educationEntries
@@ -211,26 +218,30 @@ const getDisplayName = (platform: string) => {
                 </h2>
               </div>
 
-              <article class="media-feature-card rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all p-5 sm:p-6 md:p-7 space-y-3">
-                <div class="media-card-header">
-                  <div class="media-badge-group flex items-center gap-2 flex-wrap">
-                    <span class="card-role-badge media-role-badge inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono font-medium border border-border bg-secondary text-muted-foreground">
-                      {mediaEntry.role}
-                    </span>
-                    <span class="media-format-tag inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium text-muted-foreground">
-                      Featured Interview
-                    </span>
-                  </div>
-                </div>
-                <div class="media-card-body space-y-2">
-                  <h3 class="media-show-title text-lg sm:text-[19px] font-semibold tracking-tight text-foreground m-0">
-                    {mediaEntry.show}
-                  </h3>
-                  <p class="media-show-desc text-sm sm:text-base text-muted-foreground leading-relaxed m-0 max-w-2xl">
-                    {mediaEntry.desc}
-                  </p>
-                </div>
-              </article>
+              <div class="media-cards-list space-y-4">
+                {mediaEntries.map((mediaEntry) => (
+                  <article class="media-feature-card rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all p-5 sm:p-6 md:p-7 space-y-3">
+                    <div class="media-card-header">
+                      <div class="media-badge-group flex items-center gap-2 flex-wrap">
+                        <span class="card-role-badge media-role-badge inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono font-medium border border-border bg-secondary text-muted-foreground">
+                          {mediaEntry.role}
+                        </span>
+                        <span class="media-format-tag inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium text-muted-foreground">
+                          {mediaEntry.format || 'Featured Interview'}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="media-card-body space-y-2">
+                      <h3 class="media-show-title text-lg sm:text-[19px] font-semibold tracking-tight text-foreground m-0">
+                        {mediaEntry.show}
+                      </h3>
+                      <p class="media-show-desc text-sm sm:text-base text-muted-foreground leading-relaxed m-0 max-w-2xl">
+                        {mediaEntry.desc}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
             <div class="h-px bg-border w-full" role="separator"></div>
           </>
@@ -282,6 +293,55 @@ const getDisplayName = (platform: string) => {
                       <div class="edu-status-wrap inline-flex items-center gap-1.5 pt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-auto">
                         <span class="status-pulse-dot w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
                         <span class="status-text">{edu.status}</span>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+            <div class="h-px bg-border w-full" role="separator"></div>
+          </>
+        );
+      }
+
+      if (sectionId === 'experience' && experienceEntries.length > 0) {
+        return (
+          <>
+            <section class="about-section about-experience-section space-y-4 sm:space-y-5" aria-labelledby="experience-heading">
+              <div class="section-header">
+                <h2 id="experience-heading" class="section-title text-2xl sm:text-[28px] font-semibold tracking-tight text-foreground m-0">
+                  Experience
+                </h2>
+              </div>
+
+              <div class="cards-grid experience-grid grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+                {experienceEntries.map((exp, eIdx) => (
+                  <article class="entry-card experience-card rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all p-5 sm:p-6 flex flex-col space-y-2.5 h-full">
+                    <div class="card-top-bar flex items-center justify-between gap-2">
+                      <span class="entry-index font-mono text-xs font-semibold px-2 py-0.5 rounded-md border border-border bg-secondary text-muted-foreground">
+                        {String(eIdx + 1).padStart(2, '0')}
+                      </span>
+                      {exp.period && (
+                        <span class="exp-period-tag text-xs font-mono text-muted-foreground">
+                          {exp.period}
+                        </span>
+                      )}
+                    </div>
+                    <h3 class="card-title text-lg font-semibold tracking-tight text-foreground m-0">
+                      {exp.position}
+                    </h3>
+                    <p class="exp-org-line text-sm font-medium text-foreground m-0">
+                      {exp.organization}
+                    </p>
+                    {exp.desc && (
+                      <p class="card-detail text-sm text-muted-foreground leading-relaxed m-0 flex-1">
+                        {exp.desc}
+                      </p>
+                    )}
+                    {exp.status && (
+                      <div class="exp-status-wrap inline-flex items-center gap-1.5 pt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-auto">
+                        <span class="status-pulse-dot w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
+                        <span class="status-text">{exp.status}</span>
                       </div>
                     )}
                   </article>

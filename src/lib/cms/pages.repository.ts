@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateHomePage, validateAboutPage } from './validation.ts';
-import { removeUndefinedFields } from './sanitize.ts';
+import { removeUndefinedFields, sanitizeAssetUrl, clearLiveSyncCache } from './sanitize.ts';
 import { CmsError } from './errors.ts';
 import type { HomePageDocument, AboutPageDocument } from '../../types/cms/index.ts';
 
@@ -18,7 +18,9 @@ export async function getHomePageContent(): Promise<HomePageDocument | null> {
     const docRef = doc(db, COLLECTION, 'home');
     const snap = await getDoc(docRef);
     if (!snap.exists()) return null;
-    return snap.data() as HomePageDocument;
+    const data = snap.data() as HomePageDocument;
+    data.heroPhotoUrl = sanitizeAssetUrl(data.heroPhotoUrl, '/images/aakash-das.webp');
+    return data;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to fetch homepage content: ${msg}`, 'READ_FAILED');
@@ -93,6 +95,10 @@ export async function saveHomePageContent(
     }),
     ...data,
     id: 'home',
+    heroPhotoUrl: sanitizeAssetUrl(
+      data.heroPhotoUrl !== undefined ? data.heroPhotoUrl : existing?.heroPhotoUrl,
+      '/images/aakash-das.webp'
+    ),
     updatedAt: now,
     updatedBy: adminEmail,
   };
@@ -102,6 +108,7 @@ export async function saveHomePageContent(
   try {
     const docRef = doc(db, COLLECTION, 'home');
     await setDoc(docRef, removeUndefinedFields(validated), { merge: true });
+    clearLiveSyncCache('pages');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -242,7 +249,7 @@ export async function getAboutPageContent(): Promise<AboutPageDocument | null> {
     if (!data.educationEntries || data.educationEntries.length === 0) {
       data.educationEntries = DEFAULT_ABOUT_PAGE.educationEntries;
     }
-    if (!data.experienceEntries || data.experienceEntries.length === 0) {
+    if (!Array.isArray(data.experienceEntries)) {
       data.experienceEntries = DEFAULT_ABOUT_PAGE.experienceEntries;
     }
 
@@ -281,6 +288,7 @@ export async function saveAboutPageContent(
   try {
     const docRef = doc(db, COLLECTION, 'about');
     await setDoc(docRef, removeUndefinedFields(validated), { merge: true });
+    clearLiveSyncCache('pages');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

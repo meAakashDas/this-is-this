@@ -11,17 +11,16 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   RefreshCw,
-  Plus,
   Link as LinkIcon,
   Info,
 } from 'lucide-react';
 import type { CmsAttachment } from '../../../types/cms/resource.ts';
 import { tryGetFirebaseStorage } from '../../../lib/firebase/index.ts';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { isTemporaryBlobUrl } from '../../../lib/cms/sanitize.ts';
 
 interface AttachmentManagerProps {
   resourceNumber: string;
@@ -107,6 +106,8 @@ const LOCAL_DOWNLOAD_PRESETS = [
 
 const MAX_DOC_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_IMG_SIZE = 10 * 1024 * 1024; // 10MB
+// Firestore document limit is 1 MiB; ~600 KB binary becomes ~800 KB base64 safely under 1 MiB.
+const MAX_INLINE_FIRESTORE_BYTES = 600 * 1024;
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -143,6 +144,80 @@ function getFormatName(ext: string): string {
   }
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to encode file as Data URI.'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file bytes.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadToGitHubDownloadsIfConfigured(
+  file: File,
+  resourceNumber: string
+): Promise<{ url: string; storagePath: string } | null> {
+  if (typeof window === 'undefined') return null;
+  const token = sessionStorage.getItem('admin_gh_dispatch_token')?.trim();
+  if (!token) return null;
+
+  const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const repoFileName = `resource-${resourceNumber}-${cleanFileName}`;
+  const repoPath = `public/downloads/${repoFileName}`;
+  const apiUrl = `https://api.github.com/repos/meAakashDas/this-is-this/contents/${repoPath}`;
+
+  // Check if file exists to get sha for update
+  let existingSha: string | undefined;
+  try {
+    const checkRes = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+      },
+    });
+    if (checkRes.ok) {
+      const existingJson = await checkRes.json();
+      existingSha = existingJson.sha;
+    }
+  } catch {
+    // ignore check error
+  }
+
+  const dataUrl = await fileToDataUrl(file);
+  const base64Content = dataUrl.split(',')[1] || '';
+
+  const putRes = await fetch(apiUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: `chore(resources): upload attachment ${repoFileName} for resource #${resourceNumber}`,
+      content: base64Content,
+      branch: 'main',
+      ...(existingSha ? { sha: existingSha } : {}),
+    }),
+  });
+
+  if (!putRes.ok) {
+    const errBody = await putRes.json().catch(() => ({}));
+    throw new Error(errBody.message || `GitHub upload failed (${putRes.status})`);
+  }
+
+  return {
+    url: `/downloads/${repoFileName}`,
+    storagePath: `github:${repoPath}`,
+  };
+}
+
 export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   resourceNumber,
   attachments,
@@ -158,10 +233,11 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  // Manual link form state
+  // Manual link / external URL form state
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [linkDescription, setLinkDescription] = useState('');
   const [linkSize, setLinkSize] = useState('');
   const [linkPreviewable, setLinkPreviewable] = useState(true);
 
@@ -180,6 +256,80 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     return null;
   };
 
+  /**
+   * Resolves a genuine permanent URL for an uploaded file:
+   * 1. Attempts Firebase Storage if provisioned.
+   * 2. Falls back to GitHub Repository (`public/downloads/`) if GitHub token is configured.
+   * 3. Falls back to permanent inline Base64 Data URI in Firestore for files <= 600 KB.
+   * 4. Rejects larger files with a clear error instead of storing fake paths or blob: URLs.
+   */
+  const uploadFilePermanently = async (
+    file: File
+  ): Promise<{ url: string; storagePath?: string; notice?: string }> => {
+    const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `uploads/resources/${resourceNumber}/${cleanFileName}`;
+
+    if (isDevPreview) {
+      if (file.size <= MAX_INLINE_FIRESTORE_BYTES) {
+        const dataUrl = await fileToDataUrl(file);
+        return {
+          url: dataUrl,
+          notice: `Dev Mode: "${file.name}" (${formatBytes(file.size)}) encoded as a permanent Data URI for local preview.`,
+        };
+      }
+      throw new Error(
+        `Dev Preview cannot inline files larger than ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} without Firebase Storage.`
+      );
+    }
+
+    // 1. Attempt Firebase Storage
+    const storage = tryGetFirebaseStorage();
+    if (storage) {
+      try {
+        setUploadProgress(40);
+        const fileRef = ref(storage, storagePath);
+        await uploadBytes(fileRef, file, {
+          contentType: file.type || 'application/octet-stream',
+        });
+        const publicUrl = await getDownloadURL(fileRef);
+        setUploadProgress(100);
+        return { url: publicUrl, storagePath };
+      } catch (storageErr) {
+        console.warn('[AttachmentManager] Firebase Storage unavailable, checking permanent alternatives:', storageErr);
+      }
+    }
+
+    // 2. Attempt GitHub Repository static downloads upload (if PAT configured in Publishing)
+    try {
+      const ghResult = await uploadToGitHubDownloadsIfConfigured(file, resourceNumber);
+      if (ghResult) {
+        return {
+          url: ghResult.url,
+          storagePath: ghResult.storagePath,
+          notice: `Firebase Storage is unavailable on Spark plan. "${file.name}" was committed directly to ${ghResult.storagePath} and will be live at ${ghResult.url} once deployment finishes.`,
+        };
+      }
+    } catch (ghErr: any) {
+      console.warn('[AttachmentManager] GitHub upload failed:', ghErr);
+    }
+
+    // 3. Permanent inline Data URI in Firestore (files <= 600 KB)
+    if (file.size <= MAX_INLINE_FIRESTORE_BYTES) {
+      setUploadProgress(80);
+      const dataUrl = await fileToDataUrl(file);
+      setUploadProgress(100);
+      return {
+        url: dataUrl,
+        notice: `Firebase Storage is not provisioned on the Spark plan. "${file.name}" (${formatBytes(file.size)}) was encoded as a permanent inline Data URI and will persist directly in Cloud Firestore.`,
+      };
+    }
+
+    // 4. Reject rather than storing a fake link or blob: URL
+    throw new Error(
+      `Cannot store "${file.name}" (${formatBytes(file.size)}): Firebase Storage is not provisioned on the free Spark plan and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit. Use "Add Link / External URL" to attach a permanent external URL (e.g. Google Drive / GitHub Release) or configure a GitHub token in Publishing.`
+    );
+  };
+
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadError(null);
@@ -192,22 +342,28 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
       const err = validateFile(file);
       if (err) {
         setUploadError(err);
+        setUploadProgress(null);
         return;
       }
 
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const isPdf = ext === 'pdf';
-      const objectUrl = URL.createObjectURL(file);
 
-      if (isDevPreview) {
-        // Local simulation with Object URL
+      try {
+        setUploadProgress(15);
+        const result = await uploadFilePermanently(file);
+        if (result.notice) {
+          setUploadNotice(result.notice);
+        }
+
         const att: CmsAttachment = {
           id: `att-${Date.now()}-${i}`,
           name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
           fileName: file.name,
           format: getFormatName(ext),
           fileSize: formatBytes(file.size),
-          url: objectUrl,
+          url: result.url,
+          storagePath: result.storagePath,
           fileExtension: ext,
           mimeType: file.type || '',
           isPreviewable: isPdf,
@@ -216,83 +372,13 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           uploadedAt: new Date().toISOString(),
         };
         newAttachments.push(att);
-      } else {
-        // Authenticated: check if Firebase Storage is available
-        const storage = tryGetFirebaseStorage();
-        if (!storage) {
-          // On Spark plan without Storage, load as session preview and inform user
-          const permanentPath = `/downloads/${file.name}`;
-          const att: CmsAttachment = {
-            id: `att-${Date.now()}-${i}`,
-            name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-            fileName: file.name,
-            format: getFormatName(ext),
-            fileSize: formatBytes(file.size),
-            url: permanentPath,
-            fileExtension: ext,
-            mimeType: file.type || '',
-            isPreviewable: isPdf,
-            order: attachments.length + i + 1,
-            visible: true,
-            uploadedAt: new Date().toISOString(),
-          };
-          newAttachments.push(att);
-          setUploadNotice(
-            `Firebase Storage is disabled on the free Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" in "public/downloads/" before committing.`
-          );
-          continue;
+      } catch (uploadErr: any) {
+        setUploadError(uploadErr?.message || `Failed to upload "${file.name}".`);
+        setUploadProgress(null);
+        if (newAttachments.length > 0) {
+          onChange([...attachments, ...newAttachments]);
         }
-
-        try {
-          setUploadProgress(20);
-          const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const storagePath = `uploads/resources/${resourceNumber}/${cleanFileName}`;
-          const fileRef = ref(storage, storagePath);
-
-          setUploadProgress(60);
-          await uploadBytes(fileRef, file, { contentType: file.type });
-          const publicUrl = await getDownloadURL(fileRef);
-          setUploadProgress(100);
-
-          const att: CmsAttachment = {
-            id: `att-${Date.now()}-${i}`,
-            name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-            fileName: file.name,
-            format: getFormatName(ext),
-            fileSize: formatBytes(file.size),
-            url: publicUrl,
-            storagePath,
-            fileExtension: ext,
-            mimeType: file.type || '',
-            isPreviewable: isPdf,
-            order: attachments.length + i + 1,
-            visible: true,
-            uploadedAt: new Date().toISOString(),
-          };
-          newAttachments.push(att);
-        } catch (uploadErr: any) {
-          console.warn('[Storage upload warning on Spark plan]:', uploadErr);
-          // Graceful fallback without crashing
-          const permanentPath = `/downloads/${file.name}`;
-          const att: CmsAttachment = {
-            id: `att-${Date.now()}-${i}`,
-            name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-            fileName: file.name,
-            format: getFormatName(ext),
-            fileSize: formatBytes(file.size),
-            url: permanentPath,
-            fileExtension: ext,
-            mimeType: file.type || '',
-            isPreviewable: isPdf,
-            order: attachments.length + i + 1,
-            visible: true,
-            uploadedAt: new Date().toISOString(),
-          };
-          newAttachments.push(att);
-          setUploadNotice(
-            `Firebase Storage is not enabled on the Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" into "public/downloads/".`
-          );
-        }
+        return;
       }
     }
 
@@ -306,129 +392,116 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     const err = validateFile(file);
     if (err) {
       setUploadError(err);
+      setReplacingIndex(null);
       return;
     }
+
+    setUploadError(null);
+    setUploadNotice(null);
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isPdf = ext === 'pdf';
     const oldAtt = attachments[replacingIndex];
-    const objectUrl = URL.createObjectURL(file);
 
-    if (isDevPreview) {
+    try {
+      setUploadProgress(20);
+      const result = await uploadFilePermanently(file);
+      if (result.notice) {
+        setUploadNotice(result.notice);
+      }
+
+      if (
+        !isDevPreview &&
+        oldAtt.storagePath &&
+        !oldAtt.storagePath.startsWith('github:') &&
+        oldAtt.storagePath !== result.storagePath
+      ) {
+        try {
+          const storage = tryGetFirebaseStorage();
+          if (storage) {
+            await deleteObject(ref(storage, oldAtt.storagePath));
+          }
+        } catch (delErr) {
+          console.warn('Failed to clean up obsolete storage object:', delErr);
+        }
+      }
+
       const updated = [...attachments];
       updated[replacingIndex] = {
         ...oldAtt,
         fileName: file.name,
         format: getFormatName(ext),
         fileSize: formatBytes(file.size),
-        url: objectUrl,
+        url: result.url,
+        storagePath: result.storagePath,
         fileExtension: ext,
         mimeType: file.type || '',
         isPreviewable: isPdf,
         uploadedAt: new Date().toISOString(),
       };
       onChange(updated);
-    } else {
-      const storage = tryGetFirebaseStorage();
-      if (!storage) {
-        const permanentPath = `/downloads/${file.name}`;
-        const updated = [...attachments];
-        updated[replacingIndex] = {
-          ...oldAtt,
-          fileName: file.name,
-          format: getFormatName(ext),
-          fileSize: formatBytes(file.size),
-          url: permanentPath,
-          fileExtension: ext,
-          mimeType: file.type || '',
-          isPreviewable: isPdf,
-          uploadedAt: new Date().toISOString(),
-        };
-        onChange(updated);
-        setUploadNotice(
-          `Firebase Storage is disabled on Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" into "public/downloads/".`
-        );
-      } else {
-        try {
-          setUploadProgress(30);
-          const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const storagePath = `uploads/resources/${resourceNumber}/${cleanFileName}`;
-          const fileRef = ref(storage, storagePath);
-
-          setUploadProgress(60);
-          await uploadBytes(fileRef, file, { contentType: file.type });
-          const publicUrl = await getDownloadURL(fileRef);
-
-          if (oldAtt.storagePath && oldAtt.storagePath !== storagePath) {
-            try {
-              await deleteObject(ref(storage, oldAtt.storagePath));
-            } catch (delErr) {
-              console.warn('Failed to clean up obsolete storage object:', delErr);
-            }
-          }
-
-          const updated = [...attachments];
-          updated[replacingIndex] = {
-            ...oldAtt,
-            fileName: file.name,
-            format: getFormatName(ext),
-            fileSize: formatBytes(file.size),
-            url: publicUrl,
-            storagePath,
-            fileExtension: ext,
-            mimeType: file.type || '',
-            isPreviewable: isPdf,
-            uploadedAt: new Date().toISOString(),
-          };
-          setUploadProgress(100);
-          onChange(updated);
-        } catch (replaceErr: any) {
-          console.warn('[Replace file warning on Spark plan]:', replaceErr);
-          const permanentPath = `/downloads/${file.name}`;
-          const updated = [...attachments];
-          updated[replacingIndex] = {
-            ...oldAtt,
-            fileName: file.name,
-            format: getFormatName(ext),
-            fileSize: formatBytes(file.size),
-            url: permanentPath,
-            fileExtension: ext,
-            mimeType: file.type || '',
-            isPreviewable: isPdf,
-            uploadedAt: new Date().toISOString(),
-          };
-          onChange(updated);
-          setUploadNotice(
-            `Firebase Storage is not enabled on Spark plan. Linked permanently to "${permanentPath}". Place "${file.name}" in "public/downloads/".`
-          );
-        } finally {
-          setUploadProgress(null);
-        }
-      }
+    } catch (replaceErr: any) {
+      setUploadError(replaceErr?.message || `Failed to replace "${oldAtt.name}".`);
+    } finally {
+      setUploadProgress(null);
+      setReplacingIndex(null);
+      if (replaceInputRef.current) replaceInputRef.current.value = '';
     }
-
-    setReplacingIndex(null);
-    if (replaceInputRef.current) replaceInputRef.current.value = '';
   };
 
-  const handleAddManualLink = () => {
-    if (!linkUrl.trim()) {
-      setUploadError('Please provide a file URL or path.');
+  const handleAddManualLink = async () => {
+    setUploadError(null);
+    setUploadNotice(null);
+
+    const trimmedUrl = linkUrl.trim();
+    if (!trimmedUrl) {
+      setUploadError('Please provide a file path or permanent URL.');
+      return;
+    }
+    if (isTemporaryBlobUrl(trimmedUrl) || trimmedUrl.toLowerCase().startsWith('javascript:')) {
+      setUploadError('Temporary blob: or unsafe URLs are not permitted.');
       return;
     }
 
-    const trimmedUrl = linkUrl.trim();
-    const fileName = trimmedUrl.split('/').pop() || 'document.pdf';
-    const ext = fileName.split('.').pop()?.toLowerCase() || 'pdf';
+    const isLocalPath = trimmedUrl.startsWith('/');
+    if (!isLocalPath) {
+      try {
+        const parsed = new URL(trimmedUrl);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          setUploadError('External links must use https:// or http://.');
+          return;
+        }
+      } catch {
+        setUploadError('Please enter a valid root path (/downloads/...) or full URL (https://...).');
+        return;
+      }
+    } else if (typeof window !== 'undefined' && !isDevPreview) {
+      try {
+        const check = await fetch(trimmedUrl, { method: 'HEAD' });
+        if (!check.ok) {
+          setUploadNotice(
+            `Note: "${trimmedUrl}" returned HTTP ${check.status} on this server. Make sure the file exists in "public/downloads/" before deploying.`
+          );
+        }
+      } catch {
+        // Non-fatal check
+      }
+    }
+
+    const cleanSegment = trimmedUrl.split('?')[0].split('#')[0];
+    const fileName = cleanSegment.split('/').pop() || 'external-resource';
+    const extMatch = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
+    const ext = extMatch || (trimmedUrl.startsWith('http') ? 'link' : 'pdf');
     const isPdf = ext === 'pdf';
 
     const newAtt: CmsAttachment = {
       id: `att-${Date.now()}`,
       name: linkName.trim() || fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
       fileName,
-      format: getFormatName(ext),
-      fileSize: linkSize.trim() || '450 KB',
+      format: ext === 'link' ? 'External Link' : getFormatName(ext),
+      fileSize: linkSize.trim() || (ext === 'link' ? 'External' : 'Standard'),
       url: trimmedUrl,
+      description: linkDescription.trim() || undefined,
       fileExtension: ext,
       isPreviewable: isPdf && linkPreviewable,
       order: attachments.length + 1,
@@ -439,10 +512,9 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     onChange([...attachments, newAtt]);
     setLinkName('');
     setLinkUrl('');
+    setLinkDescription('');
     setLinkSize('');
     setShowLinkForm(false);
-    setUploadNotice(null);
-    setUploadError(null);
   };
 
   const handleApplyPreset = (preset: (typeof LOCAL_DOWNLOAD_PRESETS)[0]) => {
@@ -453,6 +525,10 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   };
 
   const handleUpdate = (index: number, field: keyof CmsAttachment, value: any) => {
+    if (field === 'url' && isTemporaryBlobUrl(value)) {
+      setUploadError('Temporary blob: URLs cannot be saved.');
+      return;
+    }
     const updated = [...attachments];
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
@@ -491,7 +567,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   const handleDelete = async (index: number) => {
     const target = attachments[index];
     if (confirm(`Remove attachment "${target.name}"?`)) {
-      if (!isDevPreview && target.storagePath) {
+      if (!isDevPreview && target.storagePath && !target.storagePath.startsWith('github:')) {
         try {
           const storage = tryGetFirebaseStorage();
           if (storage) {
@@ -525,6 +601,8 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
       case 'jpeg':
       case 'webp':
         return <Image className="w-4 h-4 text-sky-500" />;
+      case 'link':
+        return <LinkIcon className="w-4 h-4 text-primary" />;
       default:
         return <FileText className="w-4 h-4 text-muted-foreground" />;
     }
@@ -551,8 +629,8 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         accept={SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
       />
 
-      {/* Header, counter and Add Local Button */}
-      <div className="flex items-center justify-between pb-3 border-b border-border">
+      {/* Header, counter and Add Link Button */}
+      <div className="flex items-center justify-between pb-3 border-b border-border flex-wrap gap-2">
         <h3 className="text-base font-semibold text-foreground flex items-center gap-2 m-0">
           <UploadCloud className="w-4 h-4 text-primary" />
           Downloadable Educational Attachments
@@ -564,7 +642,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
             className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors cursor-pointer"
           >
             <LinkIcon className="w-3.5 h-3.5" />
-            <span>{showLinkForm ? 'Hide Local Asset Form' : 'Link Local File / Path'}</span>
+            <span>{showLinkForm ? 'Hide Link Form' : 'Add Link / Local File'}</span>
           </button>
           <span className="text-xs font-mono px-2.5 py-0.5 rounded-md bg-secondary text-muted-foreground border border-border">
             {attachments.length} {attachments.length === 1 ? 'file' : 'files'}
@@ -572,18 +650,17 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         </div>
       </div>
 
-      {/* Dedicated Spark Plan Link Form */}
+      {/* Add Link / Local Asset Form */}
       {showLinkForm && (
         <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-4">
           <div className="flex items-start justify-between gap-2">
             <div>
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <LinkIcon className="w-3.5 h-3.5 text-primary" />
-                Link Existing File (Spark Plan Compatible)
+                Link Permanent File or External Download URL
               </h4>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Since Firebase Storage is disabled on the Spark plan, attachments are hosted from{' '}
-                <code className="font-mono text-[10px]">public/downloads/</code>.
+                Link static files from <code className="font-mono text-[10px]">/downloads/</code> or external URLs (Google Drive, GitHub Releases, Notion, etc.).
               </p>
             </div>
           </div>
@@ -626,8 +703,18 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                 type="text"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="/downloads/resource-001-starter-personal-budget-framework.pdf"
+                placeholder="/downloads/resource-001-starter-personal-budget-framework.pdf or https://..."
                 className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground font-mono placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Description (optional)</label>
+              <input
+                type="text"
+                value={linkDescription}
+                onChange={(e) => setLinkDescription(e.target.value)}
+                placeholder="Brief note about this file"
+                className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             <div className="space-y-1">
@@ -640,7 +727,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                 className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <div className="flex items-center gap-2 pt-6">
+            <div className="flex items-center gap-2 sm:col-span-2">
               <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer">
                 <input
                   type="checkbox"
@@ -700,12 +787,12 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
               Click to select files or drag and drop
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              PDF, DOCX, XLSX, CSV, PPTX, ZIP, PNG, JPG (up to 50MB per document, 10MB per image)
+              PDF, DOCX, XLSX, CSV, PPTX, ZIP, PNG, JPG (up to 600KB inline in Firestore on Spark plan, or larger via Storage / GitHub / External URL)
             </p>
           </div>
           {isDevPreview && (
             <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-              Dev Mode: Simulated instant local uploads
+              Dev Mode: Permanent inline Data URI preview
             </span>
           )}
         </div>
@@ -730,7 +817,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         </div>
       )}
 
-      {/* Informative Spark Plan Notice */}
+      {/* Informative Notice */}
       {uploadNotice && (
         <div
           role="status"
@@ -743,9 +830,12 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
 
       {/* Error alert */}
       {uploadError && (
-        <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{uploadError}</span>
+        <div
+          role="alert"
+          className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-start gap-2"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{uploadError}</span>
         </div>
       )}
 
@@ -793,8 +883,8 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                 <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
                   <a
                     href={att.url}
-                    download
-                    target="_blank"
+                    download={att.fileName || att.name}
+                    target={att.url.startsWith('data:') ? undefined : '_blank'}
                     rel="noopener noreferrer"
                     className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                     title="Download & Verify File"
@@ -808,7 +898,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                       setReplacingIndex(index);
                       replaceInputRef.current?.click();
                     }}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                     title="Replace with new file"
                     aria-label={`Replace ${att.fileName}`}
                   >
@@ -817,7 +907,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                   <button
                     type="button"
                     onClick={() => handleToggleVisible(index)}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                     title={att.visible ? 'Hide from public site' : 'Show on public site'}
                     aria-label={att.visible ? 'Hide attachment' : 'Show attachment'}
                   >
@@ -871,7 +961,8 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                   <label className="text-xs font-medium text-muted-foreground">File Path / URL *</label>
                   <input
                     type="text"
-                    value={att.url}
+                    value={att.url.startsWith('data:') ? `[Inline Data URI — ${att.fileSize}]` : att.url}
+                    readOnly={att.url.startsWith('data:')}
                     onChange={(e) => handleUpdate(index, 'url', e.target.value)}
                     className="w-full px-3 py-1.5 text-xs font-mono rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                     placeholder="/downloads/file.pdf"
@@ -890,7 +981,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
               </div>
 
               {/* Options */}
-              <div className="flex items-center gap-4 mt-2.5 pt-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-4 mt-2.5 pt-2 text-xs text-muted-foreground flex-wrap">
                 <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
                   <input
                     type="checkbox"
@@ -900,6 +991,11 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                   />
                   <span>Allow In-Browser PDF Preview</span>
                 </label>
+                {att.url.startsWith('data:') && (
+                  <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+                    Stored permanently inline in Firestore
+                  </span>
+                )}
                 {att.storagePath && (
                   <span className="font-mono text-[11px] opacity-60 truncate max-w-xs" title={att.storagePath}>
                     Storage: {att.storagePath}

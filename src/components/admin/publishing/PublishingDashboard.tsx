@@ -3,15 +3,12 @@ import {
   Globe,
   RefreshCw,
   CheckCircle2,
-  AlertCircle,
   FileText,
   BookOpen,
   ArrowUpRight,
   ShieldCheck,
   Terminal,
   Clock,
-  Layers,
-  Sparkles,
   Download,
   Check,
   Play,
@@ -19,6 +16,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import snapshotData from '../../../data/cms-snapshot.json';
+import { getAllResourcesForAdmin } from '../../../lib/cms/resources.repository.ts';
+import { getAllJournalsForAdmin } from '../../../lib/cms/journals.repository.ts';
+import { getSiteSettings } from '../../../lib/cms/siteSettings.repository.ts';
+import { getHomePageContent, getAboutPageContent } from '../../../lib/cms/pages.repository.ts';
 
 interface PublishingDashboardProps {
   isDevPreview?: boolean;
@@ -34,8 +35,18 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
   isDevPreview = false,
 }) => {
   const [isBuilding, setIsBuilding] = useState(false);
-  const [isBuildComplete, setIsBuildComplete] = useState(false);
+  const [isDispatchDone, setIsDispatchDone] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  const initialRes = (snapshotData as any)?.resources || [];
+  const initialJour = (snapshotData as any)?.journals || [];
+  const [inventory, setInventory] = useState({
+    publishedResources: initialRes.filter((r: any) => r.published).length,
+    draftResources: initialRes.filter((r: any) => !r.published).length,
+    publishedJournals: initialJour.filter((j: any) => j.published && j.status !== 'draft').length,
+    draftJournals: initialJour.filter((j: any) => !j.published || j.status === 'draft').length,
+  });
+
   const [lastBuildTime, setLastBuildTime] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('aakashdas_last_build_time');
@@ -54,10 +65,11 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
     }
     return 'Snapshot Generated';
   });
+
   const [buildSteps, setBuildSteps] = useState<BuildStep[]>([
     { id: 'snapshot', label: 'Capture Firestore Content Snapshot', status: 'pending' },
     { id: 'exports', label: 'Generate PDF & DOCX Resource Downloads', status: 'pending' },
-    { id: 'ssg', label: 'Pre-render 14 Static HTML Routes', status: 'pending' },
+    { id: 'ssg', label: 'Pre-render Static HTML Routes', status: 'pending' },
     { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'pending' },
   ]);
   const [showTokenConfig, setShowTokenConfig] = useState(false);
@@ -70,7 +82,31 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
       setGithubToken(savedToken);
       setIsTokenSaved(true);
     }
-  }, []);
+
+    if (isDevPreview) return;
+
+    let mounted = true;
+    Promise.all([
+      getAllResourcesForAdmin().catch(() => null),
+      getAllJournalsForAdmin().catch(() => null),
+    ]).then(([resList, jourList]) => {
+      if (!mounted) return;
+      setInventory((prev) => ({
+        publishedResources: resList ? resList.filter((r) => r.published).length : prev.publishedResources,
+        draftResources: resList ? resList.filter((r) => !r.published).length : prev.draftResources,
+        publishedJournals: jourList
+          ? jourList.filter((j) => j.published && j.status !== 'draft').length
+          : prev.publishedJournals,
+        draftJournals: jourList
+          ? jourList.filter((j) => !j.published || j.status === 'draft').length
+          : prev.draftJournals,
+      }));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isDevPreview]);
 
   const handleSaveToken = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,36 +124,39 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
   const handleTriggerBuild = async () => {
     setIsConfirmOpen(false);
     setIsBuilding(true);
-    setIsBuildComplete(false);
+    setIsDispatchDone(false);
 
     const token = sessionStorage.getItem('admin_gh_dispatch_token') || githubToken;
 
     if (!token) {
       setIsBuilding(false);
       toast.info(
-        'Live Firestore Sync is active: your changes in Educational Resources and Journal are already live on aakashdas.live! To trigger an optional full GitHub Pages pre-render build, enter a GitHub token below.'
+        'Live Firestore Sync is active: published changes appear immediately on aakashdas.live. Enter a GitHub token below to dispatch a full static rebuild.'
       );
       setShowTokenConfig(true);
       return;
     }
 
     setBuildSteps([
-      { id: 'snapshot', label: 'Connecting to GitHub Actions Workflow Dispatch', status: 'running' },
-      { id: 'exports', label: 'Dispatched deploy.yml on branch main', status: 'pending' },
-      { id: 'ssg', label: 'Triggering Static Route Build', status: 'pending' },
-      { id: 'deploy', label: 'Deploying to GitHub Pages', status: 'pending' },
+      { id: 'snapshot', label: 'Dispatching GitHub Actions Workflow', status: 'running' },
+      { id: 'exports', label: 'Generate PDF & DOCX Resource Downloads', status: 'pending' },
+      { id: 'ssg', label: 'Pre-render Static HTML Routes', status: 'pending' },
+      { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'pending' },
     ]);
 
     try {
-      const res = await fetch('https://api.github.com/repos/meAakashDas/this-is-this/actions/workflows/deploy.yml/dispatches', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token.trim()}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ref: 'main' }),
-      });
+      const res = await fetch(
+        'https://api.github.com/repos/meAakashDas/this-is-this/actions/workflows/deploy.yml/dispatches',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token.trim()}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ref: 'main' }),
+        }
+      );
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -125,21 +164,21 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
       }
 
       setBuildSteps([
-        { id: 'snapshot', label: 'Dispatched GitHub Actions build successfully', status: 'success' },
-        { id: 'exports', label: 'Generating PDF & DOCX Resource Downloads', status: 'running' },
-        { id: 'ssg', label: 'Pre-rendering Static HTML Routes', status: 'running' },
-        { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'running' },
+        { id: 'snapshot', label: 'Workflow dispatched to GitHub Actions (main)', status: 'success' },
+        { id: 'exports', label: 'Generating PDF & DOCX exports in CI', status: 'running' },
+        { id: 'ssg', label: 'Pre-rendering static HTML routes in CI', status: 'running' },
+        { id: 'deploy', label: 'Deploying artifact to GitHub Pages', status: 'pending' },
       ]);
 
-      setIsBuildComplete(true);
+      setIsDispatchDone(true);
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const formatted = `Dispatched just now (${nowStr})`;
+      const formatted = `Dispatched (${nowStr})`;
       setLastBuildTime(formatted);
       try {
         sessionStorage.setItem('aakashdas_last_build_time', formatted);
       } catch {}
 
-      toast.success('GitHub Actions build successfully dispatched to main branch!');
+      toast.success('GitHub Actions build dispatched to main branch!');
     } catch (err: any) {
       console.error('Workflow dispatch failed:', err);
       toast.error(`Workflow dispatch failed: ${err.message}`);
@@ -151,25 +190,43 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
     }
   };
 
-  const handleDownloadSnapshot = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(
-      JSON.stringify(
-        {
-          timestamp: new Date().toISOString(),
-          source: 'aakashdas-cms-admin',
-          notice: 'Snapshot download from Admin Portal.',
+  const handleDownloadSnapshot = async () => {
+    try {
+      const [siteSettings, homePage, aboutPage, resources, journals] = await Promise.all([
+        getSiteSettings().catch(() => (snapshotData as any)?.siteSettings || null),
+        getHomePageContent().catch(() => (snapshotData as any)?.homePage || null),
+        getAboutPageContent().catch(() => (snapshotData as any)?.aboutPage || null),
+        getAllResourcesForAdmin().catch(() => (snapshotData as any)?.resources || []),
+        getAllJournalsForAdmin().catch(() => (snapshotData as any)?.journals || []),
+      ]);
+
+      const payload = {
+        _meta: {
+          exportedAt: new Date().toISOString(),
+          source: isDevPreview ? 'dev-preview-snapshot' : 'live-firestore-export',
+          resourceCount: resources.length,
+          journalCount: journals.length,
         },
-        null,
-        2
-      )
-    );
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `cms-snapshot-${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    toast.info('CMS snapshot downloaded to your device.');
+        siteSettings,
+        homePage,
+        aboutPage,
+        resources,
+        journals,
+      };
+
+      const dataStr =
+        'data:text/json;charset=utf-8,' +
+        encodeURIComponent(JSON.stringify(payload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `cms-snapshot-${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      toast.success('Full CMS snapshot exported from live data.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to export CMS snapshot.');
+    }
   };
 
   return (
@@ -210,22 +267,22 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
               className="inline-flex items-center justify-center gap-2 h-10 px-4 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isBuilding ? 'animate-spin' : ''}`} />
-              <span>{isBuilding ? 'Building Website...' : 'Trigger Build & Deploy'}</span>
+              <span>{isBuilding ? 'Dispatching Build...' : 'Trigger Build & Deploy'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Build Completion Banner */}
-      {isBuildComplete && (
+      {/* Build Dispatch Banner */}
+      {isDispatchDone && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-xs font-mono text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-3 animate-in fade-in">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Publishing pipeline complete! Static build deployed successfully.</span>
+            <span>GitHub Actions workflow dispatched! Static build & deployment is running on main.</span>
           </div>
           <button
             type="button"
-            onClick={() => setIsBuildComplete(false)}
+            onClick={() => setIsDispatchDone(false)}
             className="text-xs text-muted-foreground hover:text-foreground font-sans cursor-pointer"
           >
             Dismiss
@@ -250,8 +307,8 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
                 Trigger Production Static Build?
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed m-0">
-                This action initiates a full static build pipeline. The system will retrieve all
-                published CMS items, re-generate downloadable documents, build 14 static HTML pages,
+                This action initiates a full static build pipeline via GitHub Actions. The system will retrieve all
+                published CMS items from Cloud Firestore, re-generate downloadable documents, build static HTML pages,
                 and deploy to <strong>https://aakashdas.live</strong>.
               </p>
             </div>
@@ -259,15 +316,15 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
             <div className="bg-secondary/50 border border-border rounded-xl p-3.5 text-xs text-muted-foreground space-y-1.5 font-mono">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                <span>3 Published Educational Resources included</span>
+                <span>{inventory.publishedResources} Published Educational Resources included</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                <span>4 Published Journal Articles included</span>
+                <span>{inventory.publishedJournals} Published Journal Articles included</span>
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Drafts (e.g. Resource #004) securely excluded</span>
+                <span>{inventory.draftResources + inventory.draftJournals} Drafts securely excluded</span>
               </div>
             </div>
 
@@ -299,7 +356,6 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Deployment Target */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
               <span>Target Domain</span>
@@ -309,53 +365,63 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
             <div className="text-xs text-muted-foreground font-mono">GitHub Pages • SSG</div>
           </div>
 
-          {/* Card 2: Educational Resources */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
               <span>Resources Library</span>
               <BookOpen className="w-4 h-4 text-emerald-500" />
             </div>
             <div className="text-base font-semibold text-foreground">
-              3 Published <span className="text-xs text-muted-foreground font-normal">(1 Draft)</span>
+              {inventory.publishedResources} Published{' '}
+              <span className="text-xs text-muted-foreground font-normal">
+                ({inventory.draftResources} {inventory.draftResources === 1 ? 'Draft' : 'Drafts'})
+              </span>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">PDF + DOCX ready</div>
+            <div className="text-xs text-muted-foreground font-mono">Firestore live synced</div>
           </div>
 
-          {/* Card 3: Journal Articles */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
               <span>Journal Articles</span>
               <FileText className="w-4 h-4 text-blue-500" />
             </div>
             <div className="text-base font-semibold text-foreground">
-              4 Published <span className="text-xs text-muted-foreground font-normal">(0 Drafts)</span>
+              {inventory.publishedJournals} Published{' '}
+              <span className="text-xs text-muted-foreground font-normal">
+                ({inventory.draftJournals} {inventory.draftJournals === 1 ? 'Draft' : 'Drafts'})
+              </span>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">100% pre-rendered</div>
+            <div className="text-xs text-muted-foreground font-mono">Firestore live synced</div>
           </div>
 
-          {/* Card 4: Last Build */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
               <span>Last Deployment</span>
               <Clock className="w-4 h-4 text-amber-500" />
             </div>
             <div className="text-base font-semibold text-foreground">{lastBuildTime}</div>
-            <div className="text-xs text-muted-foreground font-mono">Astro 7.4.13 • 14 routes</div>
+            <div className="text-xs text-muted-foreground font-mono">Astro SSG + Live Sync</div>
           </div>
         </div>
       </section>
 
-      {/* Active Pipeline Status / Execution View */}
-      {isBuilding && (
+      {/* Active Pipeline Status */}
+      {(isBuilding || isDispatchDone) && (
         <div className="bg-card border border-primary/30 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+              <RefreshCw className={`w-4 h-4 text-primary ${isBuilding ? 'animate-spin' : ''}`} />
               <h3 className="text-sm font-semibold text-foreground m-0">
-                Executing Publishing Pipeline
+                Publishing Pipeline Status
               </h3>
             </div>
-            <span className="text-xs font-mono text-muted-foreground">In progress...</span>
+            <a
+              href="https://github.com/meAakashDas/this-is-this/actions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-mono text-primary hover:underline"
+            >
+              View GitHub Actions →
+            </a>
           </div>
 
           <div className="space-y-2.5">
@@ -372,17 +438,20 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
                   {step.status === 'running' && (
                     <span className="inline-flex items-center gap-1.5 text-primary font-mono text-xs">
                       <RefreshCw className="w-3 h-3 animate-spin" />
-                      <span>Processing</span>
+                      <span>Running in CI</span>
                     </span>
                   )}
                   {step.status === 'success' && (
                     <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-mono text-xs">
                       <Check className="w-3.5 h-3.5" />
-                      <span>Complete</span>
+                      <span>Dispatched</span>
                     </span>
                   )}
                   {step.status === 'pending' && (
                     <span className="text-muted-foreground font-mono text-xs">Queued</span>
+                  )}
+                  {step.status === 'failed' && (
+                    <span className="text-destructive font-mono text-xs">Failed</span>
                   )}
                 </div>
               </div>
@@ -429,7 +498,6 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
           </div>
         </div>
 
-        {/* Dispatch Token Configuration Form */}
         {showTokenConfig && (
           <form
             onSubmit={handleSaveToken}
@@ -437,11 +505,11 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
           >
             <div className="space-y-1">
               <label htmlFor="gh-token" className="text-xs font-medium text-foreground block">
-                GitHub Personal Access Token (Workflow Dispatch)
+                GitHub Personal Access Token (Workflow Dispatch & Large Attachment Upload)
               </label>
               <p className="text-[11px] text-muted-foreground m-0">
-                Optional. Allows triggering remote GitHub Actions workflow directly from this dashboard.
-                Saved strictly in your browser's <code className="font-mono text-foreground">sessionStorage</code>. Never stored on disk or server.
+                Optional. Allows triggering remote GitHub Actions builds and committing large attachments to <code className="font-mono text-foreground">public/downloads/</code>.
+                Saved strictly in your browser&apos;s <code className="font-mono text-foreground">sessionStorage</code>.
               </p>
             </div>
             <div className="flex gap-2">
@@ -463,13 +531,12 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
             {isTokenSaved && (
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-mono m-0 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" />
-                <span>Dispatch token active for this browser session.</span>
+                <span>GitHub token active for this browser session.</span>
               </p>
             )}
           </form>
         )}
 
-        {/* 4 Pipeline Stages Explanation */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2">
           <div className="p-3.5 rounded-xl border border-border bg-secondary/20 space-y-1.5">
             <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
@@ -497,7 +564,7 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
               <span>Astro Static Compilation</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed m-0">
-              Compiles 14 pure static HTML pages with zero client-side Firestore listeners, preserving 100% SEO and performance.
+              Compiles static HTML pages paired with real-time client Firestore synchronization for instant updates.
             </p>
           </div>
 
@@ -507,7 +574,7 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
               <span>Automated Verification & Deploy</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed m-0">
-              Executes full test suite in CI and deploys static build artifacts directly to GitHub Pages with custom CNAME.
+              Executes Playwright test suite in CI and deploys static build artifacts directly to GitHub Pages.
             </p>
           </div>
         </div>

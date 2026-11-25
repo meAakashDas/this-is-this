@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getFirebaseFirestore, tryGetFirebaseFirestore } from '../firebase/index.ts';
 import { validateSiteSettings } from './validation.ts';
-import { removeUndefinedFields } from './sanitize.ts';
+import { removeUndefinedFields, sanitizeAssetUrl, clearLiveSyncCache } from './sanitize.ts';
 import { CmsError } from './errors.ts';
 import type { SiteSettingsDocument } from '../../types/cms/index.ts';
 
@@ -22,7 +22,9 @@ export async function getSiteSettings(): Promise<SiteSettingsDocument | null> {
     if (!snap.exists()) {
       return null;
     }
-    return snap.data() as SiteSettingsDocument;
+    const data = snap.data() as SiteSettingsDocument;
+    data.profileImage = sanitizeAssetUrl(data.profileImage, '/images/aakash-das.webp');
+    return data;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to fetch site settings: ${msg}`, 'READ_FAILED');
@@ -71,6 +73,10 @@ export async function saveSiteSettings(
     }),
     ...data,
     id: DOCUMENT_ID,
+    profileImage: sanitizeAssetUrl(
+      data.profileImage !== undefined ? data.profileImage : existing?.profileImage,
+      '/images/aakash-das.webp'
+    ),
     updatedAt: now,
     updatedBy: adminEmail,
   };
@@ -80,6 +86,7 @@ export async function saveSiteSettings(
   try {
     const docRef = doc(db, COLLECTION, DOCUMENT_ID);
     await setDoc(docRef, removeUndefinedFields(validated), { merge: true });
+    clearLiveSyncCache('settings');
     return validated;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import type { JournalDocument } from '../../../types/cms/journal.ts';
 import { JournalList } from './JournalList.tsx';
 import { JournalEditor } from './JournalEditor.tsx';
@@ -238,24 +239,27 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
     };
 
     if (isDevPreview) {
-      const existingIdx = articles.findIndex((a) => a.slug === finalDoc.slug || a.id === finalDoc.id);
+      const lookupId = selectedArticle?.id || selectedArticle?.slug || finalDoc.id;
+      const existingIdx = articles.findIndex((a) => a.id === lookupId || a.slug === lookupId);
       let updated: JournalDocument[];
       if (existingIdx >= 0) {
-        updated = articles.map((a, i) => (i === existingIdx ? finalDoc : a));
+        updated = articles.map((a, i) => (i === existingIdx ? { ...finalDoc, id: finalDoc.slug } : a));
       } else {
         updated = [finalDoc, ...articles];
       }
       persistArticles(updated);
       setSelectedSlug(finalDoc.slug);
       setSelectedArticle(finalDoc);
+      toast.success(isPub ? `Article "${finalDoc.title}" published (Dev Preview).` : `Draft "${finalDoc.title}" saved (Dev Preview).`);
     } else {
-      // Production mode with unified resilient update
+      const originalLookupId = selectedArticle?.id || selectedArticle?.slug || canonicalId;
       const existing =
-        (await getJournalBySlug(finalDoc.slug)) ||
-        (await getJournalById(canonicalId));
+        (await getJournalById(originalLookupId)) ||
+        (await getJournalBySlug(originalLookupId)) ||
+        (await getJournalBySlug(finalDoc.slug));
 
       if (existing) {
-        await updateJournal(canonicalId, finalDoc);
+        await updateJournal(existing.id || existing.slug, finalDoc);
       } else {
         await createJournal(finalDoc);
       }
@@ -264,6 +268,7 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
       setArticles(refreshed);
       setSelectedSlug(finalDoc.slug);
       setSelectedArticle(finalDoc);
+      toast.success(isPub ? `Article "${finalDoc.title}" published to Cloud Firestore.` : `Article "${finalDoc.title}" saved as draft in Cloud Firestore.`);
     }
 
     updateUrlParam(null);
@@ -288,17 +293,23 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
           : a
       );
       persistArticles(updated);
+      toast.success(isCurrentlyPub ? 'Article moved to draft.' : 'Article published.');
       return;
     }
 
-    if (isCurrentlyPub) {
-      await unpublishJournal(target.id || slug);
-    } else {
-      await publishJournal(target.id || slug);
-    }
+    try {
+      if (isCurrentlyPub) {
+        await unpublishJournal(target.id || slug);
+      } else {
+        await publishJournal(target.id || slug);
+      }
 
-    const refreshed = await getAllJournalsForAdmin();
-    setArticles(refreshed);
+      const refreshed = await getAllJournalsForAdmin();
+      setArticles(refreshed);
+      toast.success(isCurrentlyPub ? `Unpublished "${target.title}" to draft.` : `Published "${target.title}" to Cloud Firestore.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update article publish status.');
+    }
   };
 
   const handleArchive = async (slug: string) => {
@@ -320,17 +331,23 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
           : a
       );
       persistArticles(updated);
+      toast.success(isArch ? 'Article restored to draft.' : 'Article archived.');
       return;
     }
 
-    if (!isArch) {
-      await archiveJournal(target.id || slug);
-    } else {
-      await unpublishJournal(target.id || slug);
-    }
+    try {
+      if (!isArch) {
+        await archiveJournal(target.id || slug);
+      } else {
+        await unpublishJournal(target.id || slug);
+      }
 
-    const refreshed = await getAllJournalsForAdmin();
-    setArticles(refreshed);
+      const refreshed = await getAllJournalsForAdmin();
+      setArticles(refreshed);
+      toast.success(isArch ? `Restored "${target.title}" to draft.` : `Archived "${target.title}".`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update article archive status.');
+    }
   };
 
   const handleDuplicate = async (slug: string) => {
@@ -360,24 +377,36 @@ export const JournalManager: React.FC<JournalManagerProps> = ({ isDevPreview = f
 
       const updated = [clone, ...articles];
       persistArticles(updated);
+      toast.success(`Duplicated "${target.title}".`);
       return;
     }
 
-    await duplicateJournal(target.id || slug);
-    const refreshed = await getAllJournalsForAdmin();
-    setArticles(refreshed);
+    try {
+      await duplicateJournal(target.id || slug);
+      const refreshed = await getAllJournalsForAdmin();
+      setArticles(refreshed);
+      toast.success(`Duplicated "${target.title}" as draft.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to duplicate article.');
+    }
   };
 
   const handleDelete = async (slug: string) => {
     if (isDevPreview) {
       const updated = articles.filter((a) => a.slug !== slug);
       persistArticles(updated);
+      toast.success('Article deleted from preview.');
       return;
     }
 
-    await deleteJournal(slug);
-    const refreshed = await getAllJournalsForAdmin();
-    setArticles(refreshed);
+    try {
+      await deleteJournal(slug);
+      const refreshed = await getAllJournalsForAdmin();
+      setArticles(refreshed);
+      toast.success('Article permanently deleted from Cloud Firestore.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete article.');
+    }
   };
 
   if (loading || isRecordLoading) {

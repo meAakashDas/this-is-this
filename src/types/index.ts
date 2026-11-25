@@ -40,10 +40,21 @@ export interface ProjectItem {
 export interface Attachment {
   id: string;
   name: string;
+  fileName?: string;
   format: string; // e.g. "PDF Document", "Excel Spreadsheet", "CSV Data"
   fileSize: string; // e.g. "142 KB"
-  url: string; // Direct public URL under /downloads/
+  fileExtension?: string;
+  description?: string;
+  url: string; // Direct public URL under /downloads/, external URL, or inline Data URI
   isPreviewable?: boolean; // Can be previewed in-browser (PDFs)
+  visible?: boolean;
+}
+
+export interface ExternalResourceLink {
+  id: string;
+  label: string;
+  url: string;
+  description?: string;
 }
 
 export interface TableContent {
@@ -88,19 +99,26 @@ export interface Resource {
    * Preserves leading zeroes. Immutable once assigned.
    */
   resourceNumber: string;
+  slug?: string;
   title: string;
   description: string;
+  fullDescription?: string;
   category: string;
+  subcategory?: string;
+  coverImage?: string;
+  thumbnailAlt?: string;
   publishedAt: string; // ISO date format "YYYY-MM-DD"
   updatedAt?: string;
   published: boolean; // Visibility flag: only published resources are public
   featured?: boolean; // Highlighted on free resources section
+  order?: number;
   downloadFormat?: string; // e.g. "Spreadsheet (.xlsx)", "PDF Guide", "Notion Template"
   fileSize?: string; // e.g. "180 KB"
   downloadUrl?: string; // Direct public URL (no auth, no paywall)
   pdfPreviewUrl?: string; // Direct URL to primary PDF for in-page preview
   docxUrl?: string; // Direct URL to Microsoft Word document (.docx)
   attachments?: Attachment[]; // Multiple downloadable attachments
+  externalLinks?: ExternalResourceLink[]; // External reference links
   youtubeEmbed?: YouTubeEmbedData; // Privacy-conscious YouTube video embed
   contentHtml?: string; // Rich Notion-style document content HTML
   contentJson?: any; // ProseMirror/Tiptap document JSON AST

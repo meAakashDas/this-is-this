@@ -18,6 +18,8 @@ import { FeaturedJournalEditor, type FeaturedJournalState } from './FeaturedJour
 import { HomepageSectionsEditor, type SectionMeta } from './HomepageSectionsEditor.tsx';
 import { HomepagePreview } from './HomepagePreview.tsx';
 import { getHomePageContent, saveHomePageContent } from '../../../lib/cms/pages.repository.ts';
+import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
+import type { HomePageDocument } from '../../../types/cms/pages.ts';
 
 type HomepageSubTab = 'hero' | 'resources' | 'journal' | 'sections' | 'preview';
 
@@ -98,6 +100,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
   const [subTab, setSubTab] = useState<HomepageSubTab>('hero');
   const [formData, setFormData] = useState(DEFAULT_HOMEPAGE_STATE);
   const [initialData, setInitialData] = useState(DEFAULT_HOMEPAGE_STATE);
+  const [loadedDoc, setLoadedDoc] = useState<HomePageDocument | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{
     type: 'success' | 'error';
@@ -128,6 +131,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
       try {
         const homeDoc = await getHomePageContent();
         if (isMounted && homeDoc) {
+          setLoadedDoc(homeDoc);
           const loaded = {
             hero: {
               heroHeadline: homeDoc.heroHeadline || DEFAULT_HOMEPAGE_STATE.hero.heroHeadline,
@@ -135,7 +139,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
               heroRoleBrand: homeDoc.heroRoleBrand || DEFAULT_HOMEPAGE_STATE.hero.heroRoleBrand,
               heroRoleUrl: homeDoc.heroRoleUrl || DEFAULT_HOMEPAGE_STATE.hero.heroRoleUrl,
               heroTagline: homeDoc.heroTagline || DEFAULT_HOMEPAGE_STATE.hero.heroTagline,
-              heroPhotoUrl: homeDoc.heroPhotoUrl || DEFAULT_HOMEPAGE_STATE.hero.heroPhotoUrl,
+              heroPhotoUrl: sanitizeAssetUrl(homeDoc.heroPhotoUrl, DEFAULT_HOMEPAGE_STATE.hero.heroPhotoUrl),
               heroPhotoAlt: homeDoc.heroPhotoAlt || DEFAULT_HOMEPAGE_STATE.hero.heroPhotoAlt,
               primaryCta: homeDoc.primaryCta || DEFAULT_HOMEPAGE_STATE.hero.primaryCta,
               secondaryCta: homeDoc.secondaryCta || DEFAULT_HOMEPAGE_STATE.hero.secondaryCta,
@@ -218,25 +222,32 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
 
     // Authenticated Production Mode
     try {
+      const safeHeroPhotoUrl = sanitizeAssetUrl(
+        formData.hero.heroPhotoUrl,
+        DEFAULT_HOMEPAGE_STATE.hero.heroPhotoUrl
+      );
       await saveHomePageContent({
         heroHeadline: formData.hero.heroHeadline,
         heroRolePrefix: formData.hero.heroRolePrefix,
         heroRoleBrand: formData.hero.heroRoleBrand,
         heroRoleUrl: formData.hero.heroRoleUrl,
         heroTagline: formData.hero.heroTagline,
-        heroPhotoUrl: formData.hero.heroPhotoUrl,
+        heroPhotoUrl: safeHeroPhotoUrl,
         heroPhotoAlt: formData.hero.heroPhotoAlt,
         primaryCta: formData.hero.primaryCta,
         secondaryCta: formData.hero.secondaryCta,
+        sectionOrder: loadedDoc?.sectionOrder || ['finder', 'featuredResources', 'journal', 'contact'],
+        seo: loadedDoc?.seo || {},
         sections: {
           hero: {
+            ...(loadedDoc?.sections?.hero || {}),
             visible: formData.sections.find((s) => s.id === 'hero')?.visible ?? true,
           },
           finder: {
+            heading: loadedDoc?.sections?.finder?.heading || 'Find Resources',
+            placeholder: loadedDoc?.sections?.finder?.placeholder || 'Enter resource number',
+            buttonLabel: loadedDoc?.sections?.finder?.buttonLabel || 'Find',
             visible: formData.sections.find((s) => s.id === 'finder')?.visible ?? true,
-            heading: 'Find Resources',
-            placeholder: 'Enter resource number',
-            buttonLabel: 'Find',
           },
           featuredResources: {
             visible: formData.sections.find((s) => s.id === 'featuredResources')?.visible ?? formData.resourcesConfig.visible,
@@ -252,11 +263,11 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
             ctaUrl: formData.journalConfig.ctaUrl,
           },
           contact: {
+            heading: loadedDoc?.sections?.contact?.heading || 'Get in Touch',
+            description: loadedDoc?.sections?.contact?.description || 'Feel free to reach out directly via email or connect on social platforms.',
+            showEmail: loadedDoc?.sections?.contact?.showEmail ?? true,
+            showSocial: loadedDoc?.sections?.contact?.showSocial ?? true,
             visible: formData.sections.find((s) => s.id === 'contact')?.visible ?? true,
-            heading: 'Get in Touch',
-            description: 'Feel free to reach out directly via email or connect on social platforms.',
-            showEmail: true,
-            showSocial: true,
           },
         },
       });

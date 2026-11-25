@@ -174,6 +174,23 @@ function getFileExtension(format?: string, url?: string): string {
         <!-- Divider -->
         <div class="h-px bg-border w-full" role="separator"></div>
 
+        {resource!.coverImage && (
+          <figure class="resource-cover-figure rounded-xl overflow-hidden border border-border bg-secondary shadow-xs m-0">
+            <img
+              src={resource!.coverImage}
+              alt={resource!.thumbnailAlt || resource!.title}
+              class="resource-cover-img w-full max-h-80 object-cover block"
+              loading="lazy"
+            />
+          </figure>
+        )}
+
+        {resource!.fullDescription && (
+          <div class="resource-full-description text-sm sm:text-base text-muted-foreground leading-relaxed">
+            <p class="m-0">{resource!.fullDescription}</p>
+          </div>
+        )}
+
         <!-- 2. Downloadable Resources (Immediately below header & divider) -->
         {resource!.attachments && resource!.attachments.length > 0 && (
           <section
@@ -188,18 +205,24 @@ function getFileExtension(format?: string, url?: string): string {
 
             <div class="attachments-list flex flex-col gap-3">
               {resource!.attachments.map((att) => {
-                const fileType = getFileExtension(att.format, att.url);
+                const fileType = getFileExtension(att.fileExtension || att.format, att.url);
+                const isExternal = att.url.startsWith('http://') || att.url.startsWith('https://');
                 return (
                   <div class="attachment-item-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
                     <div class="attachment-info flex flex-col gap-1.5">
                       <h3 class="attachment-name text-sm font-semibold tracking-tight text-foreground m-0">{att.name}</h3>
+                      {att.description && (
+                        <p class="attachment-desc text-xs text-muted-foreground m-0">{att.description}</p>
+                      )}
                       <div class="attachment-meta">
                         <span class="file-type-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border border-border bg-secondary text-muted-foreground">{fileType}</span>
                       </div>
                     </div>
                     <a
                       href={att.url}
-                      download
+                      download={isExternal ? undefined : (att.fileName || att.name)}
+                      target={isExternal ? '_blank' : undefined}
+                      rel={isExternal ? 'noopener noreferrer' : undefined}
                       class="attachment-download-link btn btn-primary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline"
                       aria-label={`Download ${att.name}`}
                     >
@@ -209,6 +232,32 @@ function getFileExtension(format?: string, url?: string): string {
                   </div>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {resource!.externalLinks && resource!.externalLinks.length > 0 && (
+          <section class="resource-section external-links-section space-y-3" aria-label="External resource links">
+            <h2 class="section-heading text-lg font-semibold tracking-tight text-foreground m-0">
+              External Links
+            </h2>
+            <div class="external-links-list flex flex-col gap-2.5">
+              {resource!.externalLinks.map((lnk) => (
+                <a
+                  href={lnk.url}
+                  target={lnk.url.startsWith('http') ? '_blank' : undefined}
+                  rel={lnk.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  class="external-link-card rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all no-underline text-inherit"
+                >
+                  <div class="space-y-0.5">
+                    <div class="text-sm font-semibold text-foreground">{lnk.label}</div>
+                    {lnk.description && (
+                      <div class="text-xs text-muted-foreground">{lnk.description}</div>
+                    )}
+                  </div>
+                  <Icon name="arrow-up-right" size={14} class="text-muted-foreground shrink-0" />
+                </a>
+              ))}
             </div>
           </section>
         )}
@@ -441,6 +490,30 @@ function getFileExtension(format?: string, url?: string): string {
           await copyUrl(url);
         }
       });
+    });
+
+    // 3. Hydrate inline Base64 Data URI PDF previews into in-memory Blob URLs for Chromium compatibility
+    const dataUriPdfObjects = document.querySelectorAll<HTMLObjectElement>('object.pdf-object[data^="data:application/pdf"]');
+    dataUriPdfObjects.forEach((objEl) => {
+      const dataUri = objEl.getAttribute('data');
+      if (!dataUri) return;
+      try {
+        const base64Part = dataUri.split(',')[1];
+        if (!base64Part) return;
+        const byteChars = atob(base64Part);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+          byteNumbers[i] = byteChars.charCodeAt(i);
+        }
+        const blobUrl = URL.createObjectURL(new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }));
+        objEl.data = blobUrl;
+        const fallbackIframe = objEl.querySelector<HTMLIFrameElement>('iframe.pdf-iframe');
+        if (fallbackIframe) {
+          fallbackIframe.src = blobUrl;
+        }
+      } catch {
+        // Fallback to download link if Data URI decode fails
+      }
     });
   }
 

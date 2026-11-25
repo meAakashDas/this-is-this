@@ -110,27 +110,26 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
       } catch (err) {
         console.warn('[BlockNote] Storage upload skipped/failed on Spark plan, converting to Data URL:', err);
       }
-      try {
-        const compressed = await compressImageFile(file, 1200, 1200, 0.85);
-        return compressed.dataUrl;
-      } catch {
-        return URL.createObjectURL(file);
-      }
+      const compressed = await compressImageFile(file, 1200, 1200, 0.85);
+      return compressed.dataUrl;
     },
   });
 
-  // Listen to document changes and notify parent (skip initial setup dispatch)
-  const isInitialMount = React.useRef(true);
+  // Listen to document changes and notify parent only when blocks actually change
+  const lastSerializedRef = React.useRef<string>(
+    JSON.stringify(validInitialContent || [])
+  );
   const onChangeRef = React.useRef(onChange);
   onChangeRef.current = onChange;
 
   useEffect(() => {
     if (!editor) return;
     return editor.onChange(() => {
-      if (isInitialMount.current) {
-        isInitialMount.current = false;
+      const serialized = JSON.stringify(editor.document);
+      if (serialized === lastSerializedRef.current) {
         return;
       }
+      lastSerializedRef.current = serialized;
       onChangeRef.current(editor.document);
     });
   }, [editor]);

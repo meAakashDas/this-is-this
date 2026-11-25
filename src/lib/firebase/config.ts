@@ -6,7 +6,7 @@ import type { FirebaseOptions } from 'firebase/app';
  * not private credentials or secrets. Security is strictly enforced by Firestore
  * Security Rules and Firebase Authentication.
  */
-export const DEFAULT_FIREBASE_CONFIG: Required<Omit<FirebaseOptions, 'measurementId'>> = {
+export const DEFAULT_FIREBASE_CONFIG: Required<Omit<FirebaseOptions, 'measurementId' | 'databaseURL'>> = {
   apiKey: 'AIzaSyBjYmwR6Zn4A9MCTdarlUEIodpTq0GOAHY',
   authDomain: 'aakashdas-live.firebaseapp.com',
   projectId: 'aakashdas-live',

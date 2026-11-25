@@ -26,11 +26,13 @@ export const ResourcePreview: React.FC<ResourcePreviewProps> = ({ resource }) =>
   const title = resource.title || 'Untitled Resource';
   const category = resource.category || 'Personal Finance';
   const desc = resource.description || 'No description provided.';
+  const fullDesc = resource.fullDescription || '';
+  const coverImage = resource.coverImage && !resource.coverImage.startsWith('blob:') ? resource.coverImage : '';
+  const thumbnailAlt = resource.thumbnailAlt || title;
   const author = resource.author || 'Aakash Das';
   const publishedAt = resource.publishedAt || new Date().toISOString().split('T')[0];
   const attachments = (resource.attachments || []).filter((a) => a.visible !== false);
-  const summaryPoints = resource.summaryPoints || [];
-  const targetAudience = resource.targetAudience || '';
+  const externalLinks = resource.externalLinks || [];
   const youtubeEmbed = resource.youtubeEmbed;
 
   return (
@@ -220,6 +222,22 @@ export const ResourcePreview: React.FC<ResourcePreviewProps> = ({ resource }) =>
 
                 <div className="h-px bg-border w-full" />
 
+                {coverImage && (
+                  <figure className="rounded-xl overflow-hidden border border-border bg-secondary">
+                    <img
+                      src={coverImage}
+                      alt={thumbnailAlt}
+                      className="w-full max-h-72 object-cover block"
+                    />
+                  </figure>
+                )}
+
+                {fullDesc && (
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed m-0">
+                    {fullDesc}
+                  </p>
+                )}
+
                 {/* Download Resources / Attachments Section (Immediately below header & divider) */}
                 {attachments.length > 0 && (
                   <section className="space-y-4">
@@ -254,6 +272,33 @@ export const ResourcePreview: React.FC<ResourcePreviewProps> = ({ resource }) =>
                             <span>Download</span>
                             <Download className="w-3.5 h-3.5" />
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {externalLinks.length > 0 && (
+                  <section className="space-y-3">
+                    <h3 className="text-base font-semibold tracking-tight text-foreground m-0">
+                      External Links
+                    </h3>
+                    <div className="space-y-2">
+                      {externalLinks.map((lnk) => (
+                        <div
+                          key={lnk.id}
+                          className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3"
+                        >
+                          <div>
+                            <div className="text-sm font-semibold text-foreground">{lnk.label}</div>
+                            {lnk.description && (
+                              <div className="text-xs text-muted-foreground mt-0.5">{lnk.description}</div>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                            <span>Open Link</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </span>
                         </div>
                       ))}
                     </div>

@@ -369,9 +369,28 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
         ` : ''}
 
         ${bodyHtml ? `<section class="resource-section written-content-section space-y-6"><div class="main-educational-content space-y-6"><div class="resource-document-content resource-content editorial-reading-container max-w-none space-y-4">${bodyHtml}</div></div></section>` : ''}
+
+        ${pdfUrl ? `
+          <section id="view-as-pdf" class="resource-section pdf-preview-section rounded-xl border border-border bg-card overflow-hidden shadow-xs scroll-mt-20">
+            <div class="preview-header flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border bg-secondary/50 flex-wrap">
+              <h2 id="pdf-preview-heading" class="section-heading text-base sm:text-lg font-semibold tracking-tight text-foreground m-0">View as PDF</h2>
+              <div class="preview-actions-bar flex items-center gap-2 flex-wrap">
+                <a href="${escapeHtml(pdfUrl)}" download="resource-${num}.pdf" class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Download PDF</span></a>
+              </div>
+            </div>
+            <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+              <object data="" type="application/pdf" class="pdf-object w-full h-full border-0 block"><iframe src="" class="pdf-iframe w-full h-full border-0" loading="lazy"></iframe></object>
+            </div>
+          </section>
+        ` : ''}
       </article>
     </div>
   `;
+
+  if (pdfUrl) {
+    const pdfSec = container.querySelector<HTMLElement>('.pdf-preview-section');
+    if (pdfSec) hydratePdfPreviewElement(pdfSec, pdfUrl);
+  }
 }
 
 /**
@@ -975,6 +994,14 @@ async function syncAboutPage(db: any) {
                 : idx === 1
                 ? 'about-body-text type-body text-muted-foreground leading-relaxed font-normal m-0'
                 : 'about-sublead type-body text-muted-foreground leading-relaxed font-normal m-0';
+            if (idx === 0 && para.includes('RisePaisa')) {
+              const parts = para.split('RisePaisa');
+              const linked =
+                escapeHtml(parts[0]) +
+                '<a href="https://risepaisa.com" target="_blank" rel="noopener noreferrer" class="brand-link font-semibold text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground transition-colors" aria-label="RisePaisa (opens in a new tab)">RisePaisa</a>' +
+                escapeHtml(parts.slice(1).join('RisePaisa'));
+              return `<p class="${cls}">${linked}</p>`;
+            }
             return `<p class="${cls}">${escapeHtml(para)}</p>`;
           })
           .join('');
@@ -1048,6 +1075,58 @@ async function syncAboutPage(db: any) {
             </article>
           `)
           .join('');
+      }
+    }
+
+    if (Array.isArray(aboutData.experienceEntries)) {
+      const visibleExp = aboutData.experienceEntries.filter((e: any) => e && e.visible !== false);
+      const isExpSectionVisible = aboutData.sectionVisibility?.experience !== false;
+      let expSection = aboutPageEl.querySelector<HTMLElement>('.about-experience-section');
+
+      if (!isExpSectionVisible || visibleExp.length === 0) {
+        if (expSection) {
+          expSection.style.display = 'none';
+        }
+      } else {
+        const cardsHtml = visibleExp
+          .map((exp: any, eIdx: number) => `
+            <article class="entry-card experience-card rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-border-strong transition-all p-5 sm:p-6 flex flex-col space-y-2.5 h-full">
+              <div class="card-top-bar flex items-center justify-between gap-2">
+                <span class="entry-index font-mono text-xs font-semibold px-2 py-0.5 rounded-md border border-border bg-secondary text-muted-foreground">${escapeHtml(String(eIdx + 1).padStart(2, '0'))}</span>
+                ${exp.period ? `<span class="exp-period-tag text-xs font-mono text-muted-foreground">${escapeHtml(exp.period)}</span>` : ''}
+              </div>
+              <h3 class="card-title text-lg font-semibold tracking-tight text-foreground m-0">${escapeHtml(exp.position)}</h3>
+              <p class="exp-org-line text-sm font-medium text-foreground m-0">${escapeHtml(exp.organization)}</p>
+              ${exp.desc ? `<p class="card-detail text-sm text-muted-foreground leading-relaxed m-0 flex-1">${escapeHtml(exp.desc)}</p>` : ''}
+              ${exp.status ? `<div class="exp-status-wrap inline-flex items-center gap-1.5 pt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-auto"><span class="status-pulse-dot w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span><span class="status-text">${escapeHtml(exp.status)}</span></div>` : ''}
+            </article>
+          `)
+          .join('');
+
+        if (expSection) {
+          expSection.style.display = '';
+          const expGrid = expSection.querySelector<HTMLElement>('.experience-grid');
+          if (expGrid) expGrid.innerHTML = cardsHtml;
+        } else {
+          expSection = document.createElement('section');
+          expSection.className = 'about-section about-experience-section space-y-4 sm:space-y-5';
+          expSection.setAttribute('aria-labelledby', 'experience-heading');
+          expSection.innerHTML = `
+            <div class="section-header">
+              <h2 id="experience-heading" class="section-title text-2xl sm:text-[28px] font-semibold tracking-tight text-foreground m-0">Experience</h2>
+            </div>
+            <div class="cards-grid experience-grid grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">${cardsHtml}</div>
+          `;
+          const sep = document.createElement('div');
+          sep.className = 'h-px bg-border w-full';
+          sep.setAttribute('role', 'separator');
+          const contactSection = aboutPageEl.querySelector<HTMLElement>('.about-contact-section');
+          if (contactSection) {
+            contactSection.before(expSection, sep);
+          } else {
+            aboutPageEl.append(expSection, sep);
+          }
+        }
       }
     }
   } catch (err) {

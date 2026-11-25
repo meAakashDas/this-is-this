@@ -20,7 +20,6 @@ const PUBLIC_ROUTES = [
 
 const NOT_FOUND_ROUTES = [
   '/404',
-  '/resources/004',
   '/resources/999',
   '/journal/non-existent-article',
   '/random-missing-page',

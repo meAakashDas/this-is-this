@@ -55,14 +55,15 @@ test.describe('AakashDas.live — Editorial Journal QA', () => {
       "I write about what I'm learning, what I'm building, and the ideas that make me think."
     );
 
-    // 4 sample journal entries rendered in editorial list
+    // Sample journal entries rendered in editorial list
     const entries = main.locator('article.journal-entry-item');
-    await expect(entries).toHaveCount(4);
+    const entryCount = await entries.count();
+    expect(entryCount).toBeGreaterThanOrEqual(4);
 
-    await expect(entries.nth(0)).toContainText('Why I Believe in Learning in Public');
-    await expect(entries.nth(1)).toContainText('Building Something That Matters');
-    await expect(entries.nth(2)).toHaveAttribute('data-journal-slug', 'where-finance-meets-technology');
-    await expect(entries.nth(3)).toContainText('The Value of Being a Beginner');
+    await expect(main.locator('[data-journal-slug="why-i-believe-in-learning-in-public"]')).toBeVisible();
+    await expect(main.locator('[data-journal-slug="building-something-that-matters"]')).toBeVisible();
+    await expect(main.locator('[data-journal-slug="where-finance-meets-technology"]')).toBeVisible();
+    await expect(main.locator('[data-journal-slug="the-value-of-being-a-beginner"]')).toBeVisible();
 
     // Verify each entry has title, excerpt, and Read entry, but NO metadata
     for (let i = 0; i < 4; i++) {

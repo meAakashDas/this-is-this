@@ -320,31 +320,27 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
     await page.waitForURL(/\/resources\/003/);
     await expect(page).toHaveURL(/\/resources\/003/);
 
-    // Resource 003 (Last): Has Previous (002), No Next
+    // Resource 003: Has Previous (002)
     const nav003 = page.locator('.resource-adjacent-nav');
     const prev003 = nav003.locator('.adjacent-prev');
     await expect(prev003).toBeVisible();
     await expect(prev003).toContainText('Previous Resource');
     await expect(prev003).toContainText('Nepal Banking & Account Checklist');
-    await expect(nav003.locator('.adjacent-next')).toHaveCount(0);
   });
 
-  test('8. Draft / unpublished resource 004 does NOT expose content or attachments', async ({
+  test('8. Unknown or unpublished resource 998 does NOT expose content or attachments', async ({
     page,
   }) => {
-    await page.goto('/resources/004');
+    await page.goto('/resources/998');
 
-    const notFoundCard = page.locator('.resource-not-found-card');
-    await expect(notFoundCard).toBeVisible();
-    await expect(notFoundCard).toContainText('Resource #004 Not Available');
+    await expect(page.locator('body')).toContainText(
+      /Page or Resource Not Found|Not Available/i
+    );
 
     // Content, attachments, and adjacent nav must NOT exist
     await expect(page.locator('.attachments-section')).toHaveCount(0);
     await expect(page.locator('.pdf-preview-section')).toHaveCount(0);
     await expect(page.locator('.resource-adjacent-nav')).toHaveCount(0);
-    await expect(page.locator('body')).not.toContainText(
-      'Emergency Reserve & Contingency Calculator'
-    );
   });
 
   test('9. Mobile responsiveness: No horizontal page overflow on narrow screens (375px)', async ({

@@ -243,12 +243,13 @@ function extractLocalData() {
       showEmail: true,
       showSocial: true,
     },
-    sectionOrder: ['about-intro', 'work', 'media', 'education', 'contact'],
+    sectionOrder: ['about-intro', 'work', 'media', 'education', 'experience', 'contact'],
     sectionVisibility: {
       'about-intro': true,
       work: true,
       media: true,
       education: true,
+      experience: true,
       contact: true,
     },
     seo: {

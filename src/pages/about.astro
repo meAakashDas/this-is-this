@@ -9,20 +9,32 @@ const aboutPage = getPublicAboutPage();
 const pageTitle = aboutPage.seo?.title || `About ${siteConfig.name} — Personal Website`;
 const pageDesc = aboutPage.seo?.description || "I'm Aakash Das, a Nepal-based finance educator, content creator, and founder of RisePaisa. I work at the intersection of finance, technology, and education.";
 
-const sectionOrder = aboutPage.sectionOrder || [
+const rawSectionOrder = aboutPage.sectionOrder || [
   'about-intro',
   'work',
   'media',
   'education',
+  'experience',
   'contact',
 ];
+const sectionOrder = rawSectionOrder.includes('experience')
+  ? rawSectionOrder
+  : rawSectionOrder.includes('contact')
+  ? [
+      ...rawSectionOrder.slice(0, rawSectionOrder.indexOf('contact')),
+      'experience',
+      ...rawSectionOrder.slice(rawSectionOrder.indexOf('contact')),
+    ]
+  : [...rawSectionOrder, 'experience'];
 
-const sectionVisibility = aboutPage.sectionVisibility || {
+const sectionVisibility = {
   'about-intro': true,
   work: true,
   media: true,
   education: true,
+  experience: true,
   contact: true,
+  ...(aboutPage.sectionVisibility || {}),
 };
 
 const workEntries = aboutPage.workEntries && aboutPage.workEntries.length > 0
@@ -86,7 +98,7 @@ const educationEntries = aboutPage.educationEntries && aboutPage.educationEntrie
       },
     ];
 
-const introParagraphs = aboutPage.introParagraphs && aboutPage.introParagraphs.length >= 3
+const introParagraphs = aboutPage.introParagraphs && aboutPage.introParagraphs.length > 0
   ? aboutPage.introParagraphs
   : [
       "I'm Aakash Das, a Nepal-based finance educator, content creator, and founder of RisePaisa. I work at the intersection of finance, technology, and education, making complex financial topics easier to understand through practical content and digital learning resources.",
@@ -110,7 +122,7 @@ const getDisplayName = (platform: string) => {
       const isVisible = sectionVisibility[sectionId] !== false;
       if (!isVisible) return null;
 
-      if (sectionId === 'about-intro') {
+      if (sectionId === 'about-intro' || sectionId === 'intro') {
         return (
           <>
             <section class="about-section about-intro-section space-y-3.5 sm:space-y-4" aria-labelledby="about-intro-title">

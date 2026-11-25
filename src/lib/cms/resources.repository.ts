@@ -433,19 +433,19 @@ export async function updateResource(
     id: finalDocId,
     resourceNumber: targetResourceNumber,
     coverImage: sanitizeAssetUrl(
-      data.coverImage !== undefined ? data.coverImage : existing.coverImage,
+      'coverImage' in data ? data.coverImage : existing.coverImage,
       ''
     ) || undefined,
     downloadUrl: sanitizeAssetUrl(
-      data.downloadUrl !== undefined ? data.downloadUrl : existing.downloadUrl,
+      'downloadUrl' in data ? data.downloadUrl : existing.downloadUrl,
       ''
     ) || undefined,
     pdfPreviewUrl: sanitizeAssetUrl(
-      data.pdfPreviewUrl !== undefined ? data.pdfPreviewUrl : existing.pdfPreviewUrl,
+      'pdfPreviewUrl' in data ? data.pdfPreviewUrl : existing.pdfPreviewUrl,
       ''
     ) || undefined,
     docxUrl: sanitizeAssetUrl(
-      data.docxUrl !== undefined ? data.docxUrl : existing.docxUrl,
+      'docxUrl' in data ? data.docxUrl : existing.docxUrl,
       ''
     ) || undefined,
     attachments: rawAttachments.filter((a) => !a.url?.trim().toLowerCase().startsWith('blob:')),
@@ -462,7 +462,9 @@ export async function updateResource(
 
   try {
     const docRef = doc(db, COLLECTION, finalDocId);
-    await setDoc(docRef, sanitizeForFirestore(validated), { merge: !isNumberMigrating });
+    // Write full sanitized document (since `merged` already preserves `existing` fields)
+    // so removed fields like cleared pdfPreviewUrl/docxUrl are actually deleted in Firestore.
+    await setDoc(docRef, sanitizeForFirestore(validated));
     if (isNumberMigrating) {
       try {
         await deleteDoc(doc(db, COLLECTION, canonicalDocId));

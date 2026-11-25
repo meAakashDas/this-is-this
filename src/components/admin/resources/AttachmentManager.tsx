@@ -6,108 +6,55 @@ import {
   FileArchive,
   Image,
   Trash2,
-  ArrowUp,
-  ArrowDown,
-  Eye,
-  EyeOff,
   ExternalLink,
   AlertCircle,
+  CheckCircle2,
   Loader2,
   RefreshCw,
-  Link as LinkIcon,
-  Info,
 } from 'lucide-react';
 import type { CmsAttachment } from '../../../types/cms/resource.ts';
 import { tryGetFirebaseStorage } from '../../../lib/firebase/index.ts';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { isTemporaryBlobUrl } from '../../../lib/cms/sanitize.ts';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+  type FirebaseStorage,
+} from 'firebase/storage';
 
 interface AttachmentManagerProps {
   resourceNumber: string;
   attachments: CmsAttachment[];
-  onChange: (attachments: CmsAttachment[]) => void;
+  onChange: (attachments: CmsAttachment[], meta?: { attachmentsMutated?: boolean }) => void;
+  onQueueBinaryCleanup?: (storagePath: string) => void;
   isDevPreview?: boolean;
 }
 
 const SUPPORTED_EXTENSIONS = [
   'pdf',
-  'docx',
   'doc',
-  'xlsx',
+  'docx',
   'xls',
+  'xlsx',
   'csv',
-  'pptx',
   'ppt',
+  'pptx',
   'zip',
   'png',
   'jpg',
   'jpeg',
-  'webp',
 ];
 
-const LOCAL_DOWNLOAD_PRESETS = [
-  {
-    name: 'Starter Personal Budget Framework (PDF)',
-    fileName: 'resource-001-starter-personal-budget-framework.pdf',
-    url: '/downloads/resource-001-starter-personal-budget-framework.pdf',
-    format: 'PDF Document',
-    fileExtension: 'pdf',
-    fileSize: '486 KB',
-  },
-  {
-    name: 'Starter Personal Budget Framework (DOCX)',
-    fileName: 'resource-001-starter-personal-budget-framework.docx',
-    url: '/downloads/resource-001-starter-personal-budget-framework.docx',
-    format: 'Word Document',
-    fileExtension: 'docx',
-    fileSize: '36 KB',
-  },
-  {
-    name: 'Starter Budget Model (CSV)',
-    fileName: 'starter-budget-model-001.csv',
-    url: '/downloads/starter-budget-model-001.csv',
-    format: 'CSV Data File',
-    fileExtension: 'csv',
-    fileSize: '1 KB',
-  },
-  {
-    name: 'Nepal Banking Account Checklist (PDF)',
-    fileName: 'resource-002-nepal-banking-account-checklist.pdf',
-    url: '/downloads/resource-002-nepal-banking-account-checklist.pdf',
-    format: 'PDF Document',
-    fileExtension: 'pdf',
-    fileSize: '442 KB',
-  },
-  {
-    name: 'Nepal Banking Account Checklist (DOCX)',
-    fileName: 'resource-002-nepal-banking-account-checklist.docx',
-    url: '/downloads/resource-002-nepal-banking-account-checklist.docx',
-    format: 'Word Document',
-    fileExtension: 'docx',
-    fileSize: '40 KB',
-  },
-  {
-    name: 'Student Productivity Semester Tracker (PDF)',
-    fileName: 'resource-003-student-productivity-semester-tracker.pdf',
-    url: '/downloads/resource-003-student-productivity-semester-tracker.pdf',
-    format: 'PDF Document',
-    fileExtension: 'pdf',
-    fileSize: '462 KB',
-  },
-  {
-    name: 'Student Productivity Semester Tracker (DOCX)',
-    fileName: 'resource-003-student-productivity-semester-tracker.docx',
-    url: '/downloads/resource-003-student-productivity-semester-tracker.docx',
-    format: 'Word Document',
-    fileExtension: 'docx',
-    fileSize: '38 KB',
-  },
-];
-
-const MAX_DOC_SIZE = 50 * 1024 * 1024; // 50MB
-const MAX_IMG_SIZE = 10 * 1024 * 1024; // 10MB
-// Firestore document limit is 1 MiB; ~600 KB binary becomes ~800 KB base64 safely under 1 MiB.
+const MAX_DOC_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_IMG_SIZE = 10 * 1024 * 1024; // 10 MB
+// Cloud Firestore hard limit is 1 MiB (1,048,576 bytes).
+// ~600 KB binary becomes ~800 KB base64 safely inside a Firestore document alongside content.
 const MAX_INLINE_FIRESTORE_BYTES = 600 * 1024;
+const MAX_TOTAL_INLINE_BYTES = 700 * 1024;
+const STORAGE_TIMEOUT_MS = 4000;
+
+// Session cache so unprovisioned Spark-plan Storage is not retried repeatedly on every file
+let firebaseStorageUnavailable = false;
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -131,13 +78,12 @@ function getFormatName(ext: string): string {
       return 'CSV Data File';
     case 'pptx':
     case 'ppt':
-      return 'Presentation (PPTX)';
+      return 'Presentation';
     case 'zip':
       return 'ZIP Archive';
     case 'png':
     case 'jpg':
     case 'jpeg':
-    case 'webp':
       return 'Image Asset';
     default:
       return `${ext.toUpperCase()} File`;
@@ -151,28 +97,117 @@ function fileToDataUrl(file: File): Promise<string> {
       if (typeof reader.result === 'string') {
         resolve(reader.result);
       } else {
-        reject(new Error('Failed to encode file as Data URI.'));
+        reject(new Error('Failed to read file as permanent Data URI.'));
       }
     };
-    reader.onerror = () => reject(new Error('Failed to read file bytes.'));
+    reader.onerror = () => reject(new Error(`Failed to read "${file.name}".`));
     reader.readAsDataURL(file);
+  });
+}
+
+function estimateInlineDataUriBytes(attachmentsList: CmsAttachment[]): number {
+  let total = 0;
+  for (const att of attachmentsList) {
+    if (att.url?.startsWith('data:')) {
+      total += att.url.length;
+    }
+  }
+  return total;
+}
+
+/**
+ * Attempts Firebase Storage upload with a strict fail-fast timeout so Spark-plan
+ * projects without Storage never hang at "Processing attachment...".
+ */
+async function uploadToFirebaseStorageFast(
+  storage: FirebaseStorage,
+  storagePath: string,
+  file: File,
+  onProgress: (pct: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fileRef = ref(storage, storagePath);
+    const task = uploadBytesResumable(fileRef, file, {
+      contentType: file.type || 'application/octet-stream',
+    });
+
+    let settled = false;
+    let timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try {
+        task.cancel();
+      } catch {
+        // ignore cancel error
+      }
+      firebaseStorageUnavailable = true;
+      reject(new Error('Firebase Storage timed out / unavailable on this project.'));
+    }, STORAGE_TIMEOUT_MS);
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try {
+          task.cancel();
+        } catch {
+          // ignore
+        }
+        firebaseStorageUnavailable = true;
+        reject(new Error('Firebase Storage stalled / unavailable on this project.'));
+      }, STORAGE_TIMEOUT_MS);
+    };
+
+    task.on(
+      'state_changed',
+      (snap) => {
+        if (settled) return;
+        if (snap.bytesTransferred > 0) {
+          resetTimer();
+        }
+        const pct = snap.totalBytes > 0 ? Math.round((snap.bytesTransferred / snap.totalBytes) * 85) : 25;
+        onProgress(Math.max(15, pct));
+      },
+      (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        firebaseStorageUnavailable = true;
+        reject(err);
+      },
+      async () => {
+        if (settled) return;
+        clearTimeout(timer);
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          settled = true;
+          resolve(url);
+        } catch (err) {
+          settled = true;
+          firebaseStorageUnavailable = true;
+          reject(err);
+        }
+      }
+    );
   });
 }
 
 async function uploadToGitHubDownloadsIfConfigured(
   file: File,
-  resourceNumber: string
+  resourceNumber: string,
+  onProgress: (pct: number) => void
 ): Promise<{ url: string; storagePath: string } | null> {
   if (typeof window === 'undefined') return null;
   const token = sessionStorage.getItem('admin_gh_dispatch_token')?.trim();
   if (!token) return null;
 
+  onProgress(40);
   const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const repoFileName = `resource-${resourceNumber}-${cleanFileName}`;
   const repoPath = `public/downloads/${repoFileName}`;
   const apiUrl = `https://api.github.com/repos/meAakashDas/this-is-this/contents/${repoPath}`;
 
-  // Check if file exists to get sha for update
   let existingSha: string | undefined;
   try {
     const checkRes = await fetch(apiUrl, {
@@ -189,6 +224,7 @@ async function uploadToGitHubDownloadsIfConfigured(
     // ignore check error
   }
 
+  onProgress(65);
   const dataUrl = await fileToDataUrl(file);
   const base64Content = dataUrl.split(',')[1] || '';
 
@@ -200,7 +236,7 @@ async function uploadToGitHubDownloadsIfConfigured(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      message: `chore(resources): upload attachment ${repoFileName} for resource #${resourceNumber}`,
+      message: `chore(resources): upload ${repoFileName} for resource #${resourceNumber}`,
       content: base64Content,
       branch: 'main',
       ...(existingSha ? { sha: existingSha } : {}),
@@ -212,16 +248,72 @@ async function uploadToGitHubDownloadsIfConfigured(
     throw new Error(errBody.message || `GitHub upload failed (${putRes.status})`);
   }
 
+  onProgress(100);
   return {
     url: `/downloads/${repoFileName}`,
     storagePath: `github:${repoPath}`,
   };
 }
 
+/**
+ * Safely deletes a stored binary from Firebase Storage or GitHub (after Firestore write succeeds).
+ */
+export async function cleanupObsoleteAttachmentBinary(storagePath: string): Promise<void> {
+  if (!storagePath) return;
+
+  if (storagePath.startsWith('github:')) {
+    if (typeof window === 'undefined') return;
+    const token = sessionStorage.getItem('admin_gh_dispatch_token')?.trim();
+    if (!token) return;
+    const repoPath = storagePath.replace(/^github:/, '');
+    const apiUrl = `https://api.github.com/repos/meAakashDas/this-is-this/contents/${repoPath}`;
+    try {
+      const checkRes = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+        },
+      });
+      if (!checkRes.ok) return;
+      const existingJson = await checkRes.json();
+      if (!existingJson?.sha) return;
+      await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `chore(resources): remove obsolete attachment ${repoPath}`,
+          sha: existingJson.sha,
+          branch: 'main',
+        }),
+      });
+    } catch {
+      // Non-fatal cleanup error
+    }
+    return;
+  }
+
+  if (firebaseStorageUnavailable) return;
+  const storage = tryGetFirebaseStorage();
+  if (!storage) return;
+  try {
+    await Promise.race([
+      deleteObject(ref(storage, storagePath)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), STORAGE_TIMEOUT_MS)),
+    ]);
+  } catch {
+    firebaseStorageUnavailable = true;
+  }
+}
+
 export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   resourceNumber,
   attachments,
   onChange,
+  onQueueBinaryCleanup,
   isDevPreview = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -229,85 +321,75 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-
-  // Manual link / external URL form state
-  const [showLinkForm, setShowLinkForm] = useState(false);
-  const [linkName, setLinkName] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkDescription, setLinkDescription] = useState('');
-  const [linkSize, setLinkSize] = useState('');
-  const [linkPreviewable, setLinkPreviewable] = useState(true);
+  const [processingFileName, setProcessingFileName] = useState<string>('');
 
   const validateFile = (file: File): string | null => {
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-      return `File type .${ext} is not supported. Permitted: ${SUPPORTED_EXTENSIONS.join(', ')}`;
+      return `Unsupported file type ".${ext}". Allowed: PDF, DOC, DOCX, XLS, XLSX, CSV, PPT, PPTX, ZIP, PNG, JPG.`;
     }
-
-    const isImg = ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+    const isImg = ['png', 'jpg', 'jpeg'].includes(ext);
     const maxSize = isImg ? MAX_IMG_SIZE : MAX_DOC_SIZE;
     if (file.size > maxSize) {
-      return `File size (${formatBytes(file.size)}) exceeds maximum limit of ${formatBytes(maxSize)}`;
+      return `File "${file.name}" (${formatBytes(file.size)}) exceeds the ${formatBytes(maxSize)} limit.`;
     }
-
     return null;
   };
 
   /**
-   * Resolves a genuine permanent URL for an uploaded file:
-   * 1. Attempts Firebase Storage if provisioned.
-   * 2. Falls back to GitHub Repository (`public/downloads/`) if GitHub token is configured.
-   * 3. Falls back to permanent inline Base64 Data URI in Firestore for files <= 600 KB.
-   * 4. Rejects larger files with a clear error instead of storing fake paths or blob: URLs.
+   * Permanently stores an uploaded file without ever using blob: URLs or fake paths:
+   * 1. Attempts Firebase Storage (fail-fast 4s timeout if unprovisioned).
+   * 2. Falls back to GitHub Repository (`public/downloads/`) if GitHub token is configured in Publishing.
+   * 3. Falls back to permanent inline Base64 Data URI in Firestore (<= 600 KB per file).
+   * 4. Rejects larger files cleanly with a descriptive error.
    */
   const uploadFilePermanently = async (
-    file: File
-  ): Promise<{ url: string; storagePath?: string; notice?: string }> => {
+    file: File,
+    existingPool: CmsAttachment[]
+  ): Promise<{ url: string; storagePath?: string }> => {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storagePath = `uploads/resources/${resourceNumber}/${cleanFileName}`;
+    const storagePath = `uploads/resources/${resourceNumber}/${Date.now()}-${cleanFileName}`;
 
     if (isDevPreview) {
       if (file.size <= MAX_INLINE_FIRESTORE_BYTES) {
+        setUploadProgress(65);
         const dataUrl = await fileToDataUrl(file);
-        return {
-          url: dataUrl,
-          notice: `Dev Mode: "${file.name}" (${formatBytes(file.size)}) encoded as a permanent Data URI for local preview.`,
-        };
+        setUploadProgress(100);
+        return { url: dataUrl };
       }
       throw new Error(
-        `Dev Preview cannot inline files larger than ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} without Firebase Storage.`
+        `Cannot store "${file.name}" (${formatBytes(file.size)}) in local preview: exceeds ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit.`
       );
     }
 
-    // 1. Attempt Firebase Storage
-    const storage = tryGetFirebaseStorage();
+    // 1. Firebase Storage (fail-fast when not provisioned)
+    const storage = !firebaseStorageUnavailable ? tryGetFirebaseStorage() : null;
     if (storage) {
       try {
-        setUploadProgress(40);
-        const fileRef = ref(storage, storagePath);
-        await uploadBytes(fileRef, file, {
-          contentType: file.type || 'application/octet-stream',
+        setUploadProgress(20);
+        const publicUrl = await uploadToFirebaseStorageFast(storage, storagePath, file, (pct) => {
+          setUploadProgress(pct);
         });
-        const publicUrl = await getDownloadURL(fileRef);
         setUploadProgress(100);
         return { url: publicUrl, storagePath };
       } catch (storageErr) {
-        console.warn('[AttachmentManager] Firebase Storage unavailable, checking permanent alternatives:', storageErr);
+        console.warn('[AttachmentManager] Firebase Storage unavailable, using permanent fallback:', storageErr);
       }
     }
 
-    // 2. Attempt GitHub Repository static downloads upload (if PAT configured in Publishing)
+    // 2. GitHub Repository (`public/downloads/`) if PAT configured in Publishing
     let ghFailureReason: string | null = null;
     try {
-      const ghResult = await uploadToGitHubDownloadsIfConfigured(file, resourceNumber);
+      const ghResult = await uploadToGitHubDownloadsIfConfigured(file, resourceNumber, (pct) => {
+        setUploadProgress(pct);
+      });
       if (ghResult) {
         return {
           url: ghResult.url,
           storagePath: ghResult.storagePath,
-          notice: `Firebase Storage is unavailable on Spark plan. "${file.name}" was committed directly to ${ghResult.storagePath} and will be live at ${ghResult.url} once deployment finishes.`,
         };
       }
     } catch (ghErr: any) {
@@ -315,56 +397,55 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
       console.warn('[AttachmentManager] GitHub upload failed:', ghErr);
     }
 
-    // 3. Permanent inline Data URI in Firestore (files <= 600 KB)
+    // 3. Permanent inline Data URI in Cloud Firestore
     if (file.size <= MAX_INLINE_FIRESTORE_BYTES) {
-      setUploadProgress(80);
+      setUploadProgress(70);
       const dataUrl = await fileToDataUrl(file);
+      const projectedBytes = estimateInlineDataUriBytes(existingPool) + dataUrl.length;
+      if (projectedBytes > MAX_TOTAL_INLINE_BYTES * 1.4) {
+        throw new Error(
+          `Adding "${file.name}" exceeds Cloud Firestore's 1 MiB document size limit across inline files. Remove an unused inline file or enable Firebase Storage / GitHub upload token.`
+        );
+      }
       setUploadProgress(100);
-      return {
-        url: dataUrl,
-        notice: ghFailureReason
-          ? `GitHub upload failed (${ghFailureReason}). "${file.name}" (${formatBytes(file.size)}) was instead stored as a permanent inline Data URI in Cloud Firestore.`
-          : `Firebase Storage is not provisioned on the Spark plan. "${file.name}" (${formatBytes(file.size)}) was encoded as a permanent inline Data URI and will persist directly in Cloud Firestore.`,
-      };
+      return { url: dataUrl };
     }
 
-    // 4. Reject rather than storing a fake link or blob: URL
+    // 4. Reject larger files honestly when Storage & GitHub upload are unavailable
     throw new Error(
       ghFailureReason
-        ? `Cannot store "${file.name}" (${formatBytes(file.size)}): GitHub upload failed (${ghFailureReason}), Firebase Storage is not provisioned on the free Spark plan, and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit.`
-        : `Cannot store "${file.name}" (${formatBytes(file.size)}): Firebase Storage is not provisioned on the free Spark plan and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit. Use "Add Link / External URL" to attach a permanent external URL (e.g. Google Drive / GitHub Release) or configure a GitHub token in Publishing.`
+        ? `Cannot upload "${file.name}" (${formatBytes(file.size)}): GitHub upload failed (${ghFailureReason}), Firebase Storage is disabled on Spark plan, and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit.`
+        : `Cannot upload "${file.name}" (${formatBytes(file.size)}): Firebase Storage is not provisioned on the free Spark plan and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit. Configure a GitHub token in Publishing to store larger files.`
     );
   };
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadError(null);
-    setUploadNotice(null);
+    setUploadSuccess(null);
 
-    const newAttachments: CmsAttachment[] = [];
+    const addedAttachments: CmsAttachment[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const err = validateFile(file);
-      if (err) {
-        setUploadError(err);
-        setUploadProgress(null);
-        return;
-      }
-
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const isPdf = ext === 'pdf';
-
-      try {
-        setUploadProgress(15);
-        const result = await uploadFilePermanently(file);
-        if (result.notice) {
-          setUploadNotice(result.notice);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const validationErr = validateFile(file);
+        if (validationErr) {
+          setUploadError(validationErr);
+          return;
         }
 
-        const att: CmsAttachment = {
-          id: `att-${Date.now()}-${i}`,
-          name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+        const ext = file.name.split('.').pop()?.toLowerCase() || '';
+        const isPdf = ext === 'pdf';
+
+        setProcessingFileName(file.name);
+        setUploadProgress(10);
+
+        const result = await uploadFilePermanently(file, [...attachments, ...addedAttachments]);
+
+        addedAttachments.push({
+          id: `att-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+          name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ').trim() || file.name,
           fileName: file.name,
           format: getFormatName(ext),
           fileSize: formatBytes(file.size),
@@ -376,65 +457,71 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           order: attachments.length + i + 1,
           visible: true,
           uploadedAt: new Date().toISOString(),
-        };
-        newAttachments.push(att);
-      } catch (uploadErr: any) {
-        setUploadError(uploadErr?.message || `Failed to upload "${file.name}".`);
-        setUploadProgress(null);
-        if (newAttachments.length > 0) {
-          onChange([...attachments, ...newAttachments]);
-        }
-        return;
+        });
+      }
+
+      if (addedAttachments.length > 0) {
+        const updatedList = [...attachments, ...addedAttachments];
+        onChange(updatedList, { attachmentsMutated: true });
+        setUploadSuccess(
+          addedAttachments.length === 1
+            ? `Added "${addedAttachments[0].fileName}" (${addedAttachments[0].fileSize}). Click Save Draft or Publish/Update to save to Firestore.`
+            : `Added ${addedAttachments.length} files. Click Save Draft or Publish/Update to save to Firestore.`
+        );
+      }
+    } catch (err: any) {
+      setUploadError(err?.message || 'Failed to process uploaded file.');
+      if (addedAttachments.length > 0) {
+        onChange([...attachments, ...addedAttachments], { attachmentsMutated: true });
+      }
+    } finally {
+      setUploadProgress(null);
+      setProcessingFileName('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     }
-
-    setUploadProgress(null);
-    onChange([...attachments, ...newAttachments]);
   };
 
   const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (replacingIndex === null || !e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    const err = validateFile(file);
-    if (err) {
-      setUploadError(err);
+    const idx = replacingIndex;
+    const files = e.target.files;
+    if (idx === null || !files || files.length === 0) {
       setReplacingIndex(null);
       return;
     }
 
-    setUploadError(null);
-    setUploadNotice(null);
+    const file = files[0];
+    const validationErr = validateFile(file);
+    if (validationErr) {
+      setUploadError(validationErr);
+      setReplacingIndex(null);
+      if (replaceInputRef.current) replaceInputRef.current.value = '';
+      return;
+    }
 
+    setUploadError(null);
+    setUploadSuccess(null);
+
+    const oldAtt = attachments[idx];
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isPdf = ext === 'pdf';
-    const oldAtt = attachments[replacingIndex];
 
     try {
-      setUploadProgress(20);
-      const result = await uploadFilePermanently(file);
-      if (result.notice) {
-        setUploadNotice(result.notice);
-      }
+      setProcessingFileName(file.name);
+      setUploadProgress(15);
 
-      if (
-        !isDevPreview &&
-        oldAtt.storagePath &&
-        !oldAtt.storagePath.startsWith('github:') &&
-        oldAtt.storagePath !== result.storagePath
-      ) {
-        try {
-          const storage = tryGetFirebaseStorage();
-          if (storage) {
-            await deleteObject(ref(storage, oldAtt.storagePath));
-          }
-        } catch (delErr) {
-          console.warn('Failed to clean up obsolete storage object:', delErr);
-        }
+      const remainingPool = attachments.filter((_, i) => i !== idx);
+      const result = await uploadFilePermanently(file, remainingPool);
+
+      if (oldAtt.storagePath && oldAtt.storagePath !== result.storagePath && onQueueBinaryCleanup) {
+        onQueueBinaryCleanup(oldAtt.storagePath);
       }
 
       const updated = [...attachments];
-      updated[replacingIndex] = {
+      updated[idx] = {
         ...oldAtt,
+        name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ').trim() || oldAtt.name,
         fileName: file.name,
         format: getFormatName(ext),
         fileSize: formatBytes(file.size),
@@ -443,157 +530,54 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         fileExtension: ext,
         mimeType: file.type || '',
         isPreviewable: isPdf,
+        visible: true,
         uploadedAt: new Date().toISOString(),
       };
-      onChange(updated);
+
+      onChange(updated, { attachmentsMutated: true });
+      setUploadSuccess(
+        `Replaced "${oldAtt.fileName || oldAtt.name}" with "${file.name}" (${formatBytes(file.size)}). Click Save Draft or Publish/Update to save changes.`
+      );
     } catch (replaceErr: any) {
       setUploadError(replaceErr?.message || `Failed to replace "${oldAtt.name}".`);
     } finally {
       setUploadProgress(null);
+      setProcessingFileName('');
       setReplacingIndex(null);
-      if (replaceInputRef.current) replaceInputRef.current.value = '';
-    }
-  };
-
-  const handleAddManualLink = async () => {
-    setUploadError(null);
-    setUploadNotice(null);
-
-    const trimmedUrl = linkUrl.trim();
-    if (!trimmedUrl) {
-      setUploadError('Please provide a file path or permanent URL.');
-      return;
-    }
-    if (isTemporaryBlobUrl(trimmedUrl) || trimmedUrl.toLowerCase().startsWith('javascript:')) {
-      setUploadError('Temporary blob: or unsafe URLs are not permitted.');
-      return;
-    }
-
-    const isLocalPath = trimmedUrl.startsWith('/');
-    if (!isLocalPath) {
-      try {
-        const parsed = new URL(trimmedUrl);
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-          setUploadError('External links must use https:// or http://.');
-          return;
-        }
-      } catch {
-        setUploadError('Please enter a valid root path (/downloads/...) or full URL (https://...).');
-        return;
-      }
-    } else if (typeof window !== 'undefined' && !isDevPreview) {
-      try {
-        const check = await fetch(trimmedUrl, { method: 'HEAD' });
-        if (!check.ok) {
-          setUploadNotice(
-            `Note: "${trimmedUrl}" returned HTTP ${check.status} on this server. Make sure the file exists in "public/downloads/" before deploying.`
-          );
-        }
-      } catch {
-        // Non-fatal check
+      if (replaceInputRef.current) {
+        replaceInputRef.current.value = '';
       }
     }
-
-    const cleanSegment = trimmedUrl.split('?')[0].split('#')[0];
-    const fileName = cleanSegment.split('/').pop() || 'external-resource';
-    const extMatch = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
-    const ext = extMatch || (trimmedUrl.startsWith('http') ? 'link' : 'pdf');
-    const isPdf = ext === 'pdf';
-
-    const newAtt: CmsAttachment = {
-      id: `att-${Date.now()}`,
-      name: linkName.trim() || fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-      fileName,
-      format: ext === 'link' ? 'External Link' : getFormatName(ext),
-      fileSize: linkSize.trim() || (ext === 'link' ? 'External' : 'Standard'),
-      url: trimmedUrl,
-      description: linkDescription.trim() || undefined,
-      fileExtension: ext,
-      isPreviewable: isPdf && linkPreviewable,
-      order: attachments.length + 1,
-      visible: true,
-      uploadedAt: new Date().toISOString(),
-    };
-
-    onChange([...attachments, newAtt]);
-    setLinkName('');
-    setLinkUrl('');
-    setLinkDescription('');
-    setLinkSize('');
-    setShowLinkForm(false);
   };
 
-  const handleApplyPreset = (preset: (typeof LOCAL_DOWNLOAD_PRESETS)[0]) => {
-    setLinkName(preset.name);
-    setLinkUrl(preset.url);
-    setLinkSize(preset.fileSize);
-    setLinkPreviewable(preset.fileExtension === 'pdf');
-  };
-
-  const handleUpdate = (index: number, field: keyof CmsAttachment, value: any) => {
-    if (field === 'url' && isTemporaryBlobUrl(value)) {
-      setUploadError('Temporary blob: URLs cannot be saved.');
-      return;
-    }
+  const handleRename = (index: number, newDisplayName: string) => {
     const updated = [...attachments];
-    updated[index] = { ...updated[index], [field]: value };
-    onChange(updated);
+    updated[index] = { ...updated[index], name: newDisplayName };
+    onChange(updated, { attachmentsMutated: false });
   };
 
-  const handleToggleVisible = (index: number) => {
-    const updated = [...attachments];
-    updated[index] = { ...updated[index], visible: !updated[index].visible };
-    onChange(updated);
-  };
-
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const updated = [...attachments];
-    const temp = updated[index - 1];
-    updated[index - 1] = updated[index];
-    updated[index] = temp;
-    updated.forEach((a, i) => {
-      a.order = i + 1;
-    });
-    onChange(updated);
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index === attachments.length - 1) return;
-    const updated = [...attachments];
-    const temp = updated[index + 1];
-    updated[index + 1] = updated[index];
-    updated[index] = temp;
-    updated.forEach((a, i) => {
-      a.order = i + 1;
-    });
-    onChange(updated);
-  };
-
-  const handleDelete = async (index: number) => {
+  const handleDelete = (index: number) => {
     const target = attachments[index];
-    if (confirm(`Remove attachment "${target.name}"?`)) {
-      if (!isDevPreview && target.storagePath && !target.storagePath.startsWith('github:')) {
-        try {
-          const storage = tryGetFirebaseStorage();
-          if (storage) {
-            await deleteObject(ref(storage, target.storagePath));
-          }
-        } catch (delErr) {
-          console.warn('Storage delete warning (non-fatal):', delErr);
-        }
-      }
+    if (!target) return;
 
-      const updated = attachments.filter((_, i) => i !== index);
-      updated.forEach((a, i) => {
-        a.order = i + 1;
-      });
-      onChange(updated);
+    setUploadError(null);
+
+    if (target.storagePath && onQueueBinaryCleanup) {
+      onQueueBinaryCleanup(target.storagePath);
     }
+
+    const updated = attachments
+      .filter((_, i) => i !== index)
+      .map((item, idx) => ({ ...item, order: idx + 1 }));
+
+    onChange(updated, { attachmentsMutated: true });
+    setUploadSuccess(
+      `Removed "${target.name || target.fileName}". Click Save Draft or Publish/Update to permanently save removal.`
+    );
   };
 
   const getFormatIcon = (ext: string) => {
-    switch (ext.toLowerCase()) {
+    switch ((ext || '').toLowerCase()) {
       case 'pdf':
         return <FileText className="w-4 h-4 text-rose-500" />;
       case 'xlsx':
@@ -605,18 +589,14 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
       case 'png':
       case 'jpg':
       case 'jpeg':
-      case 'webp':
         return <Image className="w-4 h-4 text-sky-500" />;
-      case 'link':
-        return <LinkIcon className="w-4 h-4 text-primary" />;
       default:
         return <FileText className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Hidden file input for Replace */}
+    <div className="space-y-4">
       <input
         ref={replaceInputRef}
         type="file"
@@ -625,7 +605,6 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         accept={SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
       />
 
-      {/* Hidden file input for Upload */}
       <input
         ref={fileInputRef}
         type="file"
@@ -635,138 +614,16 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         accept={SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
       />
 
-      {/* Header, counter and Add Link Button */}
-      <div className="flex items-center justify-between pb-3 border-b border-border flex-wrap gap-2">
-        <h3 className="text-base font-semibold text-foreground flex items-center gap-2 m-0">
-          <UploadCloud className="w-4 h-4 text-primary" />
-          Downloadable Educational Attachments
-        </h3>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowLinkForm(!showLinkForm)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors cursor-pointer"
-          >
-            <LinkIcon className="w-3.5 h-3.5" />
-            <span>{showLinkForm ? 'Hide Link Form' : 'Add Link / Local File'}</span>
-          </button>
-          <span className="text-xs font-mono px-2.5 py-0.5 rounded-md bg-secondary text-muted-foreground border border-border">
-            {attachments.length} {attachments.length === 1 ? 'file' : 'files'}
-          </span>
-        </div>
-      </div>
-
-      {/* Add Link / Local Asset Form */}
-      {showLinkForm && (
-        <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <LinkIcon className="w-3.5 h-3.5 text-primary" />
-                Link Permanent File or External Download URL
-              </h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Link static files from <code className="font-mono text-[10px]">/downloads/</code> or external URLs (Google Drive, GitHub Releases, Notion, etc.).
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Presets */}
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
-              Available Local Downloads:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {LOCAL_DOWNLOAD_PRESETS.map((preset) => (
-                <button
-                  key={preset.url}
-                  type="button"
-                  onClick={() => handleApplyPreset(preset)}
-                  className="px-2 py-1 text-[11px] font-mono rounded-md border border-border bg-background hover:bg-secondary text-foreground transition-colors text-left truncate max-w-xs cursor-pointer"
-                  title={preset.name}
-                >
-                  {preset.fileName}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Input fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Attachment Title *</label>
-              <input
-                type="text"
-                value={linkName}
-                onChange={(e) => setLinkName(e.target.value)}
-                placeholder="e.g. Starter Budget Framework"
-                className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">File Path / URL *</label>
-              <input
-                type="text"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="/downloads/resource-001-starter-personal-budget-framework.pdf or https://..."
-                className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground font-mono placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Description (optional)</label>
-              <input
-                type="text"
-                value={linkDescription}
-                onChange={(e) => setLinkDescription(e.target.value)}
-                placeholder="Brief note about this file"
-                className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">File Size Label</label>
-              <input
-                type="text"
-                value={linkSize}
-                onChange={(e) => setLinkSize(e.target.value)}
-                placeholder="e.g. 486 KB"
-                className="w-full text-xs px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex items-center gap-2 sm:col-span-2">
-              <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={linkPreviewable}
-                  onChange={(e) => setLinkPreviewable(e.target.checked)}
-                  className="rounded-sm border-input text-primary focus:ring-primary/20"
-                />
-                <span>Allow In-Browser PDF Preview</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowLinkForm(false)}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-muted-foreground transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleAddManualLink}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              Add Attachment
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Upload Drag & Drop Zone */}
+      {/* Drag & Drop Upload Zone */}
       <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -778,63 +635,58 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           handleFiles(e.dataTransfer.files);
         }}
         onClick={() => fileInputRef.current?.click()}
-        className={`p-8 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center ${
+        className={`p-7 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center ${
           isDragging
             ? 'border-primary bg-primary/5 scale-[0.99]'
             : 'border-border/80 hover:border-border hover:bg-card/40'
         }`}
       >
-        <div className="flex flex-col items-center justify-center space-y-2.5">
-          <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-primary">
-            <UploadCloud className="w-6 h-6" />
+        <div className="flex flex-col items-center justify-center space-y-2">
+          <div className="w-11 h-11 rounded-full bg-secondary flex items-center justify-center text-primary">
+            <UploadCloud className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">
-              Click to select files or drag and drop
+            <p className="text-sm font-semibold text-foreground m-0">
+              Drag and drop files here, or click to upload
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              PDF, DOCX, XLSX, CSV, PPTX, ZIP, PNG, JPG (up to 600KB inline in Firestore on Spark plan, or larger via Storage / GitHub / External URL)
+            <p className="text-xs text-muted-foreground mt-1 m-0">
+              Supports PDF, DOC, DOCX, XLS, XLSX, CSV, PPT, PPTX, ZIP, PNG, JPG (multiple files supported)
             </p>
           </div>
-          {isDevPreview && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-              Dev Mode: Permanent inline Data URI preview
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Upload Progress Bar */}
+      {/* Actual Upload Progress Bar */}
       {uploadProgress !== null && (
         <div className="space-y-1.5 p-3.5 rounded-xl border border-border bg-card">
           <div className="flex justify-between text-xs font-mono text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-              Processing attachment...
+            <span className="flex items-center gap-1.5 truncate">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+              <span>Uploading {processingFileName || 'file'}...</span>
             </span>
             <span>{uploadProgress}%</span>
           </div>
           <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
             <div
-              className="h-full bg-primary transition-all duration-200"
+              className="h-full bg-primary transition-all duration-150"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Informative Notice */}
-      {uploadNotice && (
+      {/* Clear Success Feedback */}
+      {uploadSuccess && (
         <div
           role="status"
-          className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2"
+          className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2"
         >
-          <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-          <span className="leading-relaxed">{uploadNotice}</span>
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{uploadSuccess}</span>
         </div>
       )}
 
-      {/* Error alert */}
+      {/* Clear Error Feedback */}
       {uploadError && (
         <div
           role="alert"
@@ -845,58 +697,53 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         </div>
       )}
 
-      {/* Attachments List */}
-      <div className="space-y-3">
+      {/* Uploaded Files List */}
+      <div className="space-y-2.5">
         {attachments.length === 0 ? (
-          <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground">
-            <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No downloadable attachments linked yet.</p>
+          <div className="p-6 text-center border border-dashed border-border rounded-xl text-muted-foreground">
+            <FileText className="w-7 h-7 mx-auto mb-1.5 opacity-40" />
+            <p className="text-xs m-0">No downloadable files attached yet.</p>
           </div>
         ) : (
           attachments.map((att, index) => (
             <div
               key={att.id || index}
-              className={`attachment-item p-4 rounded-xl border transition-all ${
-                att.visible
-                  ? 'border-border bg-card shadow-xs'
-                  : 'border-border/60 bg-muted/30 opacity-60'
-              }`}
+              data-attachment-id={att.id}
+              className="attachment-item p-4 rounded-xl border border-border bg-card shadow-xs space-y-3"
             >
-              {/* Item Top Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0">
                     {getFormatIcon(att.fileExtension)}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-foreground">
-                        {att.name || att.fileName}
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-border bg-secondary text-foreground shrink-0">
+                        {(att.fileExtension || 'FILE').toUpperCase()}
                       </span>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-border bg-secondary text-muted-foreground shrink-0">
-                        {att.fileExtension.toUpperCase()}
+                      <span className="text-xs text-muted-foreground font-mono truncate">
+                        {att.fileName || att.name}
                       </span>
-                      <span className="text-xs text-muted-foreground font-mono shrink-0">
-                        {att.fileSize}
-                      </span>
+                      {att.fileSize && (
+                        <span className="text-xs text-muted-foreground font-mono shrink-0">
+                          • {att.fileSize}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono truncate block">
-                      {att.fileName}
-                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                   <a
                     href={att.url}
                     download={att.fileName || att.name}
-                    target={att.url.startsWith('data:') ? undefined : '_blank'}
-                    rel="noopener noreferrer"
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    title="Download & Verify File"
-                    aria-label={`Download and verify ${att.fileName}`}
+                    target={att.url.startsWith('http') ? '_blank' : undefined}
+                    rel={att.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors no-underline"
+                    aria-label={`Download ${att.fileName || att.name}`}
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Download</span>
                   </a>
                   <button
                     type="button"
@@ -904,109 +751,36 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                       setReplacingIndex(index);
                       replaceInputRef.current?.click();
                     }}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                    title="Replace with new file"
-                    aria-label={`Replace ${att.fileName}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors cursor-pointer"
+                    aria-label={`Replace ${att.fileName || att.name}`}
                   >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleVisible(index)}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                    title={att.visible ? 'Hide from public site' : 'Show on public site'}
-                    aria-label={att.visible ? 'Hide attachment' : 'Show attachment'}
-                  >
-                    {att.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-destructive" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMoveUp(index)}
-                    disabled={index === 0}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 transition-colors cursor-pointer"
-                    title="Move Up"
-                    aria-label="Move attachment up"
-                  >
-                    <ArrowUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMoveDown(index)}
-                    disabled={index === attachments.length - 1}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 transition-colors cursor-pointer"
-                    title="Move Down"
-                    aria-label="Move attachment down"
-                  >
-                    <ArrowDown className="w-4 h-4" />
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Replace</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(index)}
-                    className="p-1.5 rounded-md text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors ml-1 cursor-pointer"
-                    title="Delete Attachment"
-                    aria-label="Delete attachment"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer"
+                    aria-label={`Delete ${att.fileName || att.name}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>
 
-              {/* Editable metadata fields & URL */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border/60">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Display Label *</label>
-                  <input
-                    type="text"
-                    value={att.name}
-                    onChange={(e) => handleUpdate(index, 'name', e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                    placeholder="e.g. Starter Budget Guide"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">File Path / URL *</label>
-                  <input
-                    type="text"
-                    value={att.url.startsWith('data:') ? `[Inline Data URI — ${att.fileSize}]` : att.url}
-                    readOnly={att.url.startsWith('data:')}
-                    onChange={(e) => handleUpdate(index, 'url', e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs font-mono rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                    placeholder="/downloads/file.pdf"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Description (optional)</label>
-                  <input
-                    type="text"
-                    value={att.description || ''}
-                    onChange={(e) => handleUpdate(index, 'description', e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                    placeholder="Brief note"
-                  />
-                </div>
-              </div>
-
-              {/* Options */}
-              <div className="flex items-center gap-4 mt-2.5 pt-2 text-xs text-muted-foreground flex-wrap">
-                <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={att.isPreviewable}
-                    onChange={(e) => handleUpdate(index, 'isPreviewable', e.target.checked)}
-                    className="rounded-sm border-input text-primary focus:ring-primary/20"
-                  />
-                  <span>Allow In-Browser PDF Preview</span>
+              {/* Editable Display Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground block">
+                  File Display Name
                 </label>
-                {att.url.startsWith('data:') && (
-                  <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
-                    Stored permanently inline in Firestore
-                  </span>
-                )}
-                {att.storagePath && (
-                  <span className="font-mono text-[11px] opacity-60 truncate max-w-xs" title={att.storagePath}>
-                    Storage: {att.storagePath}
-                  </span>
-                )}
+                <input
+                  type="text"
+                  value={att.name}
+                  onChange={(e) => handleRename(index, e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Enter file display name"
+                />
               </div>
             </div>
           ))

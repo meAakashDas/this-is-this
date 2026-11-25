@@ -204,20 +204,58 @@ async function run() {
   await updateResource(
     '001',
     {
-      title: 'Starter Personal Budget Framework (Edited)',
-      subcategory: 'Cashflow & Budgeting',
-      fullDescription: 'Detailed explanation on detail page.',
-      coverImage: '/images/aakash-das.webp',
-      order: 1,
-      featured: true,
-      seo: { title: 'SEO Budget Title', description: 'SEO Budget Desc' },
+      attachments: [
+        {
+          id: 'att-pdf-1',
+          name: 'Renamed Starter PDF',
+          fileName: 'renamed-guide.pdf',
+          format: 'PDF Document',
+          fileSize: '1 KB',
+          url: 'data:application/pdf;base64,JVBERi0xLjQK',
+          fileExtension: 'pdf',
+          isPreviewable: true,
+          order: 1,
+          visible: true,
+        },
+        {
+          id: 'att-csv-1',
+          name: 'Cashflow CSV',
+          fileName: 'cashflow.csv',
+          format: 'CSV Data File',
+          fileSize: '1 KB',
+          url: 'data:text/csv;base64,QSwgQgo=',
+          fileExtension: 'csv',
+          isPreviewable: false,
+          order: 2,
+          visible: true,
+        },
+      ],
+      pdfPreviewUrl: 'data:application/pdf;base64,JVBERi0xLjQK',
+      downloadUrl: 'data:application/pdf;base64,JVBERi0xLjQK',
+      blocknoteHtml: '<h2>Updated Heading</h2><table><tr><td>Cell</td></tr></table>',
     },
     'aakashdas.photo@gmail.com'
   );
   const r001 = await getResourceByNumber('001');
-  assert.strictEqual(r001?.title, 'Starter Personal Budget Framework (Edited)');
-  assert.strictEqual(r001?.subcategory, 'Cashflow & Budgeting');
-  assert.strictEqual(r001?.coverImage, '/images/aakash-das.webp');
+  assert.strictEqual(r001?.title, 'Starter Personal Budget Framework', 'Title metadata must remain preserved');
+  assert.strictEqual(r001?.attachments?.length, 2, 'PDF and CSV attachments must persist');
+  assert.strictEqual(r001?.attachments?.[0]?.name, 'Renamed Starter PDF');
+  assert.ok(r001?.blocknoteHtml?.includes('<h2>Updated Heading</h2>'));
+
+  // Simulate deleting all attachments & clearing pdfPreviewUrl cleanly (verifying merge:false removal!)
+  await updateResource(
+    '001',
+    {
+      attachments: [],
+      pdfPreviewUrl: undefined,
+      downloadUrl: undefined,
+    },
+    'aakashdas.photo@gmail.com'
+  );
+  const r001Cleared = await getResourceByNumber('001');
+  assert.strictEqual(r001Cleared?.attachments?.length, 0, 'Deleted attachments must not resurrect');
+  assert.strictEqual(r001Cleared?.pdfPreviewUrl, undefined, 'Cleared pdfPreviewUrl must be removed from Firestore');
+  assert.strictEqual(r001Cleared?.category, 'Personal Finance', 'Category metadata preserved');
 
   // Create draft #990
   await createResource(

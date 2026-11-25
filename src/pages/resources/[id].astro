@@ -115,15 +115,17 @@ function getFileExtension(format?: string, url?: string): string {
 
           <!-- Action Buttons below Publication Date -->
           <div class="resource-top-actions flex items-center gap-2.5 pt-2 flex-wrap" aria-label="Resource actions">
-            <a
-              href={resource!.pdfPreviewUrl || resource!.downloadUrl}
-              download={pdfDownloadFilename}
-              class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
-              aria-label={`Save ${resource!.title} as PDF`}
-            >
-              <Icon name="download" size={13} />
-              <span>Save as PDF</span>
-            </a>
+            {(resource!.pdfPreviewUrl || resource!.downloadUrl) && (
+              <a
+                href={resource!.pdfPreviewUrl || resource!.downloadUrl}
+                download={pdfDownloadFilename}
+                class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+                aria-label={`Save ${resource!.title} as PDF`}
+              >
+                <Icon name="download" size={13} />
+                <span>Save as PDF</span>
+              </a>
+            )}
 
             {resource!.docxUrl && (
               <a
@@ -137,15 +139,17 @@ function getFileExtension(format?: string, url?: string): string {
               </a>
             )}
 
-            <a
-              href="#view-as-pdf"
-              class="action-btn btn-view-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
-              data-scroll-to-preview
-              aria-label="View embedded PDF preview"
-            >
-              <Icon name="eye" size={13} />
-              <span>View as PDF</span>
-            </a>
+            {resource!.pdfPreviewUrl && (
+              <a
+                href="#view-as-pdf"
+                class="action-btn btn-view-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary hover:text-foreground text-foreground transition-colors shadow-xs no-underline"
+                data-scroll-to-preview
+                aria-label="View embedded PDF preview"
+              >
+                <Icon name="eye" size={13} />
+                <span>View as PDF</span>
+              </a>
+            )}
 
             <button
               type="button"

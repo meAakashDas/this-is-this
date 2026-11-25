@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { ResourceList } from './ResourceList.tsx';
 import { ResourceEditor } from './ResourceEditor.tsx';
 import { ResourcePreview } from './ResourcePreview.tsx';
+import { cleanupObsoleteAttachmentBinary } from './AttachmentManager.tsx';
 import {
   getAllResourcesForAdmin,
   getResourceByNumber,
@@ -121,11 +122,11 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
               const nextNum = calculateNextNumber(loadedResources);
               const newDoc: Partial<ResourceDocument> = {
                 resourceNumber: nextNum,
-                title: '',
-                slug: '',
+                title: `Resource #${nextNum}`,
+                slug: `resource-${nextNum}`,
                 category: 'Personal Finance',
-                description: '',
-                tags: [],
+                description: `Educational resource #${nextNum}`,
+                tags: ['Finance'],
                 author: 'Aakash Das',
                 language: 'English',
                 published: false,
@@ -178,11 +179,11 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     const nextNum = calculateNextNumber(resources);
     const newDoc: Partial<ResourceDocument> = {
       resourceNumber: nextNum,
-      title: '',
-      slug: '',
+      title: `Resource #${nextNum}`,
+      slug: `resource-${nextNum}`,
       category: 'Personal Finance',
-      description: '',
-      tags: [],
+      description: `Educational resource #${nextNum}`,
+      tags: ['Finance'],
       author: 'Aakash Das',
       language: 'English',
       published: false,
@@ -359,6 +360,9 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
 
   const handleDelete = async (resourceNumber: string) => {
     setStatusFeedback(null);
+    const targetResource = resources.find(
+      (r) => r.resourceNumber === resourceNumber || r.id === resourceNumber
+    );
     if (isDevPreview) {
       const updatedList = resources.filter((r) => r.resourceNumber !== resourceNumber);
       persistDevChanges(updatedList);
@@ -366,6 +370,14 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     } else {
       try {
         await deleteResource(resourceNumber);
+        if (targetResource?.attachments?.length) {
+          await Promise.allSettled(
+            targetResource.attachments
+              .map((a) => a.storagePath)
+              .filter((p): p is string => Boolean(p))
+              .map((p) => cleanupObsoleteAttachmentBinary(p))
+          );
+        }
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
         const msg = `Resource #${resourceNumber} permanently deleted from Cloud Firestore.`;
@@ -395,6 +407,8 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         updatedList = [...resources, doc];
       }
       persistDevChanges(updatedList);
+      setSelectedResource(doc);
+      updateUrlParam(doc.resourceNumber);
       toast.success(
         doc.published
           ? `Resource #${doc.resourceNumber} published (Dev Preview).`
@@ -412,23 +426,19 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
         (await getResourceByNumber(originalLookupId)) ||
         (await getResourceByNumber(doc.resourceNumber));
 
-      if (existing) {
-        await updateResource(existing.id || existing.resourceNumber, doc);
-      } else {
-        await createResource(doc);
-      }
+      const savedDoc = existing
+        ? await updateResource(existing.id || existing.resourceNumber, doc)
+        : await createResource(doc);
+
       const refreshed = await getAllResourcesForAdmin();
       setResources(refreshed);
-      const msg = doc.published
-        ? `Resource #${doc.resourceNumber} saved & published to Cloud Firestore.`
-        : `Resource #${doc.resourceNumber} saved as ${doc.status || 'draft'} in Cloud Firestore.`;
+      setSelectedResource(savedDoc);
+      updateUrlParam(savedDoc.resourceNumber);
+      const msg = savedDoc.published
+        ? `Resource #${savedDoc.resourceNumber} saved & published to Cloud Firestore.`
+        : `Resource #${savedDoc.resourceNumber} saved as ${savedDoc.status || 'draft'} in Cloud Firestore.`;
       toast.success(msg);
-      setStatusFeedback({ type: 'success', message: msg });
     }
-
-    updateUrlParam(null);
-    setViewState('list');
-    setSelectedResource(null);
   };
 
   const handleCancelEditor = () => {

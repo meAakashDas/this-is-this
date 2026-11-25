@@ -13,6 +13,9 @@ export function getFirebaseStorage(): FirebaseStorage {
   }
   const app = getFirebaseApp();
   cachedStorage = getStorage(app);
+  // Prevent Firebase Storage SDK from retrying for 10 minutes when Spark storage is unprovisioned
+  cachedStorage.maxUploadRetryTime = 3500;
+  cachedStorage.maxOperationRetryTime = 3500;
   return cachedStorage;
 }
 
@@ -29,6 +32,8 @@ export function tryGetFirebaseStorage(): FirebaseStorage | null {
   }
   try {
     cachedStorage = getStorage(app);
+    cachedStorage.maxUploadRetryTime = 3500;
+    cachedStorage.maxOperationRetryTime = 3500;
     return cachedStorage;
   } catch (error) {
     console.warn('[Firebase Storage] Failed to initialize Storage instance:', error);

@@ -23,19 +23,14 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
   }) => {
     await page.goto('/admin?tab=resources&id=001');
 
-    // Wait for the editor to load
-    await expect(page.locator('input[placeholder*="Resource Title"]')).toBeVisible({ timeout: 10000 });
+    // Wait for the simplified 2-section editor to load
+    await expect(page.locator('h3:has-text("1. Downloadable Files")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h3:has-text("2. Resource Content")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Starter Personal Budget Framework")')).toBeVisible();
+    await expect(page.locator('span:has-text("NO. 001")')).toBeVisible();
 
-    // Verify Title and Number
-    const titleInput = page.locator('input[placeholder*="Resource Title"]');
-    await expect(titleInput).toHaveValue('Starter Personal Budget Framework');
-
-    // Verify Number input value is 001
-    const numberInput = page.locator('input[value="001"]');
-    await expect(numberInput).toBeVisible();
-
-    // Verify Downloadable Resources button shows 2 files
-    await expect(page.locator('button:has-text("Downloadable Resources")')).toContainText('2');
+    // Verify 2 existing attachments loaded
+    await expect(page.locator('.attachment-item')).toHaveCount(2);
 
     // CRITICAL: Ensure NO false "Resource with identifier was not found" error appears
     const notFoundError = page.locator('text=Resource with identifier "001" was not found');
@@ -50,9 +45,9 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
     // Verify PUBLISHED badge is visible
     await expect(page.locator('span:has-text("PUBLISHED")')).toBeVisible();
 
-    // Test Update Resource & Unpublish to Draft distinct actions on already-published #001
-    await expect(page.locator('button:has-text("Unpublish to Draft")')).toBeVisible();
-    const updateBtn = page.locator('button:has-text("Update Resource")');
+    // Test Save Draft & Update buttons
+    await expect(page.locator('button:has-text("Save Draft")')).toBeVisible();
+    const updateBtn = page.locator('button:has-text("Update")');
     await expect(updateBtn).toBeVisible();
     await updateBtn.click();
 
@@ -147,8 +142,8 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
     await page.reload();
 
     // Ensure it re-opens Resource 001 editor directly without losing state
-    await expect(page.locator('input[placeholder*="Resource Title"]')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('input[placeholder*="Resource Title"]')).toHaveValue('Starter Personal Budget Framework');
+    await expect(page.locator('h3:has-text("1. Downloadable Files")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h2:has-text("Starter Personal Budget Framework")')).toBeVisible();
     await expect(page.locator('text=Resource with identifier "001" was not found')).toHaveCount(0);
   });
 });

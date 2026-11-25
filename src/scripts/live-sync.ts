@@ -238,6 +238,33 @@ async function syncResourcesCatalog(db: any) {
   });
 }
 
+function dataPdfUriToBlobUrl(dataUri: string): string {
+  if (!dataUri.startsWith('data:application/pdf')) return dataUri;
+  try {
+    const base64Part = dataUri.split(',')[1];
+    if (!base64Part) return dataUri;
+    const byteChars = atob(base64Part);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    return URL.createObjectURL(new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }));
+  } catch {
+    return dataUri;
+  }
+}
+
+function hydratePdfPreviewElement(pdfSection: HTMLElement, pdfUrl: string) {
+  const obj = pdfSection.querySelector<HTMLObjectElement>('object.pdf-object');
+  const iframe = pdfSection.querySelector<HTMLIFrameElement>('iframe.pdf-iframe');
+  if (obj && obj.getAttribute('data-raw-pdf') !== pdfUrl) {
+    obj.setAttribute('data-raw-pdf', pdfUrl);
+    const renderUrl = dataPdfUriToBlobUrl(pdfUrl);
+    obj.setAttribute('data', renderUrl);
+    if (iframe) iframe.setAttribute('src', renderUrl);
+  }
+}
+
 function renderAttachmentsHtml(attachments: any[]): string {
   return attachments
     .filter((att: any) => att.visible !== false && isSafePublicUrl(att.url))
@@ -487,26 +514,43 @@ async function syncResourceDetail(db: any, resourceId: string) {
     const savePdfBtn = articleEl.querySelector<HTMLAnchorElement>('a.btn-save-pdf');
     const downloadPdfBtn = articleEl.querySelector<HTMLAnchorElement>('a.btn-download-pdf');
     const viewPdfBtn = articleEl.querySelector<HTMLAnchorElement>('a.btn-view-pdf');
-    const pdfSection = articleEl.querySelector<HTMLElement>('.pdf-preview-section');
+    let pdfSection = articleEl.querySelector<HTMLElement>('.pdf-preview-section');
 
     if (pdfUrl) {
       if (savePdfBtn) {
         savePdfBtn.href = pdfUrl;
         savePdfBtn.style.display = '';
       }
-      if (downloadPdfBtn) {
-        downloadPdfBtn.href = pdfUrl;
-      }
       if (viewPdfBtn) {
         viewPdfBtn.style.display = '';
       }
-      if (pdfSection) {
+      if (!pdfSection) {
+        const navAdjacent = articleEl.querySelector('.resource-adjacent-nav');
+        pdfSection = document.createElement('section');
+        pdfSection.id = 'view-as-pdf';
+        pdfSection.className = 'resource-section pdf-preview-section rounded-xl border border-border bg-card overflow-hidden shadow-xs scroll-mt-20';
+        pdfSection.innerHTML = `
+          <div class="preview-header flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border bg-secondary/50 flex-wrap">
+            <h2 id="pdf-preview-heading" class="section-heading text-base sm:text-lg font-semibold tracking-tight text-foreground m-0">View as PDF</h2>
+            <div class="preview-actions-bar flex items-center gap-2 flex-wrap">
+              <a href="${escapeHtml(pdfUrl)}" download="resource-${escapeHtml(data.resourceNumber || '001')}.pdf" class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Download PDF</span></a>
+            </div>
+          </div>
+          <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+            <object data="" type="application/pdf" class="pdf-object w-full h-full border-0 block"><iframe src="" class="pdf-iframe w-full h-full border-0" loading="lazy"></iframe></object>
+          </div>
+        `;
+        if (navAdjacent) {
+          navAdjacent.before(pdfSection);
+        } else {
+          articleEl.appendChild(pdfSection);
+        }
+      } else {
         pdfSection.style.display = '';
-        const obj = pdfSection.querySelector<HTMLObjectElement>('object.pdf-object');
-        const iframe = pdfSection.querySelector<HTMLIFrameElement>('iframe.pdf-iframe');
-        if (obj && obj.getAttribute('data') !== pdfUrl) obj.setAttribute('data', pdfUrl);
-        if (iframe && iframe.getAttribute('src') !== pdfUrl) iframe.setAttribute('src', pdfUrl);
       }
+      const dlPdfBtn = pdfSection.querySelector<HTMLAnchorElement>('a.btn-download-pdf') || downloadPdfBtn;
+      if (dlPdfBtn) dlPdfBtn.href = pdfUrl;
+      hydratePdfPreviewElement(pdfSection, pdfUrl);
     } else {
       if (savePdfBtn) savePdfBtn.style.display = 'none';
       if (viewPdfBtn) viewPdfBtn.style.display = 'none';
@@ -592,12 +636,33 @@ async function syncResourceDetail(db: any, resourceId: string) {
     }
 
     // Written content HTML sync
-    const bodyHtml = data.blocknoteHtml || data.contentHtml;
-    if (bodyHtml && typeof bodyHtml === 'string') {
-      const contentEl = articleEl.querySelector<HTMLElement>('.resource-document-content');
+    const bodyHtml = typeof data.blocknoteHtml === 'string' && data.blocknoteHtml.trim()
+      ? data.blocknoteHtml
+      : typeof data.contentHtml === 'string'
+      ? data.contentHtml
+      : '';
+    let contentSection = articleEl.querySelector<HTMLElement>('.written-content-section');
+    let contentEl = articleEl.querySelector<HTMLElement>('.resource-document-content, .resource-content');
+
+    if (bodyHtml.trim()) {
+      if (!contentSection) {
+        contentSection = document.createElement('section');
+        contentSection.className = 'resource-section written-content-section space-y-6';
+        contentSection.innerHTML = `<div class="main-educational-content space-y-6"><div class="resource-document-content resource-content editorial-reading-container max-w-none space-y-4"></div></div>`;
+        const anchor = articleEl.querySelector('.external-links-section') || articleEl.querySelector('.attachments-section') || articleEl.querySelector('header + div[role="separator"]');
+        if (anchor) {
+          anchor.after(contentSection);
+        } else {
+          articleEl.appendChild(contentSection);
+        }
+        contentEl = contentSection.querySelector<HTMLElement>('.resource-document-content');
+      }
+      contentSection.style.display = '';
       if (contentEl && contentEl.innerHTML !== bodyHtml) {
         contentEl.innerHTML = bodyHtml;
       }
+    } else if (contentSection) {
+      contentSection.style.display = 'none';
     }
   } catch (err) {
     console.warn('[LiveSync] Error syncing resource detail:', err);

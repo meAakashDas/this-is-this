@@ -1,8 +1,8 @@
 import { chromium } from '@playwright/test';
-import fs from 'fs';
+import fs from 'node:fs';
 
 async function runVerification() {
-  console.log('=== Starting 12-Point Modern Resources CMS Verification ===\n');
+  console.log('=== Starting Simplified 2-Section Resources CMS Verification ===\n');
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
@@ -10,7 +10,6 @@ async function runVerification() {
   const results = {};
 
   try {
-    // 1. Visible writing editor (Dev Preview requires astro dev running on port 4321)
     await page.goto('http://localhost:4321/admin');
     await page.evaluate(() => {
       sessionStorage.setItem('aakashdas_dev_preview_active', 'true');
@@ -26,108 +25,98 @@ async function runVerification() {
         'Dev Preview sidebar did not load. Start Astro in dev mode (`npx astro dev --port 4321`) before running verify-resources-cms.mjs.'
       );
     }
+
     await page.locator('aside button:has-text("Resources")').click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(400);
     await page.locator('button:has-text("Create Resource")').click();
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(600);
 
+    // 1. Only Two Sections Exist
+    const secCount = await page.locator('.resource-editor-container > section').count();
+    results['1_only_two_sections'] = secCount === 2;
+    console.log('1. Strictly 2 sections rendered:', results['1_only_two_sections'], `(count=${secCount})`);
+
+    // 2. Writing canvas works
     const bnEditor = page.locator('.bn-editor');
-    results['1_editor_visible'] = await bnEditor.isVisible();
-    console.log('1. BlockNote writing canvas visible:', results['1_editor_visible']);
-
-    // 2. Click inside and start writing
+    results['2_editor_visible'] = await bnEditor.isVisible();
     await bnEditor.click();
     await page.keyboard.type('Empirical Guide to Wealth Accumulation in Nepal');
-    results['2_can_type'] = (await bnEditor.innerText()).includes('Empirical Guide to Wealth Accumulation in Nepal');
-    console.log('2. Click and write text:', results['2_can_type']);
+    results['3_can_type'] = (await bnEditor.innerText()).includes('Empirical Guide to Wealth Accumulation in Nepal');
+    console.log('2. BlockNote writing canvas works:', results['2_editor_visible'] && results['3_can_type']);
 
-    // 3. Slash command menu works
+    // 3. /h2, /bullet, /table slash commands work
     await page.keyboard.press('Enter');
-    await page.keyboard.type('/');
-    await page.waitForTimeout(300);
-    const slashMenu = page.locator('.bn-suggestion-menu, [data-suggestion-menu], [role="menu"]').first();
-    results['3_slash_menu'] = await slashMenu.isVisible();
-    console.log('3. BlockNote Slash command menu triggered:', results['3_slash_menu']);
-    await page.keyboard.press('Escape');
-
-    // 4. Headings work via slash command
     await page.keyboard.type('/h2');
     await page.keyboard.press('Enter');
     await page.keyboard.type('Macroeconomic Foundations');
-    const h2Count = await page.locator('.bn-editor h2').count();
-    results['4_heading_works'] = h2Count > 0;
-    console.log('4. Heading 2 formatting works via /h2:', results['4_heading_works']);
+    results['4_heading_works'] = (await page.locator('.bn-editor h2').count()) > 0;
 
-    // 5. Bullet Lists work via slash command
     await page.keyboard.press('Enter');
     await page.keyboard.type('/bullet');
     await page.keyboard.press('Enter');
-    await page.keyboard.type('Systematic monthly equity investments in indexed portfolios.');
-    const liCount = await page.locator('.bn-editor li, .bn-editor [data-content-type="bulletListItem"]').count();
-    results['5_lists_work'] = liCount > 0;
-    console.log('5. Bullet lists work via /bullet:', results['5_lists_work']);
+    await page.keyboard.type('Systematic monthly equity investments.');
+    results['5_lists_work'] = (await page.locator('.bn-editor li, .bn-editor [data-content-type="bulletListItem"]').count()) > 0;
 
-    // 6. Tables work via slash command
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
     await page.keyboard.type('/table');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(300);
-    const tableCount = await page.locator('.bn-editor table, .blocknote-canvas-container table').count();
-    results['6_tables_work'] = tableCount > 0;
-    console.log('6. Table insertion works via /table:', results['6_tables_work']);
+    results['6_tables_work'] = (await page.locator('.bn-editor table, .blocknote-canvas-container table').count()) > 0;
+    console.log('3. Headings, lists, and tables work:', results['4_heading_works'] && results['5_lists_work'] && results['6_tables_work']);
 
-    // 7. Content saves as draft and restores across session
-    await page.locator('input[placeholder*="Resource Title"]').fill('Pioneering Financial Framework');
-    await page.locator('textarea[placeholder*="concise overview" i]').fill('A verified overview of sustainable capital allocation.');
+    // 4. Multi-file upload (PDF + CSV), rename, replace, delete
+    const uploadInput = page.locator('input[type="file"][multiple]');
+    await uploadInput.setInputFiles([
+      {
+        name: 'verify-doc.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('%PDF-1.4\n%%EOF'),
+      },
+      {
+        name: 'verify-data.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('A,B\n1,2\n'),
+      },
+    ]);
+    await page.waitForTimeout(400);
+    const attCountAfterUpload = await page.locator('.attachment-item').count();
+    results['7_upload_works'] = attCountAfterUpload === 2;
+    console.log('4. PDF + CSV upload completed without hanging:', results['7_upload_works'], `(count=${attCountAfterUpload})`);
+
+    await page.locator('button[aria-label="Delete verify-data.csv"]').click();
+    results['8_delete_works'] = (await page.locator('.attachment-item').count()) === 1;
+    console.log('5. Attachment delete works:', results['8_delete_works']);
+
+    // 5. Save Draft & refresh
     await page.locator('button:has-text("Save Draft")').click();
-    await page.waitForTimeout(800);
-
-    // Verify draft in list
-    const draftTitle = page.locator('text=Pioneering Financial Framework');
-    results['7_saves_and_restores'] = await draftTitle.isVisible();
-    console.log('7. Saves and restores draft in CMS list:', results['7_saves_and_restores']);
-
-    // 8. Downloadable Resources is a separate section on resource editor
-    await page.locator('button[aria-label="Edit Resource 001"]').click();
     await page.waitForTimeout(500);
-    const downloadSection = page.locator('#downloadable-resources');
-    results['8_download_section_separate'] = (await downloadSection.isVisible()) && (await page.locator('.bn-editor').isVisible());
-    console.log('8. Downloadable Resources is separate section on same page:', results['8_download_section_separate']);
+    results['9_save_draft'] = await page.locator('[role="status"]:has-text("saved as draft")').first().isVisible();
+    console.log('6. Save Draft persists cleanly:', results['9_save_draft']);
 
-    // 9. Attachments listed with actions
-    const attachmentItems = await page.locator('.attachment-item, [data-attachment-id]').count();
-    results['9_attachments_managed'] = attachmentItems >= 1;
-    console.log('9. Attachments listed with management actions:', results['9_attachments_managed'], `(${attachmentItems} files)`);
+    // 6. Export files exist on disk
+    results['10_exports_exist'] =
+      fs.existsSync('public/downloads/resource-001-starter-personal-budget-framework.pdf') &&
+      fs.existsSync('public/downloads/resource-001-starter-personal-budget-framework.docx');
+    console.log('7. PDF and DOCX exports exist on disk:', results['10_exports_exist']);
 
-    // 10. Live preview displays complete document
-    await page.locator('main button:has-text("Live Preview")').click();
-    await page.waitForTimeout(500);
-    const previewContent = await page.locator('h1:has-text("Starter Personal Budget Framework")').first().isVisible();
-    results['10_public_preview'] = previewContent;
-    console.log('10. Live preview renders document in real-time:', results['10_public_preview']);
-    await page.locator('main button:has-text("Exit Preview")').click();
-
-    // 11. PDF and DOCX exports work
-    const pdfExists = fs.existsSync('public/downloads/resource-001-starter-personal-budget-framework.pdf');
-    const docxExists = fs.existsSync('public/downloads/resource-001-starter-personal-budget-framework.docx');
-    results['11_exports_work'] = pdfExists && docxExists;
-    console.log('11. PDF and DOCX export files exist on disk:', results['11_exports_work']);
-
-    // 12. Mobile editing works
+    // 7. Mobile viewport responsiveness
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.waitForTimeout(300);
-    const mobileEditor = await page.locator('.bn-editor').isVisible();
-    results['12_mobile_editing'] = mobileEditor;
-    console.log('12. Mobile viewport editing responsive:', results['12_mobile_editing']);
+    await page.waitForTimeout(200);
+    results['11_mobile_responsive'] = await page.locator('.bn-editor').isVisible();
+    console.log('8. Mobile viewport responsive:', results['11_mobile_responsive']);
 
-    console.log('\n=== All 12 Verification Points Evaluated Successfully! ===');
+    const allPassed = Object.values(results).every(Boolean);
+    if (!allPassed) {
+      throw new Error('Verification checks failed: ' + JSON.stringify(results, null, 2));
+    }
+    console.log('\n=== All Simplified Resources CMS Checks Passed! ===');
+  } catch (err) {
+    console.error('\nVerification failed:', err);
+    process.exit(1);
   } finally {
     await browser.close();
   }
 }
 
-runVerification().catch(err => {
-  console.error('Verification failed:', err);
-  process.exit(1);
-});
+runVerification();

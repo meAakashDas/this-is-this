@@ -1,5 +1,5 @@
 ---
-import { getPublicSiteConfig } from '../lib/cms/contentLoader';
+import { getPublicSiteConfig, resolvePublicOgImageUrl } from '../lib/cms/contentLoader';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
@@ -22,6 +22,15 @@ const {
 
 const cleanPath = Astro.url.pathname === '/' ? '/' : Astro.url.pathname.replace(/\/+$/, '');
 const canonicalURL = new URL(cleanPath, siteConfig.url);
+const ogImageURL = resolvePublicOgImageUrl(
+  [
+    image !== '/images/aakash-das.webp' ? image : undefined,
+    siteConfig.ogImage,
+    siteConfig.profileImage,
+    '/images/aakash-das.webp',
+  ],
+  siteConfig.url
+);
 ---
 
 <!doctype html>
@@ -50,7 +59,7 @@ const canonicalURL = new URL(cleanPath, siteConfig.url);
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={title || "Aakash Das"} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={new URL(image === '/images/aakash-das.webp' && siteConfig.profileImage && !siteConfig.profileImage.startsWith('data:') ? siteConfig.profileImage : image, siteConfig.url)} />
+    <meta property="og:image" content={ogImageURL} />
     <meta property="og:site_name" content={siteConfig.name} />
 
     <!-- Twitter / X -->
@@ -58,6 +67,8 @@ const canonicalURL = new URL(cleanPath, siteConfig.url);
     <meta property="twitter:url" content={canonicalURL} />
     <meta property="twitter:title" content={title || "Aakash Das"} />
     <meta property="twitter:description" content={description} />
+    <meta property="twitter:image" content={ogImageURL} />
+    <meta name="twitter:image" content={ogImageURL} />
     <meta property="twitter:creator" content="@me_aakashdas" />
 
     <!-- Favicon & Touch Icons -->

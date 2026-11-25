@@ -74,11 +74,56 @@ export function getPublishingMeta(): SnapshotMeta {
 }
 
 /**
+ * Resolves a publicly shareable absolute HTTPS image URL for Open Graph / Twitter
+ * social cards, strictly rejecting Base64 `data:` URIs, `blob:` URLs, and unsafe schemes.
+ */
+export function resolvePublicOgImageUrl(
+  candidates: Array<string | undefined | null>,
+  siteUrl?: string
+): string {
+  let baseUrl: URL;
+  try {
+    baseUrl = new URL(siteUrl || defaultSiteConfig.url);
+  } catch {
+    baseUrl = new URL('https://aakashdas.live');
+  }
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') continue;
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    if (/^(data|blob|javascript|vbscript):/i.test(trimmed)) continue;
+
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+      return new URL(trimmed, baseUrl).toString();
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.toString();
+      }
+    } catch {
+      // Ignore malformed candidate and try next fallback
+    }
+  }
+
+  return new URL('/images/aakash-das.webp', baseUrl).toString();
+}
+
+/**
  * Returns merged site settings and identity configuration.
  */
 export function getPublicSiteConfig() {
   const settings = snapshot.siteSettings;
-  if (!settings) return defaultSiteConfig;
+  if (!settings) {
+    return {
+      ...defaultSiteConfig,
+      ogImage: '/images/aakash-das.webp',
+    };
+  }
+
+  const canonicalBaseUrl = settings.seo?.canonicalUrl || defaultSiteConfig.url;
 
   return {
     name: settings.fullName || defaultSiteConfig.name,
@@ -91,10 +136,14 @@ export function getPublicSiteConfig() {
     email: settings.email || defaultSiteConfig.email,
     phone: settings.phone || defaultSiteConfig.phone,
     whatsappNumber: settings.whatsappNumber || defaultSiteConfig.whatsappNumber,
-    url: settings.seo?.canonicalUrl || defaultSiteConfig.url,
+    url: canonicalBaseUrl,
     profileImage: (!settings.profileImage || settings.profileImage.startsWith('blob:'))
       ? '/images/aakash-das.webp'
       : settings.profileImage,
+    ogImage: resolvePublicOgImageUrl(
+      [settings.seo?.ogImage, settings.profileImage, '/images/aakash-das.webp'],
+      canonicalBaseUrl
+    ),
     favicon: settings.favicon || '/favicon.svg',
     socialLinks: (settings.socialLinks && settings.socialLinks.length > 0)
       ? settings.socialLinks.filter((s) => s.visible !== false)

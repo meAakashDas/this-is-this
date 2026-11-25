@@ -1256,15 +1256,34 @@ async function syncGlobalSiteSettings(db: any) {
       if (siteNameMeta) siteNameMeta.content = settings.fullName;
     }
 
-    if (isSafePublicUrl(settings.profileImage)) {
-      if (!settings.profileImage.startsWith('data:')) {
-        const ogImage = document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
-        if (ogImage) {
-          ogImage.content = settings.profileImage.startsWith('/')
-            ? `${window.location.origin}${settings.profileImage}`
-            : settings.profileImage;
-        }
+    const toPublicSocialImageUrl = (raw?: string): string | null => {
+      if (typeof raw !== 'string') return null;
+      const trimmed = raw.trim();
+      if (!trimmed || /^(data|blob|javascript|vbscript):/i.test(trimmed)) return null;
+      if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+        return `${window.location.origin}${trimmed}`;
       }
+      if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+      }
+      return null;
+    };
+
+    const nextSocialImage =
+      toPublicSocialImageUrl(settings.seo?.ogImage) ||
+      toPublicSocialImageUrl(settings.profileImage);
+
+    if (nextSocialImage) {
+      document
+        .querySelectorAll<HTMLMetaElement>(
+          'meta[property="og:image"], meta[property="twitter:image"], meta[name="twitter:image"]'
+        )
+        .forEach((el) => {
+          el.content = nextSocialImage;
+        });
+    }
+
+    if (isSafePublicUrl(settings.profileImage)) {
       const heroImg = document.querySelector<HTMLImageElement>('.hero-portrait-img');
       if (heroImg && (!heroImg.getAttribute('src') || heroImg.getAttribute('src') === '/images/aakash-das.webp')) {
         heroImg.src = settings.profileImage;

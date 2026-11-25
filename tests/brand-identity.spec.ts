@@ -42,6 +42,13 @@ test.describe('Brand Identity — Favicon, Browser Title & URL Architecture', ()
 
       const ogImage = page.locator('meta[property="og:image"]');
       await expect(ogImage).toHaveAttribute('content', /https:\/\/aakashdas\.live\/images\/.+/);
+      const ogImageContent = await ogImage.getAttribute('content');
+      expect(ogImageContent).not.toMatch(/^(data|blob|javascript):/i);
+
+      const twitterImageProp = page.locator('meta[property="twitter:image"]');
+      await expect(twitterImageProp).toHaveAttribute('content', /https:\/\/aakashdas\.live\/images\/.+/);
+      const twitterImageName = page.locator('meta[name="twitter:image"]');
+      await expect(twitterImageName).toHaveAttribute('content', /https:\/\/aakashdas\.live\/images\/.+/);
     });
   }
 

@@ -442,6 +442,17 @@ async function fetchFromFirestore() {
     if (siteSettings && siteSettings.profileImage && siteSettings.profileImage.startsWith('blob:')) {
       siteSettings.profileImage = '/images/aakash-das.webp';
     }
+    if (siteSettings) {
+      const candidateOg = typeof siteSettings.seo?.ogImage === 'string' ? siteSettings.seo.ogImage.trim() : '';
+      const safeOg =
+        candidateOg && !/^(data|blob|javascript|vbscript):/i.test(candidateOg)
+          ? candidateOg
+          : '/images/aakash-das.webp';
+      siteSettings.seo = {
+        ...(siteSettings.seo || {}),
+        ogImage: safeOg,
+      };
+    }
     const homePage = homeSnap.exists() ? homeSnap.data() : null;
     if (homePage && homePage.heroPhotoUrl && homePage.heroPhotoUrl.startsWith('blob:')) {
       homePage.heroPhotoUrl = (siteSettings && siteSettings.profileImage && !siteSettings.profileImage.startsWith('blob:'))

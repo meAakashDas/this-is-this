@@ -21,7 +21,13 @@ import {
   CmsConflictError,
   CmsAuthorizationError,
 } from '../src/lib/cms/errors.ts';
-import { tryGetFirebaseFirestore, getFirebaseFirestore } from '../src/lib/firebase/index.ts';
+import {
+  tryGetFirebaseFirestore,
+  getFirebaseFirestore,
+  isFirebaseConfigured,
+  getMissingFirebaseEnvVars,
+  getFirebaseConfig,
+} from '../src/lib/firebase/index.ts';
 
 console.log('--- [Phase 3 Test] CMS Architecture, Validation & Repository Verification ---\n');
 
@@ -220,20 +226,17 @@ assert.strictEqual(err5.code, 'UNAUTHORIZED');
 console.log('✓ Error hierarchy properly formats codes and diagnostic payloads.');
 
 // =============================================================================
-// Test 7: Unconfigured Firebase Graceful Handling
+// Test 7: Canonical Firebase Config & Safe Initialization
 // =============================================================================
-console.log('\n[Test 7] Unconfigured Firebase Graceful Handling...');
-// Without .env.local populated, tryGetFirebaseFirestore() must return null without throwing
+console.log('\n[Test 7] Canonical Firebase Config & Safe Initialization...');
+assert.strictEqual(isFirebaseConfigured(), true, 'isFirebaseConfigured() must return true with canonical defaults');
+assert.deepStrictEqual(getMissingFirebaseEnvVars(), [], 'No required vars missing when canonical defaults exist');
+const fbConfig = getFirebaseConfig();
+assert.strictEqual(fbConfig.projectId, 'aakashdas-live', 'Project ID must resolve to aakashdas-live');
 const safeDb = tryGetFirebaseFirestore();
-assert.strictEqual(safeDb, null, 'tryGetFirebaseFirestore must return null when unconfigured');
-
-// Calling strict getter getFirebaseFirestore() must throw clear descriptive error
-assert.throws(
-  () => getFirebaseFirestore(),
-  (err) => err instanceof Error && err.message.includes('[Firebase] Missing or invalid configuration'),
-  'getFirebaseFirestore must throw descriptive configuration error when unconfigured'
-);
-console.log('✓ Firebase initialization handles missing environment variables gracefully.');
+assert.ok(safeDb, 'tryGetFirebaseFirestore must return configured Firestore instance');
+assert.strictEqual(getFirebaseFirestore(), safeDb, 'getFirebaseFirestore must return the singleton instance');
+console.log('✓ Firebase initialization resolves canonical aakashdas-live configuration cleanly.');
 
 // =============================================================================
 // Test 8: Storage Manifest Integrity

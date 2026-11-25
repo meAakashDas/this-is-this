@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0.0",
-    "generatedAt": "2026-11-25T08:49:52.391Z",
+    "generatedAt": "2026-11-25T09:33:51.374Z",
     "source": "firestore",
     "buildEnvironment": "production",
     "resourceCount": 3,
@@ -344,8 +344,7 @@
             "level": 2,
             "textAlignment": "left"
           },
-          "id": "b-1kel8fo-mwumfpbd",
-          "children": [],
+          "type": "heading",
           "content": [
             {
               "styles": {
@@ -355,241 +354,251 @@
               "type": "text"
             }
           ],
-          "type": "heading"
+          "id": "b-1kel8fo-mwumfpbd",
+          "children": []
         },
         {
-          "children": [],
+          "type": "checkListItem",
           "props": {
             "checked": true,
             "textAlignment": "left"
           },
           "content": [
             {
-              "type": "text",
+              "text": "Zero-based income and expense allocation formula adapted for monthly cash flows",
               "styles": {},
-              "text": "Zero-based income and expense allocation formula adapted for monthly cash flows"
+              "type": "text"
             }
           ],
-          "type": "checkListItem",
+          "children": [],
           "id": "b-u20pvs5-mwumfpbd"
         },
         {
           "content": [
             {
-              "text": "Dedicated emergency fund milestone tracker with customizable targets",
+              "type": "text",
               "styles": {},
-              "type": "text"
+              "text": "Dedicated emergency fund milestone tracker with customizable targets"
             }
           ],
-          "id": "b-twjjbzx-mwumfpbd",
-          "children": [],
-          "type": "checkListItem",
           "props": {
             "checked": true,
             "textAlignment": "left"
-          }
+          },
+          "children": [],
+          "type": "checkListItem",
+          "id": "b-twjjbzx-mwumfpbd"
         },
         {
           "id": "b-sd39xfh-mwumfpbd",
-          "content": [
-            {
-              "styles": {},
-              "text": "Discretionary spending categories tailored for urban living in Nepal",
-              "type": "text"
-            }
-          ],
-          "type": "checkListItem",
-          "children": [],
-          "props": {
-            "checked": true,
-            "textAlignment": "left"
-          }
-        },
-        {
-          "children": [],
-          "id": "b-g5nubwg-mwumfpbd",
           "props": {
             "checked": true,
             "textAlignment": "left"
           },
           "type": "checkListItem",
+          "content": [
+            {
+              "text": "Discretionary spending categories tailored for urban living in Nepal",
+              "type": "text",
+              "styles": {}
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "b-g5nubwg-mwumfpbd",
           "content": [
             {
               "text": "Automated visual tables summarizing necessity vs. lifestyle ratios",
               "styles": {},
               "type": "text"
             }
-          ]
+          ],
+          "props": {
+            "textAlignment": "left",
+            "checked": true
+          },
+          "type": "checkListItem",
+          "children": []
         },
         {
-          "id": "b-ll6272f-mwumfpbd",
-          "children": [],
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
           "content": [
             {
-              "text": "Intended For",
               "styles": {
                 "bold": true
               },
-              "type": "text"
+              "type": "text",
+              "text": "Intended For"
             }
           ],
-          "type": "heading"
+          "type": "heading",
+          "children": [],
+          "id": "b-ll6272f-mwumfpbd",
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          }
         },
         {
+          "type": "paragraph",
+          "id": "b-tqg14ur-mwumfpbd",
+          "children": [],
           "props": {
             "textAlignment": "left"
           },
-          "id": "b-tqg14ur-mwumfpbd",
-          "children": [],
           "content": [
             {
               "styles": {},
               "text": "Students and early-career professionals in Nepal starting personal budgeting.",
               "type": "text"
             }
+          ]
+        },
+        {
+          "props": {
+            "textAlignment": "left",
+            "level": 2
+          },
+          "id": "b-r28rs3w-mwumfpbd",
+          "children": [],
+          "type": "heading",
+          "content": [
+            {
+              "text": "Framework Principles & Cash Flow Mechanics",
+              "styles": {},
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "props": {
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "text": "Personal budgeting is not about restriction—it is about intentional capital allocation. In Nepal, young professionals and students often experience irregular cash flows from freelance projects, allowances, or entry-level stipends. This framework applies a zero-based cash allocation methodology adapted for living expenses in Kathmandu and urban centers.",
+              "styles": {},
+              "type": "text"
+            }
           ],
+          "children": [],
+          "id": "b-9usg8jw-mwumfpbd",
           "type": "paragraph"
         },
         {
+          "type": "quote",
+          "children": [],
+          "id": "b-01t4qq5-mwumfpbd",
           "props": {
-            "level": 2,
             "textAlignment": "left"
           },
-          "id": "b-r28rs3w-mwumfpbd",
           "content": [
             {
               "type": "text",
-              "text": "Framework Principles & Cash Flow Mechanics",
-              "styles": {}
+              "styles": {},
+              "text": "A budget tells your money where to go instead of wondering where it went.\n— Core principle of zero-based financial allocation"
             }
-          ],
-          "children": [],
-          "type": "heading"
+          ]
         },
         {
-          "id": "b-9usg8jw-mwumfpbd",
-          "type": "paragraph",
+          "children": [],
+          "type": "heading",
+          "id": "b-kzz9gxh-mwumfpbd",
           "content": [
             {
-              "styles": {},
               "type": "text",
-              "text": "Personal budgeting is not about restriction—it is about intentional capital allocation. In Nepal, young professionals and students often experience irregular cash flows from freelance projects, allowances, or entry-level stipends. This framework applies a zero-based cash allocation methodology adapted for living expenses in Kathmandu and urban centers."
+              "styles": {},
+              "text": "Recommended Cash Flow Allocation Model"
             }
           ],
-          "children": [],
           "props": {
+            "level": 2,
             "textAlignment": "left"
           }
         },
         {
-          "id": "b-01t4qq5-mwumfpbd",
-          "children": [],
-          "content": [
-            {
-              "text": "A budget tells your money where to go instead of wondering where it went.\n— Core principle of zero-based financial allocation",
-              "type": "text",
-              "styles": {}
-            }
-          ],
           "props": {
             "textAlignment": "left"
           },
-          "type": "quote"
-        },
-        {
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "type": "heading",
-          "id": "b-kzz9gxh-mwumfpbd",
-          "children": [],
+          "id": "b-tcleiy3-mwumfpbd",
           "content": [
             {
-              "styles": {},
-              "type": "text",
-              "text": "Recommended Cash Flow Allocation Model"
-            }
-          ]
-        },
-        {
-          "content": [
-            {
-              "styles": {},
               "text": "We recommend dividing incoming monthly cash flow into three core buckets before committing to discretionary purchases:",
+              "styles": {},
               "type": "text"
             }
           ],
-          "id": "b-tcleiy3-mwumfpbd",
           "children": [],
-          "props": {
-            "textAlignment": "left"
-          },
           "type": "paragraph"
         },
         {
-          "children": [],
-          "id": "b-38720xe-mwumfpbd",
+          "type": "bulletListItem",
           "props": {
             "textAlignment": "left"
           },
-          "type": "bulletListItem",
           "content": [
             {
+              "text": "Fixed Baseline Needs (50%): Housing rent, internet, mobile recharge, groceries, and local commute.",
               "styles": {},
-              "type": "text",
-              "text": "Fixed Baseline Needs (50%): Housing rent, internet, mobile recharge, groceries, and local commute."
+              "type": "text"
             }
-          ]
+          ],
+          "id": "b-38720xe-mwumfpbd",
+          "children": []
         },
         {
           "id": "b-56uybhe-mwumfpbd",
-          "children": [],
+          "props": {
+            "textAlignment": "left"
+          },
+          "type": "bulletListItem",
           "content": [
             {
-              "styles": {},
               "text": "Emergency & Future Reserves (30%): Liquid bank emergency reserve, health contingencies, and long-term savings.",
+              "styles": {},
               "type": "text"
             }
           ],
+          "children": []
+        },
+        {
+          "content": [
+            {
+              "type": "text",
+              "text": "Discretionary & Cultural (20%): Social dining, festivals, family obligations, and personal development.",
+              "styles": {}
+            }
+          ],
           "type": "bulletListItem",
+          "id": "b-qbf000z-mwumfpbd",
+          "children": [],
           "props": {
             "textAlignment": "left"
           }
         },
         {
           "children": [],
-          "type": "bulletListItem",
-          "content": [
-            {
-              "styles": {},
-              "type": "text",
-              "text": "Discretionary & Cultural (20%): Social dining, festivals, family obligations, and personal development."
-            }
-          ],
-          "props": {
-            "textAlignment": "left"
-          },
-          "id": "b-qbf000z-mwumfpbd"
-        },
-        {
-          "type": "table",
-          "id": "b-khp9it1-mwumfpbd",
+          "props": {},
           "content": {
             "rows": [
               {
                 "cells": [
                   [
                     {
-                      "text": "Spending Category",
+                      "type": "text",
                       "styles": {
                         "bold": true
                       },
-                      "type": "text"
+                      "text": "Spending Category"
+                    }
+                  ],
+                  [
+                    {
+                      "type": "text",
+                      "text": "Recommended Share",
+                      "styles": {
+                        "bold": true
+                      }
                     }
                   ],
                   [
@@ -598,22 +607,13 @@
                       "styles": {
                         "bold": true
                       },
-                      "text": "Recommended Share"
-                    }
-                  ],
-                  [
-                    {
-                      "styles": {
-                        "bold": true
-                      },
-                      "type": "text",
                       "text": "Kathmandu Baseline (NPR 30,000)"
                     }
                   ],
                   [
                     {
-                      "type": "text",
                       "text": "Tracking Frequency",
+                      "type": "text",
                       "styles": {
                         "bold": true
                       }
@@ -632,16 +632,16 @@
                   ],
                   [
                     {
-                      "type": "text",
                       "text": "50%",
-                      "styles": {}
+                      "styles": {},
+                      "type": "text"
                     }
                   ],
                   [
                     {
                       "type": "text",
-                      "text": "NPR 15,000",
-                      "styles": {}
+                      "styles": {},
+                      "text": "NPR 15,000"
                     }
                   ],
                   [
@@ -657,16 +657,16 @@
                 "cells": [
                   [
                     {
-                      "styles": {},
                       "text": "Liquid Emergency Reserve",
-                      "type": "text"
+                      "type": "text",
+                      "styles": {}
                     }
                   ],
                   [
                     {
-                      "styles": {},
+                      "type": "text",
                       "text": "20%",
-                      "type": "text"
+                      "styles": {}
                     }
                   ],
                   [
@@ -678,9 +678,9 @@
                   ],
                   [
                     {
-                      "styles": {},
                       "type": "text",
-                      "text": "Per income cycle"
+                      "text": "Per income cycle",
+                      "styles": {}
                     }
                   ]
                 ]
@@ -689,16 +689,16 @@
                 "cells": [
                   [
                     {
-                      "type": "text",
+                      "text": "Skill Building & Books",
                       "styles": {},
-                      "text": "Skill Building & Books"
+                      "type": "text"
                     }
                   ],
                   [
                     {
+                      "type": "text",
                       "text": "10%",
-                      "styles": {},
-                      "type": "text"
+                      "styles": {}
                     }
                   ],
                   [
@@ -710,8 +710,8 @@
                   ],
                   [
                     {
-                      "type": "text",
                       "styles": {},
+                      "type": "text",
                       "text": "Flexible monthly"
                     }
                   ]
@@ -735,15 +735,15 @@
                   ],
                   [
                     {
+                      "styles": {},
                       "text": "NPR 6,000",
-                      "type": "text",
-                      "styles": {}
+                      "type": "text"
                     }
                   ],
                   [
                     {
-                      "styles": {},
                       "text": "Weekly reviewed",
+                      "styles": {},
                       "type": "text"
                     }
                   ]
@@ -752,16 +752,10 @@
             ],
             "type": "tableContent"
           },
-          "children": [],
-          "props": {}
+          "id": "b-khp9it1-mwumfpbd",
+          "type": "table"
         },
         {
-          "props": {
-            "title": "Rule of Thumb for Emergency Reserves",
-            "variant": "info",
-            "textAlignment": "left"
-          },
-          "children": [],
           "content": [
             {
               "text": "Always accumulate at least 3 months of baseline non-negotiable living costs in an easily accessible Class-A commercial bank savings account before investing in illiquid or high-risk vehicles.",
@@ -769,11 +763,19 @@
               "styles": {}
             }
           ],
+          "children": [],
+          "props": {
+            "textAlignment": "left",
+            "title": "Rule of Thumb for Emergency Reserves",
+            "variant": "info"
+          },
           "type": "callout",
           "id": "b-czydbkc-mwumfpbd"
         },
         {
+          "id": "b-uqcpkpi-mwumfpbd",
           "type": "heading",
+          "children": [],
           "content": [
             {
               "text": "Step-by-Step Implementation Guide",
@@ -781,72 +783,70 @@
               "styles": {}
             }
           ],
-          "id": "b-uqcpkpi-mwumfpbd",
           "props": {
-            "textAlignment": "left",
-            "level": 2
-          },
-          "children": []
-        },
-        {
-          "children": [],
-          "props": {
-            "textAlignment": "left"
-          },
-          "type": "numberedListItem",
-          "content": [
-            {
-              "type": "text",
-              "text": "Calculate your net realized monthly income across all verified sources.",
-              "styles": {}
-            }
-          ],
-          "id": "b-ho7xs4i-mwumfpbd"
-        },
-        {
-          "children": [],
-          "type": "numberedListItem",
-          "content": [
-            {
-              "text": "List all contractual fixed commitments (room rent, electricity, ISP, mobile recharge).",
-              "styles": {},
-              "type": "text"
-            }
-          ],
-          "id": "b-00osqjn-mwumfpbd",
-          "props": {
+            "level": 2,
             "textAlignment": "left"
           }
         },
         {
-          "children": [],
-          "type": "numberedListItem",
           "props": {
             "textAlignment": "left"
           },
-          "id": "b-t2urr9q-mwumfpbd",
           "content": [
             {
-              "text": "Set aside your savings allocation immediately on payday rather than budgeting from what remains at month-end.",
+              "type": "text",
               "styles": {},
-              "type": "text"
+              "text": "Calculate your net realized monthly income across all verified sources."
             }
-          ]
+          ],
+          "children": [],
+          "id": "b-ho7xs4i-mwumfpbd",
+          "type": "numberedListItem"
+        },
+        {
+          "id": "b-00osqjn-mwumfpbd",
+          "children": [],
+          "props": {
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "List all contractual fixed commitments (room rent, electricity, ISP, mobile recharge)."
+            }
+          ],
+          "type": "numberedListItem"
         },
         {
           "props": {
             "textAlignment": "left"
           },
-          "id": "b-4hqh4k7-mwumfpbd",
           "children": [],
           "content": [
             {
-              "type": "text",
               "styles": {},
-              "text": "Distribute remaining discretionary funds across 4 weekly spending envelopes."
+              "type": "text",
+              "text": "Set aside your savings allocation immediately on payday rather than budgeting from what remains at month-end."
             }
           ],
+          "id": "b-t2urr9q-mwumfpbd",
           "type": "numberedListItem"
+        },
+        {
+          "id": "b-4hqh4k7-mwumfpbd",
+          "children": [],
+          "type": "numberedListItem",
+          "props": {
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "text": "Distribute remaining discretionary funds across 4 weekly spending envelopes.",
+              "styles": {},
+              "type": "text"
+            }
+          ]
         }
       ],
       "blocknoteHtml": "<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">What’s Included</strong></h2>\n<ul class=\"editorial-checklist-list my-4 space-y-2 list-none p-0\">\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Zero-based income and expense allocation formula adapted for monthly cash flows</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Dedicated emergency fund milestone tracker with customizable targets</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Discretionary spending categories tailored for urban living in Nepal</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Automated visual tables summarizing necessity vs. lifestyle ratios</span></li>\n</ul>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Intended For</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Students and early-career professionals in Nepal starting personal budgeting.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Framework Principles &amp; Cash Flow Mechanics</h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Personal budgeting is not about restriction—it is about intentional capital allocation. In Nepal, young professionals and students often experience irregular cash flows from freelance projects, allowances, or entry-level stipends. This framework applies a zero-based cash allocation methodology adapted for living expenses in Kathmandu and urban centers.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">A budget tells your money where to go instead of wondering where it went.\n— Core principle of zero-based financial allocation</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Recommended Cash Flow Allocation Model</h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">We recommend dividing incoming monthly cash flow into three core buckets before committing to discretionary purchases:</p>\n<ul class=\"editorial-bullet-list my-4 ml-6 list-disc space-y-2 text-muted-foreground\">\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Fixed Baseline Needs (50%): Housing rent, internet, mobile recharge, groceries, and local commute.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Emergency &amp; Future Reserves (30%): Liquid bank emergency reserve, health contingencies, and long-term savings.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Discretionary &amp; Cultural (20%): Social dining, festivals, family obligations, and personal development.</span></li>\n</ul>\n<div class=\"table-scroll-container w-full overflow-x-auto my-6 rounded-lg border border-border bg-card shadow-xs\">\n<table class=\"editorial-table w-full text-left text-sm border-collapse\">\n<thead>\n<tr class=\"border-b border-border bg-muted/40\">\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Spending Category</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Recommended Share</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Kathmandu Baseline (NPR 30,000)</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Tracking Frequency</strong></th>\n</tr>\n</thead>\n<tbody class=\"divide-y divide-border/60\">\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Fixed Essentials &amp; Rent</th>\n<td class=\"px-4 py-3 text-muted-foreground\">50%</td>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 15,000</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Monthly recurring</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Liquid Emergency Reserve</th>\n<td class=\"px-4 py-3 text-muted-foreground\">20%</td>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 6,000</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Per income cycle</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Skill Building &amp; Books</th>\n<td class=\"px-4 py-3 text-muted-foreground\">10%</td>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 3,000</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Flexible monthly</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Discretionary &amp; Social</th>\n<td class=\"px-4 py-3 text-muted-foreground\">20%</td>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 6,000</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Weekly reviewed</td>\n</tr>\n</tbody>\n</table>\n</div>\n<aside class=\"callout-box info relative w-full rounded-lg border p-4 sm:p-5 my-6 shadow-xs flex flex-col gap-1.5 border-border bg-muted/40 text-foreground\"><div class=\"callout-title flex items-center gap-2 text-sm font-semibold text-foreground\"><span>Rule of Thumb for Emergency Reserves</span></div><p class=\"callout-text text-sm text-muted-foreground leading-relaxed m-0\">Always accumulate at least 3 months of baseline non-negotiable living costs in an easily accessible Class-A commercial bank savings account before investing in illiquid or high-risk vehicles.</p></aside>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Step-by-Step Implementation Guide</h2>\n<ol class=\"editorial-ordered-list my-4 ml-6 list-decimal space-y-2 text-muted-foreground\">\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Calculate your net realized monthly income across all verified sources.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">List all contractual fixed commitments (room rent, electricity, ISP, mobile recharge).</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Set aside your savings allocation immediately on payday rather than budgeting from what remains at month-end.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Distribute remaining discretionary funds across 4 weekly spending envelopes.</span></li>\n</ol>",
@@ -864,38 +864,43 @@
       "targetAudience": "Students and early-career professionals in Nepal starting personal budgeting.",
       "contentBlocks": [
         {
-          "type": "heading",
+          "level": 2,
           "text": "Framework Principles & Cash Flow Mechanics",
-          "level": 2
+          "type": "heading"
         },
         {
           "type": "paragraph",
           "text": "Personal budgeting is not about restriction—it is about intentional capital allocation. In Nepal, young professionals and students often experience irregular cash flows from freelance projects, allowances, or entry-level stipends. This framework applies a zero-based cash allocation methodology adapted for living expenses in Kathmandu and urban centers."
         },
         {
-          "text": "A budget tells your money where to go instead of wondering where it went.",
           "caption": "Core principle of zero-based financial allocation",
+          "text": "A budget tells your money where to go instead of wondering where it went.",
           "type": "blockquote"
         },
         {
           "text": "Recommended Cash Flow Allocation Model",
-          "type": "heading",
-          "level": 2
+          "level": 2,
+          "type": "heading"
         },
         {
-          "type": "paragraph",
-          "text": "We recommend dividing incoming monthly cash flow into three core buckets before committing to discretionary purchases:"
+          "text": "We recommend dividing incoming monthly cash flow into three core buckets before committing to discretionary purchases:",
+          "type": "paragraph"
         },
         {
+          "type": "bulletList",
           "items": [
             "Fixed Baseline Needs (50%): Housing rent, internet, mobile recharge, groceries, and local commute.",
             "Emergency & Future Reserves (30%): Liquid bank emergency reserve, health contingencies, and long-term savings.",
             "Discretionary & Cultural (20%): Social dining, festivals, family obligations, and personal development."
-          ],
-          "type": "bulletList"
+          ]
         },
         {
-          "caption": "Table 1: Standard zero-based budget distribution for early-career income in Nepal.",
+          "headers": [
+            "Spending Category",
+            "Recommended Share",
+            "Kathmandu Baseline (NPR 30,000)",
+            "Tracking Frequency"
+          ],
           "rows": [
             [
               "Fixed Essentials & Rent",
@@ -923,23 +928,18 @@
             ]
           ],
           "type": "table",
-          "headers": [
-            "Spending Category",
-            "Recommended Share",
-            "Kathmandu Baseline (NPR 30,000)",
-            "Tracking Frequency"
-          ]
+          "caption": "Table 1: Standard zero-based budget distribution for early-career income in Nepal."
         },
         {
           "type": "callout",
           "variant": "info",
-          "text": "Always accumulate at least 3 months of baseline non-negotiable living costs in an easily accessible Class-A commercial bank savings account before investing in illiquid or high-risk vehicles.",
-          "title": "Rule of Thumb for Emergency Reserves"
+          "title": "Rule of Thumb for Emergency Reserves",
+          "text": "Always accumulate at least 3 months of baseline non-negotiable living costs in an easily accessible Class-A commercial bank savings account before investing in illiquid or high-risk vehicles."
         },
         {
+          "level": 2,
           "text": "Step-by-Step Implementation Guide",
-          "type": "heading",
-          "level": 2
+          "type": "heading"
         },
         {
           "type": "orderedList",
@@ -1005,72 +1005,74 @@
       "contentHtml": "<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">What’s Included</strong></h2>\n<ul class=\"editorial-checklist-list my-4 space-y-2 list-none p-0\">\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Core documentation and KYC verification checklist for Nepali banks</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Standard fee schedules and annual maintenance charges across Class-A banks</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Transaction limits, mobile banking security rules, and ConnectIPS best practices</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Step-by-step checklist to evaluate bank interest tiers without marketing bias</span></li>\n</ul>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Intended For</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Anyone opening, reviewing, or consolidating personal bank accounts in Nepal.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Navigating Retail Banking in Nepal</h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Choosing the right commercial bank (Class-A) in Nepal involves balancing branch convenience, mobile banking platform stability, and hidden annual maintenance fees. Many account holders unknowingly incur debit card renewal fees, SMS alert charges, and interbank transfer commissions that silently erode low-balance savings.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Key Comparison Metrics &amp; Regulatory Benchmarks</h2>\n<div class=\"table-scroll-container w-full overflow-x-auto my-6 rounded-lg border border-border bg-card shadow-xs\">\n<table class=\"editorial-table w-full text-left text-sm border-collapse\">\n<thead>\n<tr class=\"border-b border-border bg-muted/40\">\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Service / Feature</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Standard Bank Range</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Recommended Threshold</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Watchout</strong></th>\n</tr>\n</thead>\n<tbody class=\"divide-y divide-border/60\">\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Minimum Balance Requirement</th>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 0 – 5,000</td>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 0 (Zero balance)</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Penalty charges for low balance</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Mobile Banking Annual Fee</th>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 250 – 500</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Free or capped under NPR 300</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Auto-deducted from account</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Debit Card Issuance / Renewal</th>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 350 – 600 / year</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Under NPR 400</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Multi-year bundle charges</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">ConnectIPS Transfer Cap</th>\n<td class=\"px-4 py-3 text-muted-foreground\">Up to NPR 2,000,000 / day</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Standard NRB limit</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Tiered per-transaction charge (NPR 2–8)</td>\n</tr>\n</tbody>\n</table>\n</div>\n<aside class=\"callout-box tip relative w-full rounded-lg border p-4 sm:p-5 my-6 shadow-xs flex flex-col gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200\"><div class=\"callout-title flex items-center gap-2 text-sm font-semibold text-foreground\"><span>Student Account Privilege</span></div><p class=\"callout-text text-sm text-muted-foreground leading-relaxed m-0\">Most Class-A commercial banks in Nepal offer dedicated Student Savings Accounts with zero minimum balance requirements and waivers on first-year mobile banking charges upon showing a valid college ID card.</p></aside>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Opening Your Account: Essential Verification Sequence</h2>\n<ol class=\"editorial-ordered-list my-4 ml-6 list-decimal space-y-2 text-muted-foreground\">\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Verify your National Identity Card (NID) or Citizenship certificate details with clear scanned copies.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Obtain a recommendation letter or college ID if applying for a concessionary student account.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Register for ConnectIPS directly through self-verification or bank branch linking.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Set up biometric or two-factor authentication on mobile banking apps immediately upon activation.</span></li>\n</ol>",
       "blocknoteJson": [
         {
-          "children": [],
+          "id": "b-e91udj4-mwumfpbd",
+          "type": "heading",
           "props": {
             "level": 2,
             "textAlignment": "left"
           },
-          "type": "heading",
+          "children": [],
           "content": [
             {
               "styles": {
                 "bold": true
               },
-              "type": "text",
-              "text": "What’s Included"
-            }
-          ],
-          "id": "b-e91udj4-mwumfpbd"
-        },
-        {
-          "props": {
-            "checked": true,
-            "textAlignment": "left"
-          },
-          "id": "b-guvhh52-mwumfpbd",
-          "children": [],
-          "type": "checkListItem",
-          "content": [
-            {
-              "text": "Core documentation and KYC verification checklist for Nepali banks",
-              "type": "text",
-              "styles": {}
+              "text": "What’s Included",
+              "type": "text"
             }
           ]
         },
         {
+          "children": [],
+          "content": [
+            {
+              "text": "Core documentation and KYC verification checklist for Nepali banks",
+              "styles": {},
+              "type": "text"
+            }
+          ],
+          "props": {
+            "textAlignment": "left",
+            "checked": true
+          },
+          "id": "b-guvhh52-mwumfpbd",
+          "type": "checkListItem"
+        },
+        {
+          "props": {
+            "textAlignment": "left",
+            "checked": true
+          },
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "Standard fee schedules and annual maintenance charges across Class-A banks"
+            }
+          ],
+          "type": "checkListItem",
+          "children": [],
+          "id": "b-709k4ba-mwumfpbd"
+        },
+        {
           "props": {
             "checked": true,
             "textAlignment": "left"
           },
           "children": [],
-          "id": "b-709k4ba-mwumfpbd",
+          "id": "b-ntksqbn-mwumfpbd",
           "content": [
             {
-              "text": "Standard fee schedules and annual maintenance charges across Class-A banks",
               "type": "text",
-              "styles": {}
+              "styles": {},
+              "text": "Transaction limits, mobile banking security rules, and ConnectIPS best practices"
             }
           ],
           "type": "checkListItem"
         },
         {
           "type": "checkListItem",
-          "content": [
-            {
-              "styles": {},
-              "text": "Transaction limits, mobile banking security rules, and ConnectIPS best practices",
-              "type": "text"
-            }
-          ],
-          "props": {
-            "checked": true,
-            "textAlignment": "left"
-          },
-          "id": "b-ntksqbn-mwumfpbd",
-          "children": []
-        },
-        {
+          "id": "b-n8tn0dp-mwumfpbd",
           "children": [],
           "props": {
             "checked": true,
@@ -1078,53 +1080,47 @@
           },
           "content": [
             {
-              "type": "text",
+              "text": "Step-by-step checklist to evaluate bank interest tiers without marketing bias",
               "styles": {},
-              "text": "Step-by-step checklist to evaluate bank interest tiers without marketing bias"
+              "type": "text"
             }
-          ],
-          "type": "checkListItem",
-          "id": "b-n8tn0dp-mwumfpbd"
+          ]
         },
         {
-          "props": {
-            "textAlignment": "left",
-            "level": 2
-          },
+          "children": [],
+          "id": "b-lajwtbu-mwumfpbd",
           "content": [
             {
               "styles": {
                 "bold": true
               },
-              "type": "text",
-              "text": "Intended For"
-            }
-          ],
-          "id": "b-lajwtbu-mwumfpbd",
-          "type": "heading",
-          "children": []
-        },
-        {
-          "children": [],
-          "id": "b-ylqvqoo-mwumfpbd",
-          "content": [
-            {
-              "styles": {},
-              "text": "Anyone opening, reviewing, or consolidating personal bank accounts in Nepal.",
+              "text": "Intended For",
               "type": "text"
             }
           ],
+          "type": "heading",
           "props": {
-            "textAlignment": "left"
-          },
-          "type": "paragraph"
+            "textAlignment": "left",
+            "level": 2
+          }
         },
         {
+          "type": "paragraph",
+          "id": "b-ylqvqoo-mwumfpbd",
+          "content": [
+            {
+              "type": "text",
+              "text": "Anyone opening, reviewing, or consolidating personal bank accounts in Nepal.",
+              "styles": {}
+            }
+          ],
+          "children": [],
           "props": {
-            "level": 2,
             "textAlignment": "left"
-          },
-          "id": "b-ea5ljx9-mwumfpbd",
+          }
+        },
+        {
+          "children": [],
           "type": "heading",
           "content": [
             {
@@ -1133,79 +1129,82 @@
               "text": "Navigating Retail Banking in Nepal"
             }
           ],
-          "children": []
+          "id": "b-ea5ljx9-mwumfpbd",
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          }
         },
         {
           "children": [],
           "type": "paragraph",
-          "props": {
-            "textAlignment": "left"
-          },
           "content": [
             {
               "type": "text",
-              "text": "Choosing the right commercial bank (Class-A) in Nepal involves balancing branch convenience, mobile banking platform stability, and hidden annual maintenance fees. Many account holders unknowingly incur debit card renewal fees, SMS alert charges, and interbank transfer commissions that silently erode low-balance savings.",
-              "styles": {}
+              "styles": {},
+              "text": "Choosing the right commercial bank (Class-A) in Nepal involves balancing branch convenience, mobile banking platform stability, and hidden annual maintenance fees. Many account holders unknowingly incur debit card renewal fees, SMS alert charges, and interbank transfer commissions that silently erode low-balance savings."
             }
           ],
-          "id": "b-t09upvp-mwumfpbd"
+          "id": "b-t09upvp-mwumfpbd",
+          "props": {
+            "textAlignment": "left"
+          }
         },
         {
+          "type": "heading",
+          "props": {
+            "textAlignment": "left",
+            "level": 2
+          },
+          "children": [],
           "id": "b-j4uzp7i-mwumfpbd",
           "content": [
             {
               "type": "text",
-              "text": "Key Comparison Metrics & Regulatory Benchmarks",
-              "styles": {}
+              "styles": {},
+              "text": "Key Comparison Metrics & Regulatory Benchmarks"
             }
-          ],
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "type": "heading",
-          "children": []
+          ]
         },
         {
-          "props": {},
           "content": {
             "rows": [
               {
                 "cells": [
                   [
                     {
+                      "type": "text",
                       "styles": {
                         "bold": true
                       },
-                      "type": "text",
                       "text": "Service / Feature"
                     }
                   ],
                   [
                     {
+                      "text": "Standard Bank Range",
                       "styles": {
                         "bold": true
                       },
-                      "type": "text",
-                      "text": "Standard Bank Range"
+                      "type": "text"
                     }
                   ],
                   [
                     {
-                      "type": "text",
                       "text": "Recommended Threshold",
                       "styles": {
                         "bold": true
-                      }
+                      },
+                      "type": "text"
                     }
                   ],
                   [
                     {
+                      "text": "Watchout",
                       "styles": {
                         "bold": true
                       },
-                      "type": "text",
-                      "text": "Watchout"
+                      "type": "text"
                     }
                   ]
                 ]
@@ -1214,9 +1213,9 @@
                 "cells": [
                   [
                     {
-                      "styles": {},
                       "type": "text",
-                      "text": "Minimum Balance Requirement"
+                      "text": "Minimum Balance Requirement",
+                      "styles": {}
                     }
                   ],
                   [
@@ -1229,15 +1228,15 @@
                   [
                     {
                       "text": "NPR 0 (Zero balance)",
-                      "styles": {},
-                      "type": "text"
+                      "type": "text",
+                      "styles": {}
                     }
                   ],
                   [
                     {
-                      "type": "text",
+                      "text": "Penalty charges for low balance",
                       "styles": {},
-                      "text": "Penalty charges for low balance"
+                      "type": "text"
                     }
                   ]
                 ]
@@ -1246,30 +1245,30 @@
                 "cells": [
                   [
                     {
+                      "text": "Mobile Banking Annual Fee",
                       "type": "text",
-                      "styles": {},
-                      "text": "Mobile Banking Annual Fee"
+                      "styles": {}
                     }
                   ],
                   [
                     {
-                      "type": "text",
                       "styles": {},
+                      "type": "text",
                       "text": "NPR 250 – 500"
                     }
                   ],
                   [
                     {
-                      "text": "Free or capped under NPR 300",
+                      "type": "text",
                       "styles": {},
-                      "type": "text"
+                      "text": "Free or capped under NPR 300"
                     }
                   ],
                   [
                     {
+                      "text": "Auto-deducted from account",
                       "type": "text",
-                      "styles": {},
-                      "text": "Auto-deducted from account"
+                      "styles": {}
                     }
                   ]
                 ]
@@ -1279,22 +1278,22 @@
                   [
                     {
                       "text": "Debit Card Issuance / Renewal",
+                      "styles": {},
+                      "type": "text"
+                    }
+                  ],
+                  [
+                    {
                       "type": "text",
+                      "text": "NPR 350 – 600 / year",
                       "styles": {}
                     }
                   ],
                   [
                     {
-                      "text": "NPR 350 – 600 / year",
-                      "styles": {},
-                      "type": "text"
-                    }
-                  ],
-                  [
-                    {
                       "text": "Under NPR 400",
-                      "styles": {},
-                      "type": "text"
+                      "type": "text",
+                      "styles": {}
                     }
                   ],
                   [
@@ -1310,30 +1309,30 @@
                 "cells": [
                   [
                     {
-                      "type": "text",
                       "styles": {},
-                      "text": "ConnectIPS Transfer Cap"
-                    }
-                  ],
-                  [
-                    {
-                      "type": "text",
-                      "text": "Up to NPR 2,000,000 / day",
-                      "styles": {}
-                    }
-                  ],
-                  [
-                    {
-                      "styles": {},
-                      "text": "Standard NRB limit",
+                      "text": "ConnectIPS Transfer Cap",
                       "type": "text"
                     }
                   ],
                   [
                     {
+                      "text": "Up to NPR 2,000,000 / day",
+                      "styles": {},
+                      "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "text": "Standard NRB limit",
+                      "styles": {},
+                      "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "styles": {},
                       "type": "text",
-                      "text": "Tiered per-transaction charge (NPR 2–8)",
-                      "styles": {}
+                      "text": "Tiered per-transaction charge (NPR 2–8)"
                     }
                   ]
                 ]
@@ -1341,102 +1340,103 @@
             ],
             "type": "tableContent"
           },
+          "id": "b-ycdxtug-mwumfpbd",
+          "props": {},
           "type": "table",
-          "children": [],
-          "id": "b-ycdxtug-mwumfpbd"
+          "children": []
         },
         {
+          "type": "callout",
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "Most Class-A commercial banks in Nepal offer dedicated Student Savings Accounts with zero minimum balance requirements and waivers on first-year mobile banking charges upon showing a valid college ID card."
+            }
+          ],
           "props": {
             "textAlignment": "left",
             "title": "Student Account Privilege",
             "variant": "tip"
           },
-          "id": "b-rbrjylx-mwumfpbd",
           "children": [],
-          "content": [
-            {
-              "styles": {},
-              "text": "Most Class-A commercial banks in Nepal offer dedicated Student Savings Accounts with zero minimum balance requirements and waivers on first-year mobile banking charges upon showing a valid college ID card.",
-              "type": "text"
-            }
-          ],
-          "type": "callout"
+          "id": "b-rbrjylx-mwumfpbd"
         },
         {
+          "id": "b-et7i2xi-mwumfpbd",
           "type": "heading",
-          "props": {
-            "textAlignment": "left",
-            "level": 2
-          },
-          "content": [
-            {
-              "styles": {},
-              "type": "text",
-              "text": "Opening Your Account: Essential Verification Sequence"
-            }
-          ],
           "children": [],
-          "id": "b-et7i2xi-mwumfpbd"
-        },
-        {
           "content": [
             {
+              "text": "Opening Your Account: Essential Verification Sequence",
               "type": "text",
-              "text": "Verify your National Identity Card (NID) or Citizenship certificate details with clear scanned copies.",
               "styles": {}
             }
           ],
-          "id": "b-nu8ci0t-mwumfpbd",
-          "type": "numberedListItem",
-          "children": [],
           "props": {
+            "level": 2,
             "textAlignment": "left"
           }
         },
         {
-          "id": "b-vdh7wl9-mwumfpbd",
-          "content": [
-            {
-              "styles": {},
-              "text": "Obtain a recommendation letter or college ID if applying for a concessionary student account.",
-              "type": "text"
-            }
-          ],
-          "children": [],
+          "id": "b-nu8ci0t-mwumfpbd",
           "props": {
             "textAlignment": "left"
           },
-          "type": "numberedListItem"
-        },
-        {
           "content": [
             {
-              "text": "Register for ConnectIPS directly through self-verification or bank branch linking.",
+              "text": "Verify your National Identity Card (NID) or Citizenship certificate details with clear scanned copies.",
               "styles": {},
               "type": "text"
             }
           ],
           "children": [],
+          "type": "numberedListItem"
+        },
+        {
+          "children": [],
+          "type": "numberedListItem",
+          "props": {
+            "textAlignment": "left"
+          },
+          "id": "b-vdh7wl9-mwumfpbd",
+          "content": [
+            {
+              "text": "Obtain a recommendation letter or college ID if applying for a concessionary student account.",
+              "styles": {},
+              "type": "text"
+            }
+          ]
+        },
+        {
           "id": "b-p7bfqyo-mwumfpbd",
           "props": {
             "textAlignment": "left"
           },
-          "type": "numberedListItem"
-        },
-        {
-          "children": [],
-          "props": {
-            "textAlignment": "left"
-          },
           "content": [
             {
+              "type": "text",
               "styles": {},
-              "text": "Set up biometric or two-factor authentication on mobile banking apps immediately upon activation.",
-              "type": "text"
+              "text": "Register for ConnectIPS directly through self-verification or bank branch linking."
             }
           ],
           "type": "numberedListItem",
-          "id": "b-s6gm78i-mwumfpbd"
+          "children": []
+        },
+        {
+          "type": "numberedListItem",
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "Set up biometric or two-factor authentication on mobile banking apps immediately upon activation."
+            }
+          ],
+          "id": "b-s6gm78i-mwumfpbd",
+          "children": [],
+          "props": {
+            "textAlignment": "left"
+          }
         }
       ],
       "blocknoteHtml": "<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">What’s Included</strong></h2>\n<ul class=\"editorial-checklist-list my-4 space-y-2 list-none p-0\">\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Core documentation and KYC verification checklist for Nepali banks</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Standard fee schedules and annual maintenance charges across Class-A banks</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Transaction limits, mobile banking security rules, and ConnectIPS best practices</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Step-by-step checklist to evaluate bank interest tiers without marketing bias</span></li>\n</ul>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Intended For</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Anyone opening, reviewing, or consolidating personal bank accounts in Nepal.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Navigating Retail Banking in Nepal</h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Choosing the right commercial bank (Class-A) in Nepal involves balancing branch convenience, mobile banking platform stability, and hidden annual maintenance fees. Many account holders unknowingly incur debit card renewal fees, SMS alert charges, and interbank transfer commissions that silently erode low-balance savings.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Key Comparison Metrics &amp; Regulatory Benchmarks</h2>\n<div class=\"table-scroll-container w-full overflow-x-auto my-6 rounded-lg border border-border bg-card shadow-xs\">\n<table class=\"editorial-table w-full text-left text-sm border-collapse\">\n<thead>\n<tr class=\"border-b border-border bg-muted/40\">\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Service / Feature</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Standard Bank Range</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Recommended Threshold</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Watchout</strong></th>\n</tr>\n</thead>\n<tbody class=\"divide-y divide-border/60\">\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Minimum Balance Requirement</th>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 0 – 5,000</td>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 0 (Zero balance)</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Penalty charges for low balance</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Mobile Banking Annual Fee</th>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 250 – 500</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Free or capped under NPR 300</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Auto-deducted from account</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Debit Card Issuance / Renewal</th>\n<td class=\"px-4 py-3 text-muted-foreground\">NPR 350 – 600 / year</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Under NPR 400</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Multi-year bundle charges</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">ConnectIPS Transfer Cap</th>\n<td class=\"px-4 py-3 text-muted-foreground\">Up to NPR 2,000,000 / day</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Standard NRB limit</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Tiered per-transaction charge (NPR 2–8)</td>\n</tr>\n</tbody>\n</table>\n</div>\n<aside class=\"callout-box tip relative w-full rounded-lg border p-4 sm:p-5 my-6 shadow-xs flex flex-col gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200\"><div class=\"callout-title flex items-center gap-2 text-sm font-semibold text-foreground\"><span>Student Account Privilege</span></div><p class=\"callout-text text-sm text-muted-foreground leading-relaxed m-0\">Most Class-A commercial banks in Nepal offer dedicated Student Savings Accounts with zero minimum balance requirements and waivers on first-year mobile banking charges upon showing a valid college ID card.</p></aside>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Opening Your Account: Essential Verification Sequence</h2>\n<ol class=\"editorial-ordered-list my-4 ml-6 list-decimal space-y-2 text-muted-foreground\">\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Verify your National Identity Card (NID) or Citizenship certificate details with clear scanned copies.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Obtain a recommendation letter or college ID if applying for a concessionary student account.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Register for ConnectIPS directly through self-verification or bank branch linking.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Set up biometric or two-factor authentication on mobile banking apps immediately upon activation.</span></li>\n</ol>",
@@ -1455,27 +1455,26 @@
       "contentBlocks": [
         {
           "level": 2,
-          "type": "heading",
-          "text": "Navigating Retail Banking in Nepal"
+          "text": "Navigating Retail Banking in Nepal",
+          "type": "heading"
         },
         {
           "text": "Choosing the right commercial bank (Class-A) in Nepal involves balancing branch convenience, mobile banking platform stability, and hidden annual maintenance fees. Many account holders unknowingly incur debit card renewal fees, SMS alert charges, and interbank transfer commissions that silently erode low-balance savings.",
           "type": "paragraph"
         },
         {
+          "type": "heading",
           "level": 2,
-          "text": "Key Comparison Metrics & Regulatory Benchmarks",
-          "type": "heading"
+          "text": "Key Comparison Metrics & Regulatory Benchmarks"
         },
         {
-          "type": "table",
-          "caption": "Table 1: Commercial bank fee benchmarks under Nepal Rastra Bank directives.",
           "headers": [
             "Service / Feature",
             "Standard Bank Range",
             "Recommended Threshold",
             "Watchout"
           ],
+          "type": "table",
           "rows": [
             [
               "Minimum Balance Requirement",
@@ -1501,27 +1500,28 @@
               "Standard NRB limit",
               "Tiered per-transaction charge (NPR 2–8)"
             ]
-          ]
+          ],
+          "caption": "Table 1: Commercial bank fee benchmarks under Nepal Rastra Bank directives."
         },
         {
-          "type": "callout",
           "variant": "tip",
           "text": "Most Class-A commercial banks in Nepal offer dedicated Student Savings Accounts with zero minimum balance requirements and waivers on first-year mobile banking charges upon showing a valid college ID card.",
+          "type": "callout",
           "title": "Student Account Privilege"
         },
         {
+          "level": 2,
           "text": "Opening Your Account: Essential Verification Sequence",
-          "type": "heading",
-          "level": 2
+          "type": "heading"
         },
         {
+          "type": "orderedList",
           "items": [
             "Verify your National Identity Card (NID) or Citizenship certificate details with clear scanned copies.",
             "Obtain a recommendation letter or college ID if applying for a concessionary student account.",
             "Register for ConnectIPS directly through self-verification or bank branch linking.",
             "Set up biometric or two-factor authentication on mobile banking apps immediately upon activation."
-          ],
-          "type": "orderedList"
+          ]
         }
       ],
       "seo": {
@@ -1578,90 +1578,92 @@
       "blocknoteJson": [
         {
           "children": [],
-          "id": "b-c8lxp62-mwumfpbd",
+          "type": "heading",
           "props": {
             "textAlignment": "left",
             "level": 2
           },
           "content": [
             {
+              "text": "What’s Included",
+              "type": "text",
               "styles": {
                 "bold": true
-              },
-              "type": "text",
-              "text": "What’s Included"
+              }
             }
           ],
-          "type": "heading"
+          "id": "b-c8lxp62-mwumfpbd"
         },
         {
-          "type": "checkListItem",
           "children": [],
-          "id": "b-iv18yk5-mwumfpbd",
           "content": [
             {
-              "type": "text",
               "text": "Semester module database tracking credits, professors, and class schedules",
-              "styles": {}
+              "styles": {},
+              "type": "text"
             }
           ],
+          "id": "b-iv18yk5-mwumfpbd",
           "props": {
             "textAlignment": "left",
             "checked": true
-          }
-        },
-        {
-          "id": "b-brliyrn-mwumfpbd",
-          "children": [],
-          "content": [
-            {
-              "styles": {},
-              "type": "text",
-              "text": "Weekly assignment deadline board prioritizing deliverables by urgency"
-            }
-          ],
-          "type": "checkListItem",
-          "props": {
-            "textAlignment": "left",
-            "checked": true
-          }
-        },
-        {
-          "children": [],
-          "content": [
-            {
-              "type": "text",
-              "styles": {},
-              "text": "Structured lecture notes capture framework with active recall sections"
-            }
-          ],
-          "props": {
-            "textAlignment": "left",
-            "checked": true
-          },
-          "type": "checkListItem",
-          "id": "b-ne403u0-mwumfpbd"
-        },
-        {
-          "content": [
-            {
-              "type": "text",
-              "styles": {},
-              "text": "Focus session tracker designed to eliminate digital study distractions"
-            }
-          ],
-          "id": "b-nlye02m-mwumfpbd",
-          "children": [],
-          "props": {
-            "checked": true,
-            "textAlignment": "left"
           },
           "type": "checkListItem"
         },
         {
-          "id": "b-epirebm-mwumfpbd",
-          "type": "heading",
+          "props": {
+            "textAlignment": "left",
+            "checked": true
+          },
           "children": [],
+          "id": "b-brliyrn-mwumfpbd",
+          "type": "checkListItem",
+          "content": [
+            {
+              "styles": {},
+              "text": "Weekly assignment deadline board prioritizing deliverables by urgency",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "type": "checkListItem",
+          "id": "b-ne403u0-mwumfpbd",
+          "content": [
+            {
+              "text": "Structured lecture notes capture framework with active recall sections",
+              "styles": {},
+              "type": "text"
+            }
+          ],
+          "props": {
+            "checked": true,
+            "textAlignment": "left"
+          },
+          "children": []
+        },
+        {
+          "id": "b-nlye02m-mwumfpbd",
+          "content": [
+            {
+              "type": "text",
+              "text": "Focus session tracker designed to eliminate digital study distractions",
+              "styles": {}
+            }
+          ],
+          "children": [],
+          "type": "checkListItem",
+          "props": {
+            "checked": true,
+            "textAlignment": "left"
+          }
+        },
+        {
+          "type": "heading",
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          },
           "content": [
             {
               "type": "text",
@@ -1671,78 +1673,74 @@
               }
             }
           ],
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          }
+          "id": "b-epirebm-mwumfpbd",
+          "children": []
         },
         {
+          "children": [],
           "props": {
             "textAlignment": "left"
           },
-          "type": "paragraph",
-          "id": "b-lssj3gb-mwumfpbd",
-          "children": [],
           "content": [
             {
               "type": "text",
               "styles": {},
               "text": "College and university students managing multiple academic modules and deadlines."
             }
-          ]
+          ],
+          "type": "paragraph",
+          "id": "b-lssj3gb-mwumfpbd"
         },
         {
+          "type": "heading",
+          "children": [],
+          "id": "b-w12j43b-mwumfpbd",
           "props": {
             "textAlignment": "left",
             "level": 2
           },
-          "content": [
-            {
-              "type": "text",
-              "text": "Academic Workflow Architecture",
-              "styles": {}
-            }
-          ],
-          "type": "heading",
-          "id": "b-w12j43b-mwumfpbd",
-          "children": []
-        },
-        {
-          "props": {
-            "textAlignment": "left"
-          },
-          "type": "paragraph",
-          "children": [],
-          "id": "b-3961b5s-mwumfpbd",
-          "content": [
-            {
-              "type": "text",
-              "text": "Balancing coursework, college laboratory assignments, and personal skill development requires a systematic tracking system. Rather than keeping deadlines in your head or fragmented across chat apps, this tracker establishes a single source of truth for your semester.",
-              "styles": {}
-            }
-          ]
-        },
-        {
-          "props": {
-            "textAlignment": "left"
-          },
-          "type": "quote",
-          "children": [],
           "content": [
             {
               "styles": {},
-              "type": "text",
-              "text": "Structure liberates creativity. When your deadlines are managed systematically, you have mental bandwidth to actually learn.\n— Academic workflow principle"
+              "text": "Academic Workflow Architecture",
+              "type": "text"
             }
-          ],
-          "id": "b-j0w6skz-mwumfpbd"
+          ]
         },
         {
-          "type": "heading",
+          "children": [],
+          "type": "paragraph",
+          "id": "b-3961b5s-mwumfpbd",
+          "content": [
+            {
+              "text": "Balancing coursework, college laboratory assignments, and personal skill development requires a systematic tracking system. Rather than keeping deadlines in your head or fragmented across chat apps, this tracker establishes a single source of truth for your semester.",
+              "type": "text",
+              "styles": {}
+            }
+          ],
           "props": {
-            "textAlignment": "left",
-            "level": 2
-          },
+            "textAlignment": "left"
+          }
+        },
+        {
+          "children": [],
+          "id": "b-j0w6skz-mwumfpbd",
+          "type": "quote",
+          "content": [
+            {
+              "styles": {},
+              "text": "Structure liberates creativity. When your deadlines are managed systematically, you have mental bandwidth to actually learn.\n— Academic workflow principle",
+              "type": "text"
+            }
+          ],
+          "props": {
+            "textAlignment": "left"
+          }
+        },
+        {
+          "id": "b-uffejbx-mwumfpbd",
+          "children": [],
+          "type": "heading",
           "content": [
             {
               "styles": {},
@@ -1750,96 +1748,93 @@
               "text": "Weekly Planning Cadence"
             }
           ],
-          "children": [],
-          "id": "b-uffejbx-mwumfpbd"
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          }
         },
         {
-          "type": "bulletListItem",
           "id": "b-b7v55kl-mwumfpbd",
+          "children": [],
           "content": [
             {
-              "text": "Sunday Planning Session (20 minutes): Review upcoming assignment deliverables and lecture schedules.",
               "styles": {},
+              "text": "Sunday Planning Session (20 minutes): Review upcoming assignment deliverables and lecture schedules.",
               "type": "text"
             }
           ],
+          "type": "bulletListItem",
           "props": {
             "textAlignment": "left"
-          },
-          "children": []
+          }
         },
         {
+          "type": "bulletListItem",
           "props": {
             "textAlignment": "left"
           },
+          "children": [],
+          "id": "b-hbd8zqx-mwumfpbd",
           "content": [
             {
               "styles": {},
               "text": "Daily 3-Priority Rule: Define only three major academic objectives per morning.",
               "type": "text"
             }
-          ],
-          "type": "bulletListItem",
-          "id": "b-hbd8zqx-mwumfpbd",
-          "children": []
+          ]
         },
         {
-          "children": [],
-          "id": "b-2syzdr6-mwumfpbd",
-          "props": {
-            "textAlignment": "left"
-          },
-          "type": "bulletListItem",
           "content": [
             {
               "text": "Mid-Week Buffer Block: Allocate 90 minutes on Wednesdays to absorb overflow or difficult lab reports.",
-              "type": "text",
-              "styles": {}
+              "styles": {},
+              "type": "text"
             }
-          ]
-        },
-        {
-          "id": "b-wrbei48-mwumfpbd",
+          ],
           "props": {
             "textAlignment": "left"
           },
+          "id": "b-2syzdr6-mwumfpbd",
           "children": [],
-          "type": "bulletListItem",
-          "content": [
-            {
-              "type": "text",
-              "text": "Friday Reflection & Archiving: File completed assignment documents and update progress status.",
-              "styles": {}
-            }
-          ]
+          "type": "bulletListItem"
         },
         {
+          "type": "bulletListItem",
+          "children": [],
+          "props": {
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "text": "Friday Reflection & Archiving: File completed assignment documents and update progress status.",
+              "type": "text",
+              "styles": {}
+            }
+          ],
+          "id": "b-wrbei48-mwumfpbd"
+        },
+        {
+          "children": [],
+          "props": {},
+          "type": "table",
+          "id": "b-b0j5axk-mwumfpbd",
           "content": {
             "rows": [
               {
                 "cells": [
                   [
                     {
-                      "styles": {
-                        "bold": true
-                      },
-                      "text": "Module Deliverable",
-                      "type": "text"
-                    }
-                  ],
-                  [
-                    {
-                      "text": "Urgency Tier",
-                      "styles": {
-                        "bold": true
-                      },
-                      "type": "text"
-                    }
-                  ],
-                  [
-                    {
-                      "text": "Preparation Window",
                       "type": "text",
+                      "styles": {
+                        "bold": true
+                      },
+                      "text": "Module Deliverable"
+                    }
+                  ],
+                  [
+                    {
+                      "type": "text",
+                      "text": "Urgency Tier",
                       "styles": {
                         "bold": true
                       }
@@ -1850,8 +1845,17 @@
                       "styles": {
                         "bold": true
                       },
-                      "text": "Review Checklist",
+                      "text": "Preparation Window",
                       "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "type": "text",
+                      "styles": {
+                        "bold": true
+                      },
+                      "text": "Review Checklist"
                     }
                   ]
                 ]
@@ -1860,30 +1864,30 @@
                 "cells": [
                   [
                     {
-                      "styles": {},
                       "text": "Laboratory Report / Practical",
+                      "type": "text",
+                      "styles": {}
+                    }
+                  ],
+                  [
+                    {
+                      "text": "High (Weekly)",
+                      "styles": {},
                       "type": "text"
                     }
                   ],
                   [
                     {
+                      "text": "2 days prior to lab",
                       "type": "text",
-                      "text": "High (Weekly)",
                       "styles": {}
                     }
                   ],
                   [
                     {
-                      "type": "text",
-                      "styles": {},
-                      "text": "2 days prior to lab"
-                    }
-                  ],
-                  [
-                    {
-                      "type": "text",
                       "text": "Code compile check & outputs",
-                      "styles": {}
+                      "styles": {},
+                      "type": "text"
                     }
                   ]
                 ]
@@ -1892,23 +1896,23 @@
                 "cells": [
                   [
                     {
+                      "text": "Mid-Term Coursework Essay",
                       "styles": {},
-                      "type": "text",
-                      "text": "Mid-Term Coursework Essay"
+                      "type": "text"
                     }
                   ],
                   [
                     {
                       "text": "Medium (Monthly)",
-                      "type": "text",
-                      "styles": {}
+                      "styles": {},
+                      "type": "text"
                     }
                   ],
                   [
                     {
-                      "text": "10 days prior",
                       "styles": {},
-                      "type": "text"
+                      "type": "text",
+                      "text": "10 days prior"
                     }
                   ],
                   [
@@ -1924,8 +1928,8 @@
                 "cells": [
                   [
                     {
-                      "text": "Final Capstone Project",
                       "type": "text",
+                      "text": "Final Capstone Project",
                       "styles": {}
                     }
                   ],
@@ -1938,16 +1942,16 @@
                   ],
                   [
                     {
-                      "styles": {},
+                      "text": "Weekly sprint reviews",
                       "type": "text",
-                      "text": "Weekly sprint reviews"
+                      "styles": {}
                     }
                   ],
                   [
                     {
-                      "styles": {},
+                      "text": "Git commits & documentation",
                       "type": "text",
-                      "text": "Git commits & documentation"
+                      "styles": {}
                     }
                   ]
                 ]
@@ -1956,44 +1960,39 @@
                 "cells": [
                   [
                     {
-                      "text": "Self-Study / External Skills",
+                      "type": "text",
                       "styles": {},
-                      "type": "text"
+                      "text": "Self-Study / External Skills"
                     }
                   ],
                   [
                     {
-                      "type": "text",
                       "text": "Continuous",
-                      "styles": {}
-                    }
-                  ],
-                  [
-                    {
-                      "text": "1 hour daily block",
                       "type": "text",
                       "styles": {}
                     }
                   ],
                   [
                     {
-                      "text": "Project implementation",
                       "styles": {},
+                      "text": "1 hour daily block",
                       "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "type": "text",
+                      "styles": {},
+                      "text": "Project implementation"
                     }
                   ]
                 ]
               }
             ],
             "type": "tableContent"
-          },
-          "type": "table",
-          "props": {},
-          "id": "b-b0j5axk-mwumfpbd",
-          "children": []
+          }
         },
         {
-          "children": [],
           "content": [
             {
               "text": "Never schedule final submission uploads within 1 hour of university portal closing. Server congestion and ISP drops frequently cause unsubmitted penalties.",
@@ -2001,13 +2000,14 @@
               "styles": {}
             }
           ],
-          "type": "callout",
+          "id": "b-vd2rpeg-mwumfpbd",
           "props": {
             "variant": "warning",
             "textAlignment": "left",
             "title": "Beware Deadline Compression"
           },
-          "id": "b-vd2rpeg-mwumfpbd"
+          "type": "callout",
+          "children": []
         }
       ],
       "blocknoteHtml": "<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">What’s Included</strong></h2>\n<ul class=\"editorial-checklist-list my-4 space-y-2 list-none p-0\">\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Semester module database tracking credits, professors, and class schedules</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Weekly assignment deadline board prioritizing deliverables by urgency</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Structured lecture notes capture framework with active recall sections</span></li>\n  <li class=\"editorial-checklist-item flex items-start gap-2.5 text-base leading-relaxed text-muted-foreground\"><span class=\"checklist-box font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400\">✓</span><span class=\"text-foreground/90\">Focus session tracker designed to eliminate digital study distractions</span></li>\n</ul>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Intended For</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">College and university students managing multiple academic modules and deadlines.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Academic Workflow Architecture</h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Balancing coursework, college laboratory assignments, and personal skill development requires a systematic tracking system. Rather than keeping deadlines in your head or fragmented across chat apps, this tracker establishes a single source of truth for your semester.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">Structure liberates creativity. When your deadlines are managed systematically, you have mental bandwidth to actually learn.\n— Academic workflow principle</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\">Weekly Planning Cadence</h2>\n<ul class=\"editorial-bullet-list my-4 ml-6 list-disc space-y-2 text-muted-foreground\">\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Sunday Planning Session (20 minutes): Review upcoming assignment deliverables and lecture schedules.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Daily 3-Priority Rule: Define only three major academic objectives per morning.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Mid-Week Buffer Block: Allocate 90 minutes on Wednesdays to absorb overflow or difficult lab reports.</span></li>\n  <li class=\"editorial-list-item text-base leading-relaxed text-muted-foreground\"><span class=\"text-foreground/90\">Friday Reflection &amp; Archiving: File completed assignment documents and update progress status.</span></li>\n</ul>\n<div class=\"table-scroll-container w-full overflow-x-auto my-6 rounded-lg border border-border bg-card shadow-xs\">\n<table class=\"editorial-table w-full text-left text-sm border-collapse\">\n<thead>\n<tr class=\"border-b border-border bg-muted/40\">\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Module Deliverable</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Urgency Tier</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Preparation Window</strong></th>\n<th scope=\"col\" class=\"px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground\"><strong class=\"font-semibold text-foreground\">Review Checklist</strong></th>\n</tr>\n</thead>\n<tbody class=\"divide-y divide-border/60\">\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Laboratory Report / Practical</th>\n<td class=\"px-4 py-3 text-muted-foreground\">High (Weekly)</td>\n<td class=\"px-4 py-3 text-muted-foreground\">2 days prior to lab</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Code compile check &amp; outputs</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Mid-Term Coursework Essay</th>\n<td class=\"px-4 py-3 text-muted-foreground\">Medium (Monthly)</td>\n<td class=\"px-4 py-3 text-muted-foreground\">10 days prior</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Reference citation &amp; outline</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Final Capstone Project</th>\n<td class=\"px-4 py-3 text-muted-foreground\">High (Ongoing)</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Weekly sprint reviews</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Git commits &amp; documentation</td>\n</tr>\n<tr class=\"hover:bg-muted/20 transition-colors\">\n<th scope=\"row\" class=\"px-4 py-3 font-medium text-foreground whitespace-nowrap\">Self-Study / External Skills</th>\n<td class=\"px-4 py-3 text-muted-foreground\">Continuous</td>\n<td class=\"px-4 py-3 text-muted-foreground\">1 hour daily block</td>\n<td class=\"px-4 py-3 text-muted-foreground\">Project implementation</td>\n</tr>\n</tbody>\n</table>\n</div>\n<aside class=\"callout-box warning relative w-full rounded-lg border p-4 sm:p-5 my-6 shadow-xs flex flex-col gap-1.5 border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200\"><div class=\"callout-title flex items-center gap-2 text-sm font-semibold text-foreground\"><span>Beware Deadline Compression</span></div><p class=\"callout-text text-sm text-muted-foreground leading-relaxed m-0\">Never schedule final submission uploads within 1 hour of university portal closing. Server congestion and ISP drops frequently cause unsubmitted penalties.</p></aside>",
@@ -2025,13 +2025,13 @@
       "targetAudience": "College and university students managing multiple academic modules and deadlines.",
       "contentBlocks": [
         {
+          "type": "heading",
           "level": 2,
-          "text": "Academic Workflow Architecture",
-          "type": "heading"
+          "text": "Academic Workflow Architecture"
         },
         {
-          "text": "Balancing coursework, college laboratory assignments, and personal skill development requires a systematic tracking system. Rather than keeping deadlines in your head or fragmented across chat apps, this tracker establishes a single source of truth for your semester.",
-          "type": "paragraph"
+          "type": "paragraph",
+          "text": "Balancing coursework, college laboratory assignments, and personal skill development requires a systematic tracking system. Rather than keeping deadlines in your head or fragmented across chat apps, this tracker establishes a single source of truth for your semester."
         },
         {
           "type": "blockquote",
@@ -2039,9 +2039,9 @@
           "text": "Structure liberates creativity. When your deadlines are managed systematically, you have mental bandwidth to actually learn."
         },
         {
-          "type": "heading",
+          "text": "Weekly Planning Cadence",
           "level": 2,
-          "text": "Weekly Planning Cadence"
+          "type": "heading"
         },
         {
           "type": "bulletList",
@@ -2054,13 +2054,13 @@
         },
         {
           "caption": "Table 1: Academic task prioritization framework.",
-          "type": "table",
           "headers": [
             "Module Deliverable",
             "Urgency Tier",
             "Preparation Window",
             "Review Checklist"
           ],
+          "type": "table",
           "rows": [
             [
               "Laboratory Report / Practical",
@@ -2091,8 +2091,8 @@
         {
           "type": "callout",
           "title": "Beware Deadline Compression",
-          "text": "Never schedule final submission uploads within 1 hour of university portal closing. Server congestion and ISP drops frequently cause unsubmitted penalties.",
-          "variant": "warning"
+          "variant": "warning",
+          "text": "Never schedule final submission uploads within 1 hour of university portal closing. Server congestion and ISP drops frequently cause unsubmitted penalties."
         }
       ],
       "seo": {
@@ -2154,27 +2154,22 @@
       "contentHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Building RisePaisa started from a simple, personal frustration. Whenever friends, relatives, or classmates had questions about banking, taxes, or stock investing in Nepal, they faced a frustrating choice: either read through dense government acts and circulars, or rely on second-hand hearsay from social media. There was almost nothing in between.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Gap in Financial Literacy</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Nepal has witnessed incredible technological progress over the past five years. Almost everyone carries a smartphone, and QR-based digital payments have become an everyday convenience. Yet our educational system rarely teaches the foundational mechanics of money management.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Many young people earn their first salary without knowing how social security deductions work, how income tax brackets are calculated, or what the difference is between saving and investing. We realized that access to digital money without financial education creates vulnerability rather than security.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Designing for Practical Utility</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">When we conceptualized the resources for RisePaisa, our guiding rule was utility. An article that explains a financial concept is fine, but a practical budget framework spreadsheet or a step-by-step banking checklist that someone can actually download and use that afternoon is ten times more valuable.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Designing these resources requires restraint. We strip away theoretical fluff and focus entirely on clarity. If a beginner cannot understand the first two paragraphs, the explanation has failed, no matter how technically accurate it might be.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">Simplicity is not the absence of depth; it is the mastery of clarity.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Patience Required to Build</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Creating educational tools is not a fast game. There are no sudden viral shortcuts to earning trust. It requires consistently researching regulations, verifying numbers with qualified practitioners, and iterating based on how real people use the tools.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Building something that matters in Nepal means choosing steady, patient compounding over short-term vanity metrics. Every person who makes a better financial decision because of a guide we published makes the effort worthwhile.</p>",
       "blocknoteJson": [
         {
-          "children": [],
           "props": {
             "textAlignment": "left"
           },
+          "children": [],
+          "id": "b-brnd2yo-mwuuehks",
           "content": [
             {
-              "type": "text",
               "styles": {},
-              "text": "Building RisePaisa started from a simple, personal frustration. Whenever friends, relatives, or classmates had questions about banking, taxes, or stock investing in Nepal, they faced a frustrating choice: either read through dense government acts and circulars, or rely on second-hand hearsay from social media. There was almost nothing in between."
+              "text": "Building RisePaisa started from a simple, personal frustration. Whenever friends, relatives, or classmates had questions about banking, taxes, or stock investing in Nepal, they faced a frustrating choice: either read through dense government acts and circulars, or rely on second-hand hearsay from social media. There was almost nothing in between.",
+              "type": "text"
             }
           ],
-          "type": "paragraph",
-          "id": "b-brnd2yo-mwuuehks"
+          "type": "paragraph"
         },
         {
-          "id": "b-8kdjux9-mwuuehks",
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "type": "heading",
+          "children": [],
           "content": [
             {
               "type": "text",
@@ -2184,9 +2179,19 @@
               }
             }
           ],
-          "children": []
+          "id": "b-8kdjux9-mwuuehks",
+          "props": {
+            "textAlignment": "left",
+            "level": 2
+          },
+          "type": "heading"
         },
         {
+          "props": {
+            "textAlignment": "left"
+          },
+          "id": "b-z635jjl-mwuuehks",
+          "children": [],
           "content": [
             {
               "type": "text",
@@ -2194,45 +2199,40 @@
               "styles": {}
             }
           ],
-          "id": "b-z635jjl-mwuuehks",
-          "children": [],
-          "props": {
-            "textAlignment": "left"
-          },
           "type": "paragraph"
         },
         {
+          "children": [],
+          "type": "paragraph",
           "props": {
             "textAlignment": "left"
           },
-          "children": [],
-          "id": "b-qwsqirh-mwuuehks",
-          "type": "paragraph",
           "content": [
             {
               "styles": {},
               "type": "text",
               "text": "Many young people earn their first salary without knowing how social security deductions work, how income tax brackets are calculated, or what the difference is between saving and investing. We realized that access to digital money without financial education creates vulnerability rather than security."
             }
-          ]
+          ],
+          "id": "b-qwsqirh-mwuuehks"
         },
         {
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "children": [],
           "type": "heading",
+          "children": [],
           "content": [
             {
+              "text": "Designing for Practical Utility",
               "styles": {
                 "bold": true
               },
-              "type": "text",
-              "text": "Designing for Practical Utility"
+              "type": "text"
             }
           ],
-          "id": "b-gywvckv-mwuuehks"
+          "id": "b-gywvckv-mwuuehks",
+          "props": {
+            "textAlignment": "left",
+            "level": 2
+          }
         },
         {
           "content": [
@@ -2242,19 +2242,14 @@
               "type": "text"
             }
           ],
-          "type": "paragraph",
           "id": "b-iff0sgb-mwuuehks",
-          "children": [],
-          "props": {
-            "textAlignment": "left"
-          }
-        },
-        {
+          "type": "paragraph",
           "props": {
             "textAlignment": "left"
           },
-          "id": "b-vha4z92-mwuuehks",
-          "children": [],
+          "children": []
+        },
+        {
           "content": [
             {
               "text": "Designing these resources requires restraint. We strip away theoretical fluff and focus entirely on clarity. If a beginner cannot understand the first two paragraphs, the explanation has failed, no matter how technically accurate it might be.",
@@ -2262,11 +2257,18 @@
               "type": "text"
             }
           ],
-          "type": "paragraph"
+          "children": [],
+          "type": "paragraph",
+          "props": {
+            "textAlignment": "left"
+          },
+          "id": "b-vha4z92-mwuuehks"
         },
         {
           "type": "quote",
-          "children": [],
+          "props": {
+            "textAlignment": "left"
+          },
           "content": [
             {
               "text": "Simplicity is not the absence of depth; it is the mastery of clarity.",
@@ -2274,116 +2276,115 @@
               "type": "text"
             }
           ],
-          "props": {
-            "textAlignment": "left"
-          },
-          "id": "b-c9laovp-mwuuehks"
+          "id": "b-c9laovp-mwuuehks",
+          "children": []
         },
         {
+          "type": "heading",
+          "children": [],
           "content": [
             {
-              "type": "text",
+              "text": "The Patience Required to Build",
               "styles": {
                 "bold": true
               },
-              "text": "The Patience Required to Build"
+              "type": "text"
             }
           ],
-          "type": "heading",
           "props": {
             "textAlignment": "left",
             "level": 2
           },
-          "children": [],
           "id": "b-mx89otn-mwuuehks"
         },
         {
-          "id": "b-vwneceo-mwuuehks",
-          "type": "paragraph",
-          "children": [],
           "content": [
             {
               "text": "Creating educational tools is not a fast game. There are no sudden viral shortcuts to earning trust. It requires consistently researching regulations, verifying numbers with qualified practitioners, and iterating based on how real people use the tools.",
-              "type": "text",
-              "styles": {}
+              "styles": {},
+              "type": "text"
             }
           ],
           "props": {
             "textAlignment": "left"
-          }
+          },
+          "children": [],
+          "id": "b-vwneceo-mwuuehks",
+          "type": "paragraph"
         },
         {
-          "id": "b-5gdptno-mwuuehks",
-          "children": [],
           "type": "paragraph",
           "content": [
             {
-              "styles": {},
               "type": "text",
+              "styles": {},
               "text": "Building something that matters in Nepal means choosing steady, patient compounding over short-term vanity metrics. Every person who makes a better financial decision because of a guide we published makes the effort worthwhile."
             }
           ],
+          "children": [],
           "props": {
             "textAlignment": "left"
-          }
+          },
+          "id": "b-5gdptno-mwuuehks"
         }
       ],
       "blocknoteHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Building RisePaisa started from a simple, personal frustration. Whenever friends, relatives, or classmates had questions about banking, taxes, or stock investing in Nepal, they faced a frustrating choice: either read through dense government acts and circulars, or rely on second-hand hearsay from social media. There was almost nothing in between.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Gap in Financial Literacy</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Nepal has witnessed incredible technological progress over the past five years. Almost everyone carries a smartphone, and QR-based digital payments have become an everyday convenience. Yet our educational system rarely teaches the foundational mechanics of money management.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Many young people earn their first salary without knowing how social security deductions work, how income tax brackets are calculated, or what the difference is between saving and investing. We realized that access to digital money without financial education creates vulnerability rather than security.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Designing for Practical Utility</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">When we conceptualized the resources for RisePaisa, our guiding rule was utility. An article that explains a financial concept is fine, but a practical budget framework spreadsheet or a step-by-step banking checklist that someone can actually download and use that afternoon is ten times more valuable.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Designing these resources requires restraint. We strip away theoretical fluff and focus entirely on clarity. If a beginner cannot understand the first two paragraphs, the explanation has failed, no matter how technically accurate it might be.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">Simplicity is not the absence of depth; it is the mastery of clarity.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Patience Required to Build</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Creating educational tools is not a fast game. There are no sudden viral shortcuts to earning trust. It requires consistently researching regulations, verifying numbers with qualified practitioners, and iterating based on how real people use the tools.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Building something that matters in Nepal means choosing steady, patient compounding over short-term vanity metrics. Every person who makes a better financial decision because of a guide we published makes the effort worthwhile.</p>",
       "tiptapJson": {
+        "type": "doc",
         "content": [
           {
+            "type": "paragraph",
             "attrs": {
               "class": "lead"
             },
             "content": [
               {
-                "text": "Building RisePaisa started from a simple, personal frustration. Whenever friends, relatives, or classmates had questions about banking, taxes, or stock investing in Nepal, they faced a frustrating choice: either read through dense government acts and circulars, or rely on second-hand hearsay from social media. There was almost nothing in between.",
-                "type": "text"
+                "type": "text",
+                "text": "Building RisePaisa started from a simple, personal frustration. Whenever friends, relatives, or classmates had questions about banking, taxes, or stock investing in Nepal, they faced a frustrating choice: either read through dense government acts and circulars, or rely on second-hand hearsay from social media. There was almost nothing in between."
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
+            "attrs": {
+              "level": 2
+            },
             "type": "heading",
             "content": [
               {
-                "text": "The Gap in Financial Literacy",
-                "type": "text"
+                "type": "text",
+                "text": "The Gap in Financial Literacy"
               }
-            ],
-            "attrs": {
-              "level": 2
-            }
+            ]
           },
           {
+            "type": "paragraph",
             "content": [
               {
                 "text": "Nepal has witnessed incredible technological progress over the past five years. Almost everyone carries a smartphone, and QR-based digital payments have become an everyday convenience. Yet our educational system rarely teaches the foundational mechanics of money management.",
                 "type": "text"
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
+            "type": "paragraph",
             "content": [
               {
                 "type": "text",
                 "text": "Many young people earn their first salary without knowing how social security deductions work, how income tax brackets are calculated, or what the difference is between saving and investing. We realized that access to digital money without financial education creates vulnerability rather than security."
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
+            "attrs": {
+              "level": 2
+            },
             "type": "heading",
             "content": [
               {
-                "type": "text",
-                "text": "Designing for Practical Utility"
+                "text": "Designing for Practical Utility",
+                "type": "text"
               }
-            ],
-            "attrs": {
-              "level": 2
-            }
+            ]
           },
           {
             "content": [
@@ -2407,13 +2408,13 @@
             "type": "blockquote",
             "content": [
               {
+                "type": "paragraph",
                 "content": [
                   {
                     "type": "text",
                     "text": "Simplicity is not the absence of depth; it is the mastery of clarity."
                   }
-                ],
-                "type": "paragraph"
+                ]
               }
             ]
           },
@@ -2421,22 +2422,22 @@
             "attrs": {
               "level": 2
             },
+            "type": "heading",
             "content": [
               {
                 "text": "The Patience Required to Build",
                 "type": "text"
               }
-            ],
-            "type": "heading"
+            ]
           },
           {
-            "type": "paragraph",
             "content": [
               {
                 "type": "text",
                 "text": "Creating educational tools is not a fast game. There are no sudden viral shortcuts to earning trust. It requires consistently researching regulations, verifying numbers with qualified practitioners, and iterating based on how real people use the tools."
               }
-            ]
+            ],
+            "type": "paragraph"
           },
           {
             "content": [
@@ -2447,8 +2448,7 @@
             ],
             "type": "paragraph"
           }
-        ],
-        "type": "doc"
+        ]
       },
       "seo": {
         "title": "Building Something That Matters — Journal — Aakash Das",
@@ -2507,207 +2507,206 @@
       "contentHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Starting anything new involves an uncomfortable period of awkward incompetence. When you begin writing, your prose feels stiff. When you start coding, simple syntax errors consume hours. When you study a new domain, the sheer volume of unfamiliar terminology can feel intimidating. Most people stop here to protect their egos.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Beginner’s Advantage</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Zen philosophy speaks of &quot;shoshin&quot;—the beginner’s mind. In the beginner’s mind there are many possibilities, but in the expert’s mind there are few. When you have not yet formed rigid habits or dogmatic beliefs about how things &quot;must&quot; be done, you look at problems with fresh eyes.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">In my own journey transitioning from accounting studies towards computer science and digital content creation, being a novice forced me to break everything down to first principles. I could not rely on memorized scripts; I had to understand the underlying mechanisms.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Consistency Over Intensity</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Early in any pursuit, there is a temptation to attempt heroic bursts of effort: studying for fourteen hours straight or attempting an ambitious project in a single weekend. Almost always, this leads to burnout and quiet abandonment.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">What actually compounds is quiet, unglamorous consistency. Reading for forty-five minutes every morning, writing one thoughtful page, or debugging one function daily creates an exponential curve that is invisible in the short run but unstoppable over three years.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">Patience with the process; impatience with daily action.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Long-Term Games in a Short-Term World</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Our digital environment constantly tempts us into short-term comparison. We see someone else’s highlight reel and feel behind. But when you adopt a decade-long horizon, the urgency to prove yourself today fades.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Being a beginner is not a temporary weakness to be hurried through; it is an active posture of curiosity that keeps you adaptable for the rest of your life.</p>",
       "blocknoteJson": [
         {
-          "type": "paragraph",
+          "children": [],
           "props": {
             "textAlignment": "left"
           },
           "content": [
             {
-              "styles": {},
               "text": "Starting anything new involves an uncomfortable period of awkward incompetence. When you begin writing, your prose feels stiff. When you start coding, simple syntax errors consume hours. When you study a new domain, the sheer volume of unfamiliar terminology can feel intimidating. Most people stop here to protect their egos.",
-              "type": "text"
-            }
-          ],
-          "id": "b-n8asfns-mwuuehoe",
-          "children": []
-        },
-        {
-          "id": "b-cinaugq-mwuuehoe",
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "type": "heading",
-          "content": [
-            {
-              "styles": {
-                "bold": true
-              },
-              "text": "The Beginner’s Advantage",
-              "type": "text"
-            }
-          ],
-          "children": []
-        },
-        {
-          "props": {
-            "textAlignment": "left"
-          },
-          "children": [],
-          "content": [
-            {
-              "text": "Zen philosophy speaks of \"shoshin\"—the beginner’s mind. In the beginner’s mind there are many possibilities, but in the expert’s mind there are few. When you have not yet formed rigid habits or dogmatic beliefs about how things \"must\" be done, you look at problems with fresh eyes.",
-              "styles": {},
-              "type": "text"
-            }
-          ],
-          "type": "paragraph",
-          "id": "b-ekbor68-mwuuehoe"
-        },
-        {
-          "props": {
-            "textAlignment": "left"
-          },
-          "id": "b-4ju5bl3-mwuuehoe",
-          "children": [],
-          "content": [
-            {
-              "text": "In my own journey transitioning from accounting studies towards computer science and digital content creation, being a novice forced me to break everything down to first principles. I could not rely on memorized scripts; I had to understand the underlying mechanisms.",
               "type": "text",
               "styles": {}
             }
           ],
-          "type": "paragraph"
+          "type": "paragraph",
+          "id": "b-n8asfns-mwuuehoe"
         },
         {
-          "id": "b-cfwwgba-mwuuehoe",
+          "type": "heading",
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          },
+          "children": [],
+          "id": "b-cinaugq-mwuuehoe",
           "content": [
             {
+              "text": "The Beginner’s Advantage",
               "styles": {
                 "bold": true
               },
-              "text": "Consistency Over Intensity",
               "type": "text"
             }
-          ],
-          "props": {
-            "textAlignment": "left",
-            "level": 2
-          },
-          "children": [],
-          "type": "heading"
+          ]
         },
         {
           "type": "paragraph",
-          "id": "b-ph498sg-mwuuehoe",
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "Zen philosophy speaks of \"shoshin\"—the beginner’s mind. In the beginner’s mind there are many possibilities, but in the expert’s mind there are few. When you have not yet formed rigid habits or dogmatic beliefs about how things \"must\" be done, you look at problems with fresh eyes."
+            }
+          ],
           "children": [],
           "props": {
             "textAlignment": "left"
           },
+          "id": "b-ekbor68-mwuuehoe"
+        },
+        {
+          "id": "b-4ju5bl3-mwuuehoe",
+          "props": {
+            "textAlignment": "left"
+          },
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "In my own journey transitioning from accounting studies towards computer science and digital content creation, being a novice forced me to break everything down to first principles. I could not rely on memorized scripts; I had to understand the underlying mechanisms.",
+              "styles": {},
+              "type": "text"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": [],
+          "content": [
+            {
+              "type": "text",
+              "styles": {
+                "bold": true
+              },
+              "text": "Consistency Over Intensity"
+            }
+          ],
+          "id": "b-cfwwgba-mwuuehoe",
+          "props": {
+            "textAlignment": "left",
+            "level": 2
+          }
+        },
+        {
+          "children": [],
+          "id": "b-ph498sg-mwuuehoe",
+          "type": "paragraph",
           "content": [
             {
               "text": "Early in any pursuit, there is a temptation to attempt heroic bursts of effort: studying for fourteen hours straight or attempting an ambitious project in a single weekend. Almost always, this leads to burnout and quiet abandonment.",
               "styles": {},
               "type": "text"
             }
-          ]
+          ],
+          "props": {
+            "textAlignment": "left"
+          }
         },
         {
-          "content": [
-            {
-              "styles": {},
-              "type": "text",
-              "text": "What actually compounds is quiet, unglamorous consistency. Reading for forty-five minutes every morning, writing one thoughtful page, or debugging one function daily creates an exponential curve that is invisible in the short run but unstoppable over three years."
-            }
-          ],
-          "children": [],
           "props": {
             "textAlignment": "left"
           },
           "type": "paragraph",
-          "id": "b-ro1f16l-mwuuehoe"
-        },
-        {
-          "props": {
-            "textAlignment": "left"
-          },
-          "type": "quote",
-          "id": "b-3km46vr-mwuuehoe",
-          "children": [],
+          "id": "b-ro1f16l-mwuuehoe",
           "content": [
             {
+              "text": "What actually compounds is quiet, unglamorous consistency. Reading for forty-five minutes every morning, writing one thoughtful page, or debugging one function daily creates an exponential curve that is invisible in the short run but unstoppable over three years.",
               "styles": {},
-              "text": "Patience with the process; impatience with daily action.",
               "type": "text"
             }
-          ]
+          ],
+          "children": []
+        },
+        {
+          "children": [],
+          "type": "quote",
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "Patience with the process; impatience with daily action."
+            }
+          ],
+          "id": "b-3km46vr-mwuuehoe",
+          "props": {
+            "textAlignment": "left"
+          }
         },
         {
           "id": "b-j8um62l-mwuuehoe",
           "type": "heading",
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
           "children": [],
           "content": [
             {
+              "text": "Long-Term Games in a Short-Term World",
               "styles": {
                 "bold": true
               },
-              "text": "Long-Term Games in a Short-Term World",
               "type": "text"
+            }
+          ],
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          }
+        },
+        {
+          "props": {
+            "textAlignment": "left"
+          },
+          "children": [],
+          "id": "b-j8n6fde-mwuuehoe",
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "styles": {},
+              "text": "Our digital environment constantly tempts us into short-term comparison. We see someone else’s highlight reel and feel behind. But when you adopt a decade-long horizon, the urgency to prove yourself today fades."
             }
           ]
         },
         {
           "type": "paragraph",
-          "props": {
-            "textAlignment": "left"
-          },
+          "id": "b-5vq5gs6-mwuuehoe",
           "content": [
             {
               "styles": {},
-              "text": "Our digital environment constantly tempts us into short-term comparison. We see someone else’s highlight reel and feel behind. But when you adopt a decade-long horizon, the urgency to prove yourself today fades.",
+              "text": "Being a beginner is not a temporary weakness to be hurried through; it is an active posture of curiosity that keeps you adaptable for the rest of your life.",
               "type": "text"
             }
           ],
-          "children": [],
-          "id": "b-j8n6fde-mwuuehoe"
-        },
-        {
           "props": {
             "textAlignment": "left"
           },
-          "id": "b-5vq5gs6-mwuuehoe",
-          "children": [],
-          "content": [
-            {
-              "styles": {},
-              "type": "text",
-              "text": "Being a beginner is not a temporary weakness to be hurried through; it is an active posture of curiosity that keeps you adaptable for the rest of your life."
-            }
-          ],
-          "type": "paragraph"
+          "children": []
         }
       ],
       "blocknoteHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Starting anything new involves an uncomfortable period of awkward incompetence. When you begin writing, your prose feels stiff. When you start coding, simple syntax errors consume hours. When you study a new domain, the sheer volume of unfamiliar terminology can feel intimidating. Most people stop here to protect their egos.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Beginner’s Advantage</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Zen philosophy speaks of &quot;shoshin&quot;—the beginner’s mind. In the beginner’s mind there are many possibilities, but in the expert’s mind there are few. When you have not yet formed rigid habits or dogmatic beliefs about how things &quot;must&quot; be done, you look at problems with fresh eyes.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">In my own journey transitioning from accounting studies towards computer science and digital content creation, being a novice forced me to break everything down to first principles. I could not rely on memorized scripts; I had to understand the underlying mechanisms.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Consistency Over Intensity</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Early in any pursuit, there is a temptation to attempt heroic bursts of effort: studying for fourteen hours straight or attempting an ambitious project in a single weekend. Almost always, this leads to burnout and quiet abandonment.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">What actually compounds is quiet, unglamorous consistency. Reading for forty-five minutes every morning, writing one thoughtful page, or debugging one function daily creates an exponential curve that is invisible in the short run but unstoppable over three years.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">Patience with the process; impatience with daily action.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Long-Term Games in a Short-Term World</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Our digital environment constantly tempts us into short-term comparison. We see someone else’s highlight reel and feel behind. But when you adopt a decade-long horizon, the urgency to prove yourself today fades.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Being a beginner is not a temporary weakness to be hurried through; it is an active posture of curiosity that keeps you adaptable for the rest of your life.</p>",
       "tiptapJson": {
-        "type": "doc",
         "content": [
           {
             "attrs": {
               "class": "lead"
             },
+            "type": "paragraph",
             "content": [
               {
-                "type": "text",
-                "text": "Starting anything new involves an uncomfortable period of awkward incompetence. When you begin writing, your prose feels stiff. When you start coding, simple syntax errors consume hours. When you study a new domain, the sheer volume of unfamiliar terminology can feel intimidating. Most people stop here to protect their egos."
+                "text": "Starting anything new involves an uncomfortable period of awkward incompetence. When you begin writing, your prose feels stiff. When you start coding, simple syntax errors consume hours. When you study a new domain, the sheer volume of unfamiliar terminology can feel intimidating. Most people stop here to protect their egos.",
+                "type": "text"
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
+            "attrs": {
+              "level": 2
+            },
+            "type": "heading",
             "content": [
               {
                 "type": "text",
                 "text": "The Beginner’s Advantage"
               }
-            ],
-            "type": "heading",
-            "attrs": {
-              "level": 2
-            }
+            ]
           },
           {
             "content": [
@@ -2728,9 +2727,53 @@
             "type": "paragraph"
           },
           {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
             "content": [
               {
                 "text": "Consistency Over Intensity",
+                "type": "text"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "Early in any pursuit, there is a temptation to attempt heroic bursts of effort: studying for fourteen hours straight or attempting an ambitious project in a single weekend. Almost always, this leads to burnout and quiet abandonment.",
+                "type": "text"
+              }
+            ]
+          },
+          {
+            "content": [
+              {
+                "text": "What actually compounds is quiet, unglamorous consistency. Reading for forty-five minutes every morning, writing one thoughtful page, or debugging one function daily creates an exponential curve that is invisible in the short run but unstoppable over three years.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Patience with the process; impatience with daily action."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "content": [
+              {
+                "text": "Long-Term Games in a Short-Term World",
                 "type": "text"
               }
             ],
@@ -2743,7 +2786,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "Early in any pursuit, there is a temptation to attempt heroic bursts of effort: studying for fourteen hours straight or attempting an ambitious project in a single weekend. Almost always, this leads to burnout and quiet abandonment."
+                "text": "Our digital environment constantly tempts us into short-term comparison. We see someone else’s highlight reel and feel behind. But when you adopt a decade-long horizon, the urgency to prove yourself today fades."
               }
             ],
             "type": "paragraph"
@@ -2752,56 +2795,13 @@
             "type": "paragraph",
             "content": [
               {
-                "type": "text",
-                "text": "What actually compounds is quiet, unglamorous consistency. Reading for forty-five minutes every morning, writing one thoughtful page, or debugging one function daily creates an exponential curve that is invisible in the short run but unstoppable over three years."
-              }
-            ]
-          },
-          {
-            "type": "blockquote",
-            "content": [
-              {
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Patience with the process; impatience with daily action."
-                  }
-                ],
-                "type": "paragraph"
-              }
-            ]
-          },
-          {
-            "type": "heading",
-            "attrs": {
-              "level": 2
-            },
-            "content": [
-              {
-                "text": "Long-Term Games in a Short-Term World",
+                "text": "Being a beginner is not a temporary weakness to be hurried through; it is an active posture of curiosity that keeps you adaptable for the rest of your life.",
                 "type": "text"
-              }
-            ]
-          },
-          {
-            "type": "paragraph",
-            "content": [
-              {
-                "text": "Our digital environment constantly tempts us into short-term comparison. We see someone else’s highlight reel and feel behind. But when you adopt a decade-long horizon, the urgency to prove yourself today fades.",
-                "type": "text"
-              }
-            ]
-          },
-          {
-            "type": "paragraph",
-            "content": [
-              {
-                "type": "text",
-                "text": "Being a beginner is not a temporary weakness to be hurried through; it is an active posture of curiosity that keeps you adaptable for the rest of your life."
               }
             ]
           }
-        ]
+        ],
+        "type": "doc"
       },
       "seo": {
         "title": "The Value of Being a Beginner — Journal — Aakash Das",
@@ -2863,7 +2863,7 @@
           "props": {
             "textAlignment": "left"
           },
-          "type": "paragraph",
+          "children": [],
           "id": "b-4ykwb85-mwuuehml",
           "content": [
             {
@@ -2872,171 +2872,170 @@
               "text": "If you walk through the streets of Kathmandu today, you will see QR payment stands at tea stalls, grocery vendors, and tempo drivers. The speed at which Nepal transitioned from cash-dominated commerce to seamless digital transactions is one of the most remarkable stories of technological adoption in South Asia."
             }
           ],
-          "children": []
+          "type": "paragraph"
         },
         {
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "id": "b-1ncrdg5-mwuuehml",
-          "children": [],
-          "type": "heading",
-          "content": [
-            {
-              "type": "text",
-              "text": "Infrastructure Outpacing Understanding",
-              "styles": {
-                "bold": true
-              }
-            }
-          ]
-        },
-        {
-          "id": "b-o1u4ono-mwuuehml",
-          "props": {
-            "textAlignment": "left"
-          },
-          "type": "paragraph",
-          "content": [
-            {
-              "styles": {},
-              "text": "While our transactional infrastructure has leapfrogged ahead, our collective financial understanding remains in its early stages. Frictionless payments make spending money easier than ever before. When transactions were physical, counting paper notes created a natural psychological pause. Digital payments remove that friction entirely.",
-              "type": "text"
-            }
-          ],
-          "children": []
-        },
-        {
-          "id": "b-3y14wql-mwuuehml",
-          "content": [
-            {
-              "type": "text",
-              "styles": {},
-              "text": "Without disciplined personal accounting habits, digital convenience can inadvertently lead to higher lifestyle inflation and unmonitored expenditure. The technology has evolved, but human behavioral psychology remains unchanged."
-            }
-          ],
-          "type": "paragraph",
-          "children": [],
-          "props": {
-            "textAlignment": "left"
-          }
-        },
-        {
-          "id": "b-7trr7t3-mwuuehml",
           "props": {
             "textAlignment": "left",
             "level": 2
           },
+          "children": [],
           "content": [
             {
+              "type": "text",
               "styles": {
                 "bold": true
               },
-              "type": "text",
-              "text": "The Next Wave of Nepali Fintech"
+              "text": "Infrastructure Outpacing Understanding"
             }
           ],
-          "children": [],
-          "type": "heading"
+          "type": "heading",
+          "id": "b-1ncrdg5-mwuuehml"
         },
         {
+          "id": "b-o1u4ono-mwuuehml",
           "children": [],
-          "id": "b-qt94q1c-mwuuehml",
+          "props": {
+            "textAlignment": "left"
+          },
+          "type": "paragraph",
+          "content": [
+            {
+              "styles": {},
+              "type": "text",
+              "text": "While our transactional infrastructure has leapfrogged ahead, our collective financial understanding remains in its early stages. Frictionless payments make spending money easier than ever before. When transactions were physical, counting paper notes created a natural psychological pause. Digital payments remove that friction entirely."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "props": {
+            "textAlignment": "left"
+          },
+          "id": "b-3y14wql-mwuuehml",
           "content": [
             {
               "type": "text",
-              "text": "The first era of fintech in Nepal was defined by rails: payment gateways, wallet integrations, and digital inter-bank transfers. That was necessary groundwork, and companies like Fonepay, eSewa, and Khalti built that foundation admirably.",
+              "text": "Without disciplined personal accounting habits, digital convenience can inadvertently lead to higher lifestyle inflation and unmonitored expenditure. The technology has evolved, but human behavioral psychology remains unchanged.",
               "styles": {}
             }
           ],
-          "type": "paragraph",
-          "props": {
-            "textAlignment": "left"
-          }
+          "children": []
         },
         {
-          "content": [
-            {
-              "text": "I believe the next era will be defined by intelligence and guidance. How can software help a small business owner forecast cash flow? How can digital tools help a college student automate disciplined savings? How can retail investors analyze NEPSE company filings with clean, structured interfaces instead of clunky PDFs?",
-              "styles": {},
-              "type": "text"
-            }
-          ],
+          "id": "b-7trr7t3-mwuuehml",
           "children": [],
-          "type": "paragraph",
-          "props": {
-            "textAlignment": "left"
-          },
-          "id": "b-40osa07-mwuuehml"
-        },
-        {
-          "children": [],
-          "content": [
-            {
-              "styles": {},
-              "text": "The true promise of fintech is not making spending faster; it is making financial well-being accessible.",
-              "type": "text"
-            }
-          ],
-          "type": "quote",
-          "props": {
-            "textAlignment": "left"
-          },
-          "id": "b-nrp4fzh-mwuuehml"
-        },
-        {
-          "children": [],
+          "type": "heading",
           "content": [
             {
               "styles": {
                 "bold": true
               },
-              "type": "text",
-              "text": "Why This Matters for Young Builders"
+              "text": "The Next Wave of Nepali Fintech",
+              "type": "text"
             }
           ],
-          "id": "b-erwqvx1-mwuuehml",
-          "type": "heading",
           "props": {
-            "level": 2,
-            "textAlignment": "left"
+            "textAlignment": "left",
+            "level": 2
           }
         },
         {
-          "type": "paragraph",
+          "id": "b-qt94q1c-mwuuehml",
           "props": {
+            "textAlignment": "left"
+          },
+          "type": "paragraph",
+          "content": [
+            {
+              "styles": {},
+              "type": "text",
+              "text": "The first era of fintech in Nepal was defined by rails: payment gateways, wallet integrations, and digital inter-bank transfers. That was necessary groundwork, and companies like Fonepay, eSewa, and Khalti built that foundation admirably."
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "b-40osa07-mwuuehml",
+          "content": [
+            {
+              "type": "text",
+              "text": "I believe the next era will be defined by intelligence and guidance. How can software help a small business owner forecast cash flow? How can digital tools help a college student automate disciplined savings? How can retail investors analyze NEPSE company filings with clean, structured interfaces instead of clunky PDFs?",
+              "styles": {}
+            }
+          ],
+          "props": {
+            "textAlignment": "left"
+          },
+          "children": [],
+          "type": "paragraph"
+        },
+        {
+          "props": {
+            "textAlignment": "left"
+          },
+          "children": [],
+          "id": "b-nrp4fzh-mwuuehml",
+          "type": "quote",
+          "content": [
+            {
+              "text": "The true promise of fintech is not making spending faster; it is making financial well-being accessible.",
+              "styles": {},
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "children": [],
+          "props": {
+            "level": 2,
             "textAlignment": "left"
           },
           "content": [
             {
-              "type": "text",
-              "styles": {},
-              "text": "For students and engineers working in Nepal today, the intersection of finance and software offers an immense frontier. We do not need to simply clone foreign products. We have unique regulatory frameworks, cooperative banking networks, and cultural remittance dynamics that demand custom, home-grown solutions."
+              "styles": {
+                "bold": true
+              },
+              "text": "Why This Matters for Young Builders",
+              "type": "text"
             }
           ],
+          "type": "heading",
+          "id": "b-erwqvx1-mwuuehml"
+        },
+        {
+          "props": {
+            "textAlignment": "left"
+          },
+          "type": "paragraph",
           "children": [],
+          "content": [
+            {
+              "text": "For students and engineers working in Nepal today, the intersection of finance and software offers an immense frontier. We do not need to simply clone foreign products. We have unique regulatory frameworks, cooperative banking networks, and cultural remittance dynamics that demand custom, home-grown solutions.",
+              "styles": {},
+              "type": "text"
+            }
+          ],
           "id": "b-8ln4inv-mwuuehml"
         },
         {
           "content": [
             {
+              "styles": {},
               "type": "text",
-              "text": "Exploring this intersection is one of the primary reasons I study information technology while working in financial education. Software is the highest-leverage lever we have to democratize knowledge.",
-              "styles": {}
+              "text": "Exploring this intersection is one of the primary reasons I study information technology while working in financial education. Software is the highest-leverage lever we have to democratize knowledge."
             }
           ],
-          "id": "b-wpdz7nw-mwuuehml",
-          "children": [],
           "type": "paragraph",
+          "children": [],
           "props": {
             "textAlignment": "left"
-          }
+          },
+          "id": "b-wpdz7nw-mwuuehml"
         }
       ],
       "blocknoteHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">If you walk through the streets of Kathmandu today, you will see QR payment stands at tea stalls, grocery vendors, and tempo drivers. The speed at which Nepal transitioned from cash-dominated commerce to seamless digital transactions is one of the most remarkable stories of technological adoption in South Asia.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Infrastructure Outpacing Understanding</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">While our transactional infrastructure has leapfrogged ahead, our collective financial understanding remains in its early stages. Frictionless payments make spending money easier than ever before. When transactions were physical, counting paper notes created a natural psychological pause. Digital payments remove that friction entirely.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Without disciplined personal accounting habits, digital convenience can inadvertently lead to higher lifestyle inflation and unmonitored expenditure. The technology has evolved, but human behavioral psychology remains unchanged.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">The Next Wave of Nepali Fintech</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">The first era of fintech in Nepal was defined by rails: payment gateways, wallet integrations, and digital inter-bank transfers. That was necessary groundwork, and companies like Fonepay, eSewa, and Khalti built that foundation admirably.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">I believe the next era will be defined by intelligence and guidance. How can software help a small business owner forecast cash flow? How can digital tools help a college student automate disciplined savings? How can retail investors analyze NEPSE company filings with clean, structured interfaces instead of clunky PDFs?</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">The true promise of fintech is not making spending faster; it is making financial well-being accessible.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Why This Matters for Young Builders</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">For students and engineers working in Nepal today, the intersection of finance and software offers an immense frontier. We do not need to simply clone foreign products. We have unique regulatory frameworks, cooperative banking networks, and cultural remittance dynamics that demand custom, home-grown solutions.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Exploring this intersection is one of the primary reasons I study information technology while working in financial education. Software is the highest-leverage lever we have to democratize knowledge.</p>",
       "tiptapJson": {
-        "type": "doc",
         "content": [
           {
             "attrs": {
@@ -3051,7 +3050,6 @@
             ]
           },
           {
-            "type": "heading",
             "attrs": {
               "level": 2
             },
@@ -3060,44 +3058,45 @@
                 "text": "Infrastructure Outpacing Understanding",
                 "type": "text"
               }
-            ]
-          },
-          {
-            "content": [
-              {
-                "type": "text",
-                "text": "While our transactional infrastructure has leapfrogged ahead, our collective financial understanding remains in its early stages. Frictionless payments make spending money easier than ever before. When transactions were physical, counting paper notes created a natural psychological pause. Digital payments remove that friction entirely."
-              }
             ],
-            "type": "paragraph"
+            "type": "heading"
           },
           {
             "type": "paragraph",
             "content": [
               {
-                "text": "Without disciplined personal accounting habits, digital convenience can inadvertently lead to higher lifestyle inflation and unmonitored expenditure. The technology has evolved, but human behavioral psychology remains unchanged.",
+                "text": "While our transactional infrastructure has leapfrogged ahead, our collective financial understanding remains in its early stages. Frictionless payments make spending money easier than ever before. When transactions were physical, counting paper notes created a natural psychological pause. Digital payments remove that friction entirely.",
                 "type": "text"
               }
             ]
           },
           {
-            "attrs": {
-              "level": 2
-            },
-            "type": "heading",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Without disciplined personal accounting habits, digital convenience can inadvertently lead to higher lifestyle inflation and unmonitored expenditure. The technology has evolved, but human behavioral psychology remains unchanged."
+              }
+            ]
+          },
+          {
             "content": [
               {
                 "type": "text",
                 "text": "The Next Wave of Nepali Fintech"
               }
-            ]
+            ],
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            }
           },
           {
             "type": "paragraph",
             "content": [
               {
-                "text": "The first era of fintech in Nepal was defined by rails: payment gateways, wallet integrations, and digital inter-bank transfers. That was necessary groundwork, and companies like Fonepay, eSewa, and Khalti built that foundation admirably.",
-                "type": "text"
+                "type": "text",
+                "text": "The first era of fintech in Nepal was defined by rails: payment gateways, wallet integrations, and digital inter-bank transfers. That was necessary groundwork, and companies like Fonepay, eSewa, and Khalti built that foundation admirably."
               }
             ]
           },
@@ -3105,8 +3104,8 @@
             "type": "paragraph",
             "content": [
               {
-                "type": "text",
-                "text": "I believe the next era will be defined by intelligence and guidance. How can software help a small business owner forecast cash flow? How can digital tools help a college student automate disciplined savings? How can retail investors analyze NEPSE company filings with clean, structured interfaces instead of clunky PDFs?"
+                "text": "I believe the next era will be defined by intelligence and guidance. How can software help a small business owner forecast cash flow? How can digital tools help a college student automate disciplined savings? How can retail investors analyze NEPSE company filings with clean, structured interfaces instead of clunky PDFs?",
+                "type": "text"
               }
             ]
           },
@@ -3125,6 +3124,7 @@
             "type": "blockquote"
           },
           {
+            "type": "heading",
             "attrs": {
               "level": 2
             },
@@ -3133,17 +3133,16 @@
                 "text": "Why This Matters for Young Builders",
                 "type": "text"
               }
-            ],
-            "type": "heading"
+            ]
           },
           {
+            "type": "paragraph",
             "content": [
               {
                 "text": "For students and engineers working in Nepal today, the intersection of finance and software offers an immense frontier. We do not need to simply clone foreign products. We have unique regulatory frameworks, cooperative banking networks, and cultural remittance dynamics that demand custom, home-grown solutions.",
                 "type": "text"
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
             "type": "paragraph",
@@ -3154,7 +3153,8 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "doc"
       },
       "seo": {
         "title": "Where Finance Meets Technology — Journal — Aakash Das",
@@ -3213,8 +3213,9 @@
       "contentHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">When I first started creating educational notes on personal finance, my biggest hesitation was feeling unqualified. I asked myself whether someone who is still studying and learning has any right to write explainers. What I discovered is that learning in public is not about claiming authority—it is about documenting curiosity with rigor and humility.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Teaching as a Learning Mechanism</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">There is an old observation attributed to Richard Feynman: if you cannot explain a concept to a beginner in simple terms, you do not truly understand it yourself. In personal finance, this becomes obvious very quickly. The financial industry is filled with jargon that often obscures basic mathematical truths.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">When I sit down to break down a concept—whether it is how compound interest works in an ordinary fixed deposit or how tax brackets apply to someone starting their first job—I am forced to identify every gap in my own logic. You cannot hide behind ambiguity when you are writing for an audience of peers.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Honesty Over Performance</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">The internet often rewards the appearance of expertise. People feel pressured to present themselves as finished products with all the answers. But I have found that honesty is infinitely more sustainable. When I write &quot;Here is what I currently understand, and here are the questions I am still exploring,&quot; it opens up genuine conversations.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Learning in public invites feedback. Thoughtful readers point out edge cases, recommend better source material, and challenge underlying assumptions. That feedback loop accelerates understanding in a way that isolated private study never could.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">You do not need to be at the destination to point out the trail markers you just passed.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Building a Compounding Archive</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Every essay, checklist, and spreadsheet I publish becomes a small permanent asset in an evolving intellectual portfolio. Looking back at work from six months ago allows me to measure personal growth with tangible evidence.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">For anyone hesitant to share their work: the goal is not to be the definitive voice on a topic. The goal is simply to be a reliable, thoughtful explorer documenting the journey with care.</p>",
       "blocknoteJson": [
         {
-          "id": "b-qt7o8p3-mwuuehiv",
+          "children": [],
           "type": "paragraph",
+          "id": "b-qt7o8p3-mwuuehiv",
           "content": [
             {
               "styles": {},
@@ -3222,185 +3223,185 @@
               "text": "When I first started creating educational notes on personal finance, my biggest hesitation was feeling unqualified. I asked myself whether someone who is still studying and learning has any right to write explainers. What I discovered is that learning in public is not about claiming authority—it is about documenting curiosity with rigor and humility."
             }
           ],
-          "children": [],
           "props": {
             "textAlignment": "left"
           }
         },
         {
-          "id": "b-mpzqtqy-mwuuehiv",
           "type": "heading",
+          "props": {
+            "level": 2,
+            "textAlignment": "left"
+          },
+          "id": "b-mpzqtqy-mwuuehiv",
+          "content": [
+            {
+              "text": "Teaching as a Learning Mechanism",
+              "styles": {
+                "bold": true
+              },
+              "type": "text"
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "b-ut39znu-mwuuehiv",
+          "children": [],
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "There is an old observation attributed to Richard Feynman: if you cannot explain a concept to a beginner in simple terms, you do not truly understand it yourself. In personal finance, this becomes obvious very quickly. The financial industry is filled with jargon that often obscures basic mathematical truths.",
+              "type": "text",
+              "styles": {}
+            }
+          ],
+          "props": {
+            "textAlignment": "left"
+          }
+        },
+        {
+          "children": [],
+          "props": {
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "When I sit down to break down a concept—whether it is how compound interest works in an ordinary fixed deposit or how tax brackets apply to someone starting their first job—I am forced to identify every gap in my own logic. You cannot hide behind ambiguity when you are writing for an audience of peers.",
+              "styles": {}
+            }
+          ],
+          "type": "paragraph",
+          "id": "b-mlfjvug-mwuuehiv"
+        },
+        {
+          "children": [],
           "props": {
             "textAlignment": "left",
             "level": 2
           },
-          "children": [],
+          "type": "heading",
           "content": [
             {
-              "text": "Teaching as a Learning Mechanism",
-              "type": "text",
-              "styles": {
-                "bold": true
-              }
-            }
-          ]
-        },
-        {
-          "id": "b-ut39znu-mwuuehiv",
-          "type": "paragraph",
-          "props": {
-            "textAlignment": "left"
-          },
-          "children": [],
-          "content": [
-            {
-              "styles": {},
-              "text": "There is an old observation attributed to Richard Feynman: if you cannot explain a concept to a beginner in simple terms, you do not truly understand it yourself. In personal finance, this becomes obvious very quickly. The financial industry is filled with jargon that often obscures basic mathematical truths.",
-              "type": "text"
-            }
-          ]
-        },
-        {
-          "id": "b-mlfjvug-mwuuehiv",
-          "props": {
-            "textAlignment": "left"
-          },
-          "children": [],
-          "type": "paragraph",
-          "content": [
-            {
-              "styles": {},
-              "type": "text",
-              "text": "When I sit down to break down a concept—whether it is how compound interest works in an ordinary fixed deposit or how tax brackets apply to someone starting their first job—I am forced to identify every gap in my own logic. You cannot hide behind ambiguity when you are writing for an audience of peers."
-            }
-          ]
-        },
-        {
-          "content": [
-            {
-              "text": "Honesty Over Performance",
               "styles": {
                 "bold": true
               },
+              "text": "Honesty Over Performance",
               "type": "text"
             }
           ],
-          "props": {
-            "level": 2,
-            "textAlignment": "left"
-          },
-          "type": "heading",
-          "children": [],
           "id": "b-8xppr4g-mwuuehiv"
         },
         {
-          "props": {
-            "textAlignment": "left"
-          },
+          "type": "paragraph",
           "children": [],
           "content": [
             {
-              "styles": {},
               "text": "The internet often rewards the appearance of expertise. People feel pressured to present themselves as finished products with all the answers. But I have found that honesty is infinitely more sustainable. When I write \"Here is what I currently understand, and here are the questions I am still exploring,\" it opens up genuine conversations.",
-              "type": "text"
+              "type": "text",
+              "styles": {}
             }
           ],
-          "type": "paragraph",
-          "id": "b-b46yj84-mwuuehiv"
+          "id": "b-b46yj84-mwuuehiv",
+          "props": {
+            "textAlignment": "left"
+          }
         },
         {
           "children": [],
           "id": "b-0dv19r8-mwuuehiv",
-          "content": [
-            {
-              "text": "Learning in public invites feedback. Thoughtful readers point out edge cases, recommend better source material, and challenge underlying assumptions. That feedback loop accelerates understanding in a way that isolated private study never could.",
-              "type": "text",
-              "styles": {}
-            }
-          ],
           "type": "paragraph",
           "props": {
             "textAlignment": "left"
-          }
-        },
-        {
-          "id": "b-6a967pw-mwuuehiv",
+          },
           "content": [
             {
-              "text": "You do not need to be at the destination to point out the trail markers you just passed.",
+              "type": "text",
               "styles": {},
-              "type": "text"
+              "text": "Learning in public invites feedback. Thoughtful readers point out edge cases, recommend better source material, and challenge underlying assumptions. That feedback loop accelerates understanding in a way that isolated private study never could."
             }
-          ],
+          ]
+        },
+        {
           "children": [],
           "type": "quote",
-          "props": {
-            "textAlignment": "left"
-          }
-        },
-        {
-          "id": "b-ecvxzvv-mwuuehiv",
           "content": [
             {
+              "type": "text",
+              "styles": {},
+              "text": "You do not need to be at the destination to point out the trail markers you just passed."
+            }
+          ],
+          "props": {
+            "textAlignment": "left"
+          },
+          "id": "b-6a967pw-mwuuehiv"
+        },
+        {
+          "children": [],
+          "props": {
+            "textAlignment": "left",
+            "level": 2
+          },
+          "type": "heading",
+          "content": [
+            {
+              "text": "Building a Compounding Archive",
               "styles": {
                 "bold": true
               },
-              "text": "Building a Compounding Archive",
+              "type": "text"
+            }
+          ],
+          "id": "b-ecvxzvv-mwuuehiv"
+        },
+        {
+          "children": [],
+          "content": [
+            {
+              "text": "Every essay, checklist, and spreadsheet I publish becomes a small permanent asset in an evolving intellectual portfolio. Looking back at work from six months ago allows me to measure personal growth with tangible evidence.",
+              "styles": {},
               "type": "text"
             }
           ],
           "props": {
-            "level": 2,
             "textAlignment": "left"
           },
-          "children": [],
-          "type": "heading"
-        },
-        {
-          "props": {
-            "textAlignment": "left"
-          },
-          "children": [],
           "id": "b-hctzone-mwuuehiv",
-          "content": [
-            {
-              "type": "text",
-              "text": "Every essay, checklist, and spreadsheet I publish becomes a small permanent asset in an evolving intellectual portfolio. Looking back at work from six months ago allows me to measure personal growth with tangible evidence.",
-              "styles": {}
-            }
-          ],
           "type": "paragraph"
         },
         {
           "props": {
             "textAlignment": "left"
           },
-          "children": [],
+          "type": "paragraph",
           "content": [
             {
+              "text": "For anyone hesitant to share their work: the goal is not to be the definitive voice on a topic. The goal is simply to be a reliable, thoughtful explorer documenting the journey with care.",
               "styles": {},
-              "type": "text",
-              "text": "For anyone hesitant to share their work: the goal is not to be the definitive voice on a topic. The goal is simply to be a reliable, thoughtful explorer documenting the journey with care."
+              "type": "text"
             }
           ],
           "id": "b-n28i6yp-mwuuehiv",
-          "type": "paragraph"
+          "children": []
         }
       ],
       "blocknoteHtml": "<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">When I first started creating educational notes on personal finance, my biggest hesitation was feeling unqualified. I asked myself whether someone who is still studying and learning has any right to write explainers. What I discovered is that learning in public is not about claiming authority—it is about documenting curiosity with rigor and humility.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Teaching as a Learning Mechanism</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">There is an old observation attributed to Richard Feynman: if you cannot explain a concept to a beginner in simple terms, you do not truly understand it yourself. In personal finance, this becomes obvious very quickly. The financial industry is filled with jargon that often obscures basic mathematical truths.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">When I sit down to break down a concept—whether it is how compound interest works in an ordinary fixed deposit or how tax brackets apply to someone starting their first job—I am forced to identify every gap in my own logic. You cannot hide behind ambiguity when you are writing for an audience of peers.</p>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Honesty Over Performance</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">The internet often rewards the appearance of expertise. People feel pressured to present themselves as finished products with all the answers. But I have found that honesty is infinitely more sustainable. When I write &quot;Here is what I currently understand, and here are the questions I am still exploring,&quot; it opens up genuine conversations.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Learning in public invites feedback. Thoughtful readers point out edge cases, recommend better source material, and challenge underlying assumptions. That feedback loop accelerates understanding in a way that isolated private study never could.</p>\n<blockquote class=\"editorial-blockquote border-l-2 border-primary/30 bg-muted/20 pl-5 py-3.5 my-6 rounded-r-md italic text-muted-foreground\"><p class=\"text-base text-foreground/90 m-0 leading-relaxed\">You do not need to be at the destination to point out the trail markers you just passed.</p></blockquote>\n<h2 class=\"text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-8 mb-3 pt-2\"><strong class=\"font-semibold text-foreground\">Building a Compounding Archive</strong></h2>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">Every essay, checklist, and spreadsheet I publish becomes a small permanent asset in an evolving intellectual portfolio. Looking back at work from six months ago allows me to measure personal growth with tangible evidence.</p>\n<p class=\"text-base text-muted-foreground leading-relaxed my-3.5 m-0\">For anyone hesitant to share their work: the goal is not to be the definitive voice on a topic. The goal is simply to be a reliable, thoughtful explorer documenting the journey with care.</p>",
       "tiptapJson": {
+        "type": "doc",
         "content": [
           {
-            "type": "paragraph",
             "attrs": {
               "class": "lead"
             },
             "content": [
               {
-                "text": "When I first started creating educational notes on personal finance, my biggest hesitation was feeling unqualified. I asked myself whether someone who is still studying and learning has any right to write explainers. What I discovered is that learning in public is not about claiming authority—it is about documenting curiosity with rigor and humility.",
-                "type": "text"
+                "type": "text",
+                "text": "When I first started creating educational notes on personal finance, my biggest hesitation was feeling unqualified. I asked myself whether someone who is still studying and learning has any right to write explainers. What I discovered is that learning in public is not about claiming authority—it is about documenting curiosity with rigor and humility."
               }
-            ]
+            ],
+            "type": "paragraph"
           },
           {
             "content": [
@@ -3409,49 +3410,49 @@
                 "text": "Teaching as a Learning Mechanism"
               }
             ],
-            "type": "heading",
             "attrs": {
               "level": 2
-            }
+            },
+            "type": "heading"
           },
           {
             "content": [
               {
-                "type": "text",
-                "text": "There is an old observation attributed to Richard Feynman: if you cannot explain a concept to a beginner in simple terms, you do not truly understand it yourself. In personal finance, this becomes obvious very quickly. The financial industry is filled with jargon that often obscures basic mathematical truths."
+                "text": "There is an old observation attributed to Richard Feynman: if you cannot explain a concept to a beginner in simple terms, you do not truly understand it yourself. In personal finance, this becomes obvious very quickly. The financial industry is filled with jargon that often obscures basic mathematical truths.",
+                "type": "text"
               }
             ],
             "type": "paragraph"
           },
           {
+            "type": "paragraph",
             "content": [
               {
-                "type": "text",
-                "text": "When I sit down to break down a concept—whether it is how compound interest works in an ordinary fixed deposit or how tax brackets apply to someone starting their first job—I am forced to identify every gap in my own logic. You cannot hide behind ambiguity when you are writing for an audience of peers."
+                "text": "When I sit down to break down a concept—whether it is how compound interest works in an ordinary fixed deposit or how tax brackets apply to someone starting their first job—I am forced to identify every gap in my own logic. You cannot hide behind ambiguity when you are writing for an audience of peers.",
+                "type": "text"
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
+            "attrs": {
+              "level": 2
+            },
             "type": "heading",
             "content": [
               {
                 "type": "text",
                 "text": "Honesty Over Performance"
               }
-            ],
-            "attrs": {
-              "level": 2
-            }
+            ]
           },
           {
+            "type": "paragraph",
             "content": [
               {
                 "text": "The internet often rewards the appearance of expertise. People feel pressured to present themselves as finished products with all the answers. But I have found that honesty is infinitely more sustainable. When I write \"Here is what I currently understand, and here are the questions I am still exploring,\" it opens up genuine conversations.",
                 "type": "text"
               }
-            ],
-            "type": "paragraph"
+            ]
           },
           {
             "content": [
@@ -3466,13 +3467,13 @@
             "type": "blockquote",
             "content": [
               {
+                "type": "paragraph",
                 "content": [
                   {
-                    "text": "You do not need to be at the destination to point out the trail markers you just passed.",
-                    "type": "text"
+                    "type": "text",
+                    "text": "You do not need to be at the destination to point out the trail markers you just passed."
                   }
-                ],
-                "type": "paragraph"
+                ]
               }
             ]
           },
@@ -3483,19 +3484,19 @@
             },
             "content": [
               {
-                "type": "text",
-                "text": "Building a Compounding Archive"
+                "text": "Building a Compounding Archive",
+                "type": "text"
               }
             ]
           },
           {
-            "type": "paragraph",
             "content": [
               {
                 "text": "Every essay, checklist, and spreadsheet I publish becomes a small permanent asset in an evolving intellectual portfolio. Looking back at work from six months ago allows me to measure personal growth with tangible evidence.",
                 "type": "text"
               }
-            ]
+            ],
+            "type": "paragraph"
           },
           {
             "type": "paragraph",
@@ -3506,8 +3507,7 @@
               }
             ]
           }
-        ],
-        "type": "doc"
+        ]
       },
       "seo": {
         "title": "Why I Believe in Learning in Public — Journal — Aakash Das",

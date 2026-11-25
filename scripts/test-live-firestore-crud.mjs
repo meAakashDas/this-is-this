@@ -7,40 +7,32 @@
 
 import fs from 'node:fs';
 import assert from 'node:assert';
+import { execSync } from 'node:child_process';
 
 console.log('=================================================================');
-console.log('   PHASE 1: LIVE CLOUD FIRESTORE CRUD VERIFICATION               ');
+console.log('   LIVE CLOUD FIRESTORE CRUD & LEGACY BLOB CLEANUP VERIFICATION  ');
 console.log('   Target Project: aakashdas-live                                ');
-console.log('   Authorized User: aakashdas.photo@gmail.com                    ');
+console.log('   CLI Identity:   aakashdas.photo@gmail.com (GCP IAM OAuth)     ');
 console.log('=================================================================\n');
 
-// 1. Read OAuth Token
+// 1. Read & Refresh OAuth Token via Firebase CLI if expired
 const configPath = '/Users/aakashdas/.config/configstore/firebase-tools.json';
-const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-let accessToken = configData.tokens?.access_token;
-const refreshToken = configData.tokens?.refresh_token;
-
-// Helper to refresh token if needed
 async function getValidToken() {
-  if (accessToken) return accessToken;
-  // Refresh via Google OAuth token endpoint
-  const params = new URLSearchParams();
-  params.append('client_id', '563584335869-fgrhgmd47bqnekij5i8b5pr03ho85qd6.apps.googleusercontent.com');
-  params.append('grant_type', 'refresh_token');
-  params.append('refresh_token', refreshToken);
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
-  });
-  const json = await res.json();
-  if (!json.access_token) {
-    throw new Error('Failed to refresh token: ' + JSON.stringify(json));
+  let configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const expiresAt = Number(configData.tokens?.expires_at || 0);
+  if (!configData.tokens?.access_token || Date.now() >= expiresAt - 60000) {
+    const firebaseBin =
+      fs.existsSync('/Users/aakashdas/.npm/_npx/7750544ccf494d8b/node_modules/.bin/firebase')
+        ? '/Users/aakashdas/.npm/_npx/7750544ccf494d8b/node_modules/.bin/firebase'
+        : 'npx firebase-tools';
+    execSync(`${firebaseBin} projects:list --json > /dev/null 2>&1`, { stdio: 'ignore' });
+    configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   }
-  accessToken = json.access_token;
-  return accessToken;
+  if (!configData.tokens?.access_token) {
+    throw new Error('Failed to obtain valid Firebase CLI access token.');
+  }
+  return configData.tokens.access_token;
 }
 
 const BASE_URL = 'https://firestore.googleapis.com/v1/projects/aakashdas-live/databases/(default)/documents';
@@ -193,9 +185,40 @@ async function runLiveVerification() {
     });
     const readUpdatedResource = await firestoreRequest(`/resources/${tempResourceNumber}`);
     assert.strictEqual(readUpdatedResource.fields.published.booleanValue, true);
-    console.log('  ✓ Update operation verified: published state updated.');
+    console.log('  ✓ Update operation verified: published state updated to true.');
 
-    // Delete
+    // Unpublish back to draft
+    await firestoreRequest(`/resources/${tempResourceNumber}?updateMask.fieldPaths=published`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        fields: {
+          published: { booleanValue: false }
+        }
+      })
+    });
+    const readUnpublishedResource = await firestoreRequest(`/resources/${tempResourceNumber}`);
+    assert.strictEqual(readUnpublishedResource.fields.published.booleanValue, false);
+    console.log('  ✓ Unpublish operation verified: published state reverted to false.');
+
+    // Non-destructive round-trip verification on Resource #001 (read -> update -> read -> restore)
+    const r001Before = await firestoreRequest('/resources/001');
+    assert.ok(r001Before?.fields?.title?.stringValue, 'Resource #001 must exist in live Firestore');
+    const orig001Title = r001Before.fields.title.stringValue;
+    await firestoreRequest('/resources/001?updateMask.fieldPaths=title', {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { title: { stringValue: orig001Title + ' ' } } })
+    });
+    const r001Patched = await firestoreRequest('/resources/001');
+    assert.strictEqual(r001Patched.fields.title.stringValue, orig001Title + ' ');
+    await firestoreRequest('/resources/001?updateMask.fieldPaths=title', {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { title: { stringValue: orig001Title } } })
+    });
+    const r001Restored = await firestoreRequest('/resources/001');
+    assert.strictEqual(r001Restored.fields.title.stringValue, orig001Title);
+    console.log('  ✓ Non-destructive Resource #001 live update + restore verified cleanly.');
+
+    // Delete #999
     await firestoreRequest(`/resources/${tempResourceNumber}`, { method: 'DELETE' });
     const verifyDeletedResource = await firestoreRequest(`/resources/${tempResourceNumber}`);
     assert.strictEqual(verifyDeletedResource, null);
@@ -267,11 +290,19 @@ async function runLiveVerification() {
     console.log('  ✓ Cleaned up temporary administrator record.');
 
     // -------------------------------------------------------------------------
-    // 6. Website Settings General Document Check
+    // 6. Website Settings General & Homepage Image Persistence Check (Zero blob:)
     // -------------------------------------------------------------------------
-    console.log('\n[6/7] Checking Website Settings (general)...');
+    console.log('\n[6/7] Checking Website Settings & Homepage Image Persistence...');
     const generalDoc = await firestoreRequest('/siteSettings/general');
-    console.log('  ℹ siteSettings/general document status:', generalDoc ? 'EXISTS' : 'EMPTY (Clean default state)');
+    const homeDoc = await firestoreRequest('/pages/home');
+    assert.ok(generalDoc?.fields, 'siteSettings/general must exist');
+    assert.ok(homeDoc?.fields, 'pages/home must exist');
+    const profImg = generalDoc.fields.profileImage?.stringValue || '';
+    const heroImg = homeDoc.fields.heroPhotoUrl?.stringValue || '';
+    assert.strictEqual(profImg.startsWith('blob:'), false, 'siteSettings/general.profileImage must not be blob:');
+    assert.strictEqual(heroImg.startsWith('blob:'), false, 'pages/home.heroPhotoUrl must not be blob:');
+    console.log(`  ✓ Profile image persisted cleanly: ${profImg}`);
+    console.log(`  ✓ Homepage hero image persisted cleanly: ${heroImg}`);
 
     // -------------------------------------------------------------------------
     // 7. Publishing & Snapshot Pipeline Integrity

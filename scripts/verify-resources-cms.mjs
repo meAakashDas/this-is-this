@@ -10,9 +10,22 @@ async function runVerification() {
   const results = {};
 
   try {
-    // 1. Visible writing editor
+    // 1. Visible writing editor (Dev Preview requires astro dev running on port 4321)
     await page.goto('http://localhost:4321/admin');
-    await page.waitForTimeout(1000);
+    await page.evaluate(() => {
+      sessionStorage.setItem('aakashdas_dev_preview_active', 'true');
+    });
+    await page.goto('http://localhost:4321/admin');
+    const asideVisible = await page
+      .locator('aside')
+      .waitFor({ state: 'visible', timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!asideVisible) {
+      throw new Error(
+        'Dev Preview sidebar did not load. Start Astro in dev mode (`npx astro dev --port 4321`) before running verify-resources-cms.mjs.'
+      );
+    }
     await page.locator('aside button:has-text("Resources")').click();
     await page.waitForTimeout(500);
     await page.locator('button:has-text("Create Resource")').click();

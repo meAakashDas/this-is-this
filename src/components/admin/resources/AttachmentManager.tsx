@@ -300,6 +300,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     }
 
     // 2. Attempt GitHub Repository static downloads upload (if PAT configured in Publishing)
+    let ghFailureReason: string | null = null;
     try {
       const ghResult = await uploadToGitHubDownloadsIfConfigured(file, resourceNumber);
       if (ghResult) {
@@ -310,6 +311,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
         };
       }
     } catch (ghErr: any) {
+      ghFailureReason = ghErr?.message || 'GitHub upload failed';
       console.warn('[AttachmentManager] GitHub upload failed:', ghErr);
     }
 
@@ -320,13 +322,17 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
       setUploadProgress(100);
       return {
         url: dataUrl,
-        notice: `Firebase Storage is not provisioned on the Spark plan. "${file.name}" (${formatBytes(file.size)}) was encoded as a permanent inline Data URI and will persist directly in Cloud Firestore.`,
+        notice: ghFailureReason
+          ? `GitHub upload failed (${ghFailureReason}). "${file.name}" (${formatBytes(file.size)}) was instead stored as a permanent inline Data URI in Cloud Firestore.`
+          : `Firebase Storage is not provisioned on the Spark plan. "${file.name}" (${formatBytes(file.size)}) was encoded as a permanent inline Data URI and will persist directly in Cloud Firestore.`,
       };
     }
 
     // 4. Reject rather than storing a fake link or blob: URL
     throw new Error(
-      `Cannot store "${file.name}" (${formatBytes(file.size)}): Firebase Storage is not provisioned on the free Spark plan and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit. Use "Add Link / External URL" to attach a permanent external URL (e.g. Google Drive / GitHub Release) or configure a GitHub token in Publishing.`
+      ghFailureReason
+        ? `Cannot store "${file.name}" (${formatBytes(file.size)}): GitHub upload failed (${ghFailureReason}), Firebase Storage is not provisioned on the free Spark plan, and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit.`
+        : `Cannot store "${file.name}" (${formatBytes(file.size)}): Firebase Storage is not provisioned on the free Spark plan and the file exceeds Firestore's ${formatBytes(MAX_INLINE_FIRESTORE_BYTES)} inline limit. Use "Add Link / External URL" to attach a permanent external URL (e.g. Google Drive / GitHub Release) or configure a GitHub token in Publishing.`
     );
   };
 

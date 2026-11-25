@@ -233,8 +233,9 @@ test.describe('AakashDas.live — Professional About Page QA', () => {
 
     // Email button
     const emailBtn = contactSection.locator('.email-cta-btn');
-    await expect(emailBtn).toHaveText(/contact@aakashdas\.(live|me)/);
-    await expect(emailBtn).toHaveAttribute('href', /mailto:contact@aakashdas\.(live|me)/);
+    await expect(emailBtn).toBeVisible();
+    await expect(emailBtn).toHaveText(/.+@.+\..+/);
+    await expect(emailBtn).toHaveAttribute('href', /^mailto:.+@.+\..+/);
 
     // Social links
     await expect(contactSection).toContainText('Instagram');

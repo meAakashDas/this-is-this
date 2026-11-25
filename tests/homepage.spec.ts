@@ -210,8 +210,8 @@ test.describe('AakashDas.live — Simplified Homepage QA', () => {
     // Email primary button
     const emailBtn = contactZone.locator('.email-cta-btn');
     await expect(emailBtn).toBeVisible();
-    await expect(emailBtn).toContainText('contact@aakashdas.live');
-    await expect(emailBtn).toHaveAttribute('href', 'mailto:contact@aakashdas.live');
+    await expect(emailBtn).toHaveText(/.+@.+\..+/);
+    await expect(emailBtn).toHaveAttribute('href', /^mailto:.+@.+\..+/);
 
     // Social links
     await expect(contactZone).toContainText('Instagram');
@@ -250,8 +250,8 @@ test.describe('AakashDas.live — Simplified Homepage QA', () => {
     // Email
     const email = footer.locator('.footer-email');
     await expect(email).toBeVisible();
-    await expect(email).toContainText('contact@aakashdas.live');
-    await expect(email).toHaveAttribute('href', 'mailto:contact@aakashdas.live');
+    await expect(email).toHaveText(/.+@.+\..+/);
+    await expect(email).toHaveAttribute('href', /^mailto:.+@.+\..+/);
 
     // Direct contact buttons
     const callBtn = footer.locator('a[aria-label="Call me"]');

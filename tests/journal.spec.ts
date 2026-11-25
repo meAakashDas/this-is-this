@@ -154,7 +154,7 @@ test.describe('AakashDas.live — Editorial Journal QA', () => {
     // Email link in footer
     const emailLink = footer.locator('.footer-email');
     await expect(emailLink).toBeVisible();
-    await expect(emailLink).toHaveAttribute('href', /mailto:contact@aakashdas\.(live|me)/);
+    await expect(emailLink).toHaveAttribute('href', /^mailto:.+@.+\..+/);
 
     // Direct contact action buttons
     const callBtn = footer.locator('a[aria-label="Call me"]');

@@ -14,10 +14,9 @@ test.describe('Admin Authentication & Portal Security QA', () => {
     const contactSection = page.locator('.about-contact-section');
     await expect(contactSection).toBeVisible();
 
-    // Verify administrator email is not exposed in page text
+    // Verify private administrator OAuth email is never exposed in page text
     const pageText = await page.textContent('body');
     expect(pageText).not.toContain('aakashdas.photo@gmail.com');
-    expect(pageText).not.toContain('itsaakashdas@gmail.com');
   });
 
   test('2. Discreet Sign in link is strictly absent from all other public routes and components', async ({

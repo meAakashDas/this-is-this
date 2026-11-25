@@ -656,6 +656,11 @@ export function generateResourcePdfHtml(
     .notion-document-content th { background: #F4F4F5; font-weight: 600; color: #18181B; border-bottom: 2px solid #D4D4D8; }
     .notion-document-content hr { border: 0; height: 1px; background: #E4E4E7; margin: 24px 0; }
     .notion-document-content img { max-width: 100%; height: auto; border-radius: 6px; margin: 16px auto; display: block; }
+    .notion-document-content pre { background: #F4F4F5; border: 1px solid #E4E4E7; border-radius: 6px; padding: 12px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 8.5pt; white-space: pre-wrap; margin: 14px 0; page-break-inside: avoid; }
+    .notion-document-content code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9pt; background: #F4F4F5; padding: 1px 4px; border-radius: 3px; }
+    .notion-document-content pre code { background: transparent; padding: 0; }
+    .notion-document-content .editorial-checklist-list { list-style: none; margin-left: 4px; padding-left: 0; }
+    .notion-document-content .checklist-box { display: inline-block; margin-right: 6px; font-weight: 700; color: #059669; }
 
     /* Video Section */
     .video-card {

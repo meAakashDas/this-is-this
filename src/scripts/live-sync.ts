@@ -283,8 +283,21 @@ function hydratePdfPreviewElement(pdfSection: HTMLElement, pdfUrl: string) {
   const obj = pdfSection.querySelector<HTMLObjectElement>('object.pdf-object');
   const iframe = pdfSection.querySelector<HTMLIFrameElement>('iframe.pdf-iframe');
   if (obj && obj.getAttribute('data-raw-pdf') !== pdfUrl) {
+    const prevBlob = obj.getAttribute('data-blob-url');
+    if (prevBlob && prevBlob.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(prevBlob);
+      } catch {
+        // ignore revoke error
+      }
+    }
     obj.setAttribute('data-raw-pdf', pdfUrl);
     const renderUrl = dataPdfUriToBlobUrl(pdfUrl);
+    if (renderUrl.startsWith('blob:')) {
+      obj.setAttribute('data-blob-url', renderUrl);
+    } else {
+      obj.removeAttribute('data-blob-url');
+    }
     obj.setAttribute('data', renderUrl);
     if (iframe) iframe.setAttribute('src', renderUrl);
   }
@@ -472,6 +485,7 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
             </div>
           </section>
         ` : ''}
+        <nav class="resource-adjacent-nav pt-8 mt-12 border-t border-border" aria-label="Adjacent resources"><div class="adjacent-links-row flex items-stretch justify-between gap-4 flex-col sm:flex-row"></div></nav>
       </article>
     </div>
   `;
@@ -552,6 +566,42 @@ async function syncResourceDetail(db: any, resourceId: string) {
     // If static build didn't have this resource yet (404 or not-found placeholder), render full page dynamically
     if ((!articleEl || notFoundCard || errorCard) && mainContent) {
       renderDynamicResourceDetail(mainContent, data);
+      const dynamicNav = mainContent.querySelector<HTMLElement>('.resource-adjacent-nav .adjacent-links-row');
+      if (dynamicNav) {
+        const liveList = await fetchPublishedResourcesLive(db);
+        if (liveList && liveList.length > 0) {
+          const currentDocId = snap.id || data.id || resourceId;
+          const idx = liveList.findIndex(
+            (r) =>
+              String(r.id) === String(currentDocId) ||
+              String(r.resourceNumber) === String(data.resourceNumber)
+          );
+          if (idx !== -1) {
+            const prevRes = idx > 0 ? liveList[idx - 1] : null;
+            const nextRes = idx < liveList.length - 1 ? liveList[idx + 1] : null;
+            dynamicNav.innerHTML = `
+              ${prevRes ? `
+                <a href="/resources/${escapeHtml(prevRes.id || prevRes.resourceNumber)}" class="adjacent-nav-link adjacent-prev flex items-center gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm no-underline text-inherit" aria-label="Previous Resource: ${escapeHtml(prevRes.title)}">
+                  <span class="nav-dir-arrow text-muted-foreground" aria-hidden="true">←</span>
+                  <div class="nav-text-group flex flex-col gap-0.5 min-w-0">
+                    <span class="nav-label text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground">Previous Resource</span>
+                    <span class="nav-resource-title text-sm font-semibold text-foreground truncate">${escapeHtml(prevRes.title)}</span>
+                  </div>
+                </a>
+              ` : '<div class="adjacent-empty flex-1"></div>'}
+              ${nextRes ? `
+                <a href="/resources/${escapeHtml(nextRes.id || nextRes.resourceNumber)}" class="adjacent-nav-link adjacent-next flex items-center justify-between gap-3 p-5 rounded-xl border border-border bg-card text-card-foreground hover:border-border-strong hover:shadow-xs transition-all flex-1 max-w-sm sm:ml-auto text-right no-underline text-inherit" aria-label="Next Resource: ${escapeHtml(nextRes.title)}">
+                  <div class="nav-text-group flex flex-col gap-0.5 min-w-0 text-left sm:text-right">
+                    <span class="nav-label text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground">Next Resource</span>
+                    <span class="nav-resource-title text-sm font-semibold text-foreground truncate">${escapeHtml(nextRes.title)}</span>
+                  </div>
+                  <span class="nav-dir-arrow text-muted-foreground" aria-hidden="true">→</span>
+                </a>
+              ` : '<div class="adjacent-empty flex-1"></div>'}
+            `;
+          }
+        }
+      }
       return;
     }
 
@@ -703,9 +753,19 @@ async function syncResourceDetail(db: any, resourceId: string) {
     const viewPdfBtn = articleEl.querySelector<HTMLAnchorElement>('a.btn-view-pdf');
     let pdfSection = articleEl.querySelector<HTMLElement>('.pdf-preview-section');
 
+    const dynamicSlug = String(data.title || 'resource')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const dynamicPdfName =
+      data.generatedPdf?.fileName || `resource-${data.resourceNumber || '001'}-${dynamicSlug}.pdf`;
+    const dynamicDocxName =
+      data.generatedDocx?.fileName || `resource-${data.resourceNumber || '001'}-${dynamicSlug}.docx`;
+
     if (pdfUrl) {
       if (savePdfBtn) {
         savePdfBtn.href = pdfUrl;
+        savePdfBtn.setAttribute('download', dynamicPdfName);
         savePdfBtn.style.display = '';
       }
       if (viewPdfBtn) {
@@ -720,7 +780,7 @@ async function syncResourceDetail(db: any, resourceId: string) {
           <div class="preview-header flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border bg-secondary/50 flex-wrap">
             <h2 id="pdf-preview-heading" class="section-heading text-base sm:text-lg font-semibold tracking-tight text-foreground m-0">View as PDF</h2>
             <div class="preview-actions-bar flex items-center gap-2 flex-wrap">
-              <a href="${escapeHtml(pdfUrl)}" download="resource-${escapeHtml(data.resourceNumber || '001')}.pdf" class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Download PDF</span></a>
+              <a href="${escapeHtml(pdfUrl)}" download="${escapeHtml(dynamicPdfName)}" class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Download PDF</span></a>
             </div>
           </div>
           <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
@@ -736,7 +796,10 @@ async function syncResourceDetail(db: any, resourceId: string) {
         pdfSection.style.display = '';
       }
       const dlPdfBtn = pdfSection.querySelector<HTMLAnchorElement>('a.btn-download-pdf') || downloadPdfBtn;
-      if (dlPdfBtn) dlPdfBtn.href = pdfUrl;
+      if (dlPdfBtn) {
+        dlPdfBtn.href = pdfUrl;
+        dlPdfBtn.setAttribute('download', dynamicPdfName);
+      }
       hydratePdfPreviewElement(pdfSection, pdfUrl);
     } else {
       if (savePdfBtn) savePdfBtn.style.display = 'none';
@@ -747,6 +810,7 @@ async function syncResourceDetail(db: any, resourceId: string) {
     articleEl.querySelectorAll<HTMLAnchorElement>('a.btn-save-docx').forEach((btn) => {
       if (docxUrl) {
         btn.href = docxUrl;
+        btn.setAttribute('download', dynamicDocxName);
         btn.style.display = '';
       } else {
         btn.style.display = 'none';

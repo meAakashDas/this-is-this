@@ -412,11 +412,20 @@ export async function createResource(
   const immutableDocId =
     explicitId && !/^\d+$/.test(explicitId) ? explicitId : generateImmutableResourceDocId();
 
+  // Ensure slug is unique across resources to prevent canonical collisions
+  const existingAllForSlug = await getAllResourcesForAdmin();
+  const baseSlug = (data.slug || `resource-${resourceNumber}`).trim().toLowerCase();
+  const slugConflict = existingAllForSlug.some(
+    (r) => (r.slug || '').toLowerCase() === baseSlug && (r.id || r.resourceNumber) !== immutableDocId
+  );
+  const resolvedSlug = slugConflict ? `${baseSlug}-${resourceNumber}` : baseSlug;
+
   const now = new Date().toISOString();
   const fullDoc: ResourceDocument = {
     ...data,
     id: immutableDocId,
     resourceNumber,
+    slug: resolvedSlug,
     coverImage: sanitizeAssetUrl(data.coverImage, '') || undefined,
     downloadUrl: sanitizeAssetUrl(data.downloadUrl, '') || undefined,
     pdfPreviewUrl: sanitizeAssetUrl(data.pdfPreviewUrl, '') || undefined,
@@ -432,9 +441,30 @@ export async function createResource(
   try {
     const docRef = doc(db, COLLECTION, immutableDocId);
     await setDoc(docRef, sanitizeForFirestore(validated, immutableDocId));
+
+    // Post-write concurrent creation guard: if two tabs raced on the same resourceNumber,
+    // deterministically keep the earliest record and roll back the loser.
+    const dupQuery = query(collection(db, COLLECTION), where('resourceNumber', '==', resourceNumber));
+    const dupSnap = await getDocs(dupQuery);
+    if (dupSnap.size > 1) {
+      const sorted = [...dupSnap.docs].sort((a, b) => {
+        const ca = String(a.data()?.createdAt || '');
+        const cb = String(b.data()?.createdAt || '');
+        if (ca !== cb) return ca.localeCompare(cb);
+        return a.id.localeCompare(b.id);
+      });
+      if (sorted[0]?.id !== immutableDocId) {
+        await deleteDoc(docRef).catch(() => {});
+        throw new CmsConflictError(
+          `Resource number NO. ${resourceNumber} was claimed concurrently by another session. Please try again.`
+        );
+      }
+    }
+
     clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
+    if (error instanceof CmsConflictError) throw error;
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to create resource #${resourceNumber}: ${msg}`, 'WRITE_FAILED');
   }
@@ -443,11 +473,13 @@ export async function createResource(
 /**
  * Updates an existing resource document.
  * Preserves the canonical Firestore document ID & public URL even when display resourceNumber changes.
+ * Supports optional optimistic concurrency guard via `options.expectedUpdatedAt`.
  */
 export async function updateResource(
   rawIdentifier: string,
   data: Partial<ResourceDocument>,
-  adminEmail: string = 'aakashdas.photo@gmail.com'
+  adminEmail: string = 'aakashdas.photo@gmail.com',
+  options?: { expectedUpdatedAt?: string }
 ): Promise<ResourceDocument> {
   const db = getFirebaseFirestore();
 
@@ -462,11 +494,27 @@ export async function updateResource(
     throw new CmsNotFoundError('Resource', trimmedId);
   }
 
+  // Optimistic concurrency guard: prevent stale tab overwrites
+  if (
+    options?.expectedUpdatedAt &&
+    existing.updatedAt &&
+    existing.updatedAt !== options.expectedUpdatedAt
+  ) {
+    throw new CmsConflictError(
+      `Resource #${existing.resourceNumber} was updated in another session (${existing.updatedAt}). Reload before saving to avoid overwriting newer edits.`
+    );
+  }
+
   // Canonical document ID stays immutable forever (preserves URLs & bookmarks)
   const canonicalDocId = existing.id || existing.resourceNumber || trimmedId;
 
   // Validate new display resourceNumber if provided
   let targetResourceNumber = existing.resourceNumber;
+  const numberChanged =
+    'resourceNumber' in data &&
+    data.resourceNumber !== undefined &&
+    data.resourceNumber !== existing.resourceNumber;
+
   if ('resourceNumber' in data && data.resourceNumber !== undefined) {
     const numValidation = validateResourceNumber(String(data.resourceNumber));
     if (!numValidation.valid || !numValidation.value) {
@@ -519,9 +567,26 @@ export async function updateResource(
     // Write full sanitized document (since `merged` already preserves `existing` fields)
     // so removed fields like cleared pdfPreviewUrl/docxUrl are actually deleted in Firestore.
     await setDoc(docRef, sanitizeForFirestore(validated, canonicalDocId));
+
+    // Post-write duplicate number verification on number rename
+    if (numberChanged) {
+      const dupQuery = query(collection(db, COLLECTION), where('resourceNumber', '==', targetResourceNumber));
+      const dupSnap = await getDocs(dupQuery);
+      if (dupSnap.size > 1) {
+        const sorted = [...dupSnap.docs].sort((a, b) => a.id.localeCompare(b.id));
+        if (sorted[0]?.id !== canonicalDocId) {
+          await setDoc(docRef, sanitizeForFirestore(existing, canonicalDocId)).catch(() => {});
+          throw new CmsConflictError(
+            `Resource number NO. ${targetResourceNumber} was claimed concurrently by another resource.`
+          );
+        }
+      }
+    }
+
     clearLiveSyncCache('resources');
     return validated;
   } catch (error) {
+    if (error instanceof CmsConflictError) throw error;
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to update resource #${canonicalDocId}: ${msg}`, 'WRITE_FAILED');
   }

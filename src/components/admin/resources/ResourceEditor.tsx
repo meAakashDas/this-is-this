@@ -34,7 +34,10 @@ interface ResourceEditorProps {
   existingResources?: Array<{ id: string; resourceNumber: string; title?: string }>;
   defaultAutoNumber?: string;
   existingSlugs?: { number: string; slug: string }[];
-  onSave: (doc: ResourceDocument) => Promise<ResourceDocument | void>;
+  onSave: (
+    doc: ResourceDocument,
+    saveOptions?: { expectedUpdatedAt?: string }
+  ) => Promise<ResourceDocument | void>;
   onCancel: () => void;
   isDevPreview?: boolean;
 }
@@ -115,9 +118,13 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
   );
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAttachmentUploading, setIsAttachmentUploading] = useState(false);
   const [savingStage, setSavingStage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const isSavingRef = useRef(false);
+  const saveSequenceRef = useRef(0);
+  const lastKnownUpdatedAtRef = useRef<string | undefined>(initialResource?.updatedAt);
 
   const handleQueueBinaryCleanup = useCallback((storagePath: string) => {
     if (storagePath) {
@@ -269,6 +276,14 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
   };
 
   const handleSave = async (targetStatus: ResourceStatus) => {
+    if (isSavingRef.current) {
+      return;
+    }
+    if (isAttachmentUploading) {
+      setErrorMsg('Please wait for the active file upload to finish before saving.');
+      return;
+    }
+
     setErrorMsg(null);
     setSuccessMsg(null);
 
@@ -285,14 +300,26 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       return;
     }
 
+    isSavingRef.current = true;
+    const currentSeq = ++saveSequenceRef.current;
     setIsSaving(true);
     setSavingStage('Saving Resource to database...');
     try {
-      const doc = buildDocument(targetStatus, resolvedNumber);
+      const wasAlreadyPublished = Boolean(initialResource?.published && initialResource?.status !== 'draft');
+      // On initial Publish of a draft/new record, keep in draft until generated PDF & DOCX succeed
+      // so unpublished/missing generated documents are never exposed live.
+      const deferPublishUntilExportsReady = targetStatus === 'published' && !wasAlreadyPublished;
+      const initialSaveStatus: ResourceStatus = deferPublishUntilExportsReady ? 'draft' : targetStatus;
+
+      const doc = buildDocument(initialSaveStatus, resolvedNumber);
       const nextContentVersion = await computeResourceContentVersion(doc);
       doc.contentVersion = nextContentVersion;
 
-      const persisted = (await onSave(doc)) || doc;
+      const persisted =
+        (await onSave(doc, { expectedUpdatedAt: lastKnownUpdatedAtRef.current })) || doc;
+      lastKnownUpdatedAtRef.current = persisted.updatedAt;
+
+      if (saveSequenceRef.current !== currentSeq) return;
 
       // Clean up obsolete manual binaries ONLY after Firestore save has been confirmed
       if (!isDevPreview && pendingCleanupPathsRef.current.size > 0) {
@@ -315,6 +342,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
 
       let exportStatusNote = '';
       let exportGenerationFailed = false;
+      let latestDoc = persisted;
 
       if (needsRegeneration) {
         try {
@@ -336,26 +364,44 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
             onStage: (stage) => setSavingStage(stage),
           });
 
-          setSavingStage('Saving generated PDF & DOCX metadata...');
+          if (saveSequenceRef.current !== currentSeq) return;
+
+          setSavingStage(
+            deferPublishUntilExportsReady
+              ? 'Publishing Resource with generated PDF & DOCX...'
+              : 'Saving generated PDF & DOCX metadata...'
+          );
+
           const updatedWithExports: ResourceDocument = {
             ...persisted,
+            published: targetStatus === 'published',
+            status: targetStatus,
+            publishedAt:
+              targetStatus === 'published'
+                ? persisted.publishedAt || new Date().toISOString().split('T')[0]
+                : persisted.publishedAt,
             contentVersion: exportsBundle.contentVersion,
             lastGeneratedAt: exportsBundle.lastGeneratedAt,
             generatedPdf: exportsBundle.generatedPdf,
             generatedDocx: exportsBundle.generatedDocx,
             pdfPreviewUrl: exportsBundle.pdfPreviewUrl,
             docxUrl: exportsBundle.docxUrl,
-            downloadUrl: persisted.attachments.length > 0
-              ? persisted.downloadUrl || exportsBundle.pdfPreviewUrl
-              : exportsBundle.pdfPreviewUrl,
+            downloadUrl:
+              persisted.attachments.length > 0
+                ? persisted.downloadUrl || exportsBundle.pdfPreviewUrl
+                : exportsBundle.pdfPreviewUrl,
             lastGenerationError: undefined,
           };
 
-          await onSave(updatedWithExports);
+          latestDoc =
+            (await onSave(updatedWithExports, {
+              expectedUpdatedAt: lastKnownUpdatedAtRef.current,
+            })) || updatedWithExports;
+          lastKnownUpdatedAtRef.current = latestDoc.updatedAt;
 
           if (!isDevPreview) {
             const activePaths = new Set([
-              ...updatedWithExports.attachments.map((a) => a.storagePath).filter(Boolean),
+              ...latestDoc.attachments.map((a) => a.storagePath).filter(Boolean),
               exportsBundle.generatedPdf.storagePath,
               exportsBundle.generatedDocx.storagePath,
             ]);
@@ -373,13 +419,26 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
           const errDetail = exportErr?.message || 'Document generation failed';
           console.error('[ResourceEditor] Auto PDF/DOCX generation failed:', exportErr);
           setErrorMsg(
-            `Resource #${resolvedNumber} content saved, but automatic PDF/DOCX generation failed: ${errDetail}. Previously valid generated files were preserved.`
+            deferPublishUntilExportsReady
+              ? `Resource #${resolvedNumber} content saved as Draft, but publishing was paused because PDF/DOCX generation failed: ${errDetail}.`
+              : `Resource #${resolvedNumber} content saved, but automatic PDF/DOCX generation failed: ${errDetail}. Previously valid generated files were preserved.`
           );
         }
+      } else if (deferPublishUntilExportsReady) {
+        const publishedDoc: ResourceDocument = {
+          ...persisted,
+          published: true,
+          status: 'published',
+          publishedAt: persisted.publishedAt || new Date().toISOString().split('T')[0],
+        };
+        latestDoc =
+          (await onSave(publishedDoc, { expectedUpdatedAt: lastKnownUpdatedAtRef.current })) ||
+          publishedDoc;
+        lastKnownUpdatedAtRef.current = latestDoc.updatedAt;
       }
 
       setNumberInput(resolvedNumber);
-      setStatus(targetStatus);
+      setStatus(latestDoc.status || (latestDoc.published ? 'published' : 'draft'));
       setIsDirty(false);
       setAttachmentsMutated(false);
       setStagedAttachmentIds(new Set());
@@ -401,6 +460,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
         err?.message || 'Failed to save changes to Cloud Firestore. Your edits remain intact.'
       );
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
       setSavingStage(null);
     }
@@ -481,15 +541,16 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
 
           <button
             type="button"
+            disabled={isSaving || isAttachmentUploading}
             onClick={onCancel}
-            className="px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer"
+            className="px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
 
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || isAttachmentUploading}
             onClick={() => handleSave('draft')}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50"
           >
@@ -503,7 +564,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
 
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || isAttachmentUploading}
             onClick={() => handleSave('published')}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
           >
@@ -567,6 +628,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
           }
           onChange={handleAttachmentsChange}
           onQueueBinaryCleanup={handleQueueBinaryCleanup}
+          onUploadingChange={setIsAttachmentUploading}
           isDevPreview={isDevPreview}
         />
       </section>

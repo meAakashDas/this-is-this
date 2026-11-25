@@ -388,4 +388,109 @@ test.describe('Simplified 2-Section Resource Editor QA', () => {
     await expect(page.locator('.generated-pdf-download-link')).toContainText('Download as PDF');
     await expect(page.locator('.generated-docx-download-link')).toContainText('Download as DOCX');
   });
+
+  test('10. Forensic guards: list Publish auto-generates exports, AttachmentManager rejects invalid extensions & disambiguates duplicate names, and double-click Save prevents duplicates', async ({
+    page,
+  }) => {
+    await page.locator('aside button:has-text("Resources")').click();
+
+    // 1. Seed a draft resource without generatedPdf/generatedDocx in Dev Preview storage and verify Publish auto-generates them
+    await page.locator('button:has-text("Create Resource")').click();
+    const numInput = page.locator('#resource-number-field');
+    await numInput.fill('091');
+    const editor = page.locator('.blocknote-canvas-container [contenteditable="true"]').first();
+    await editor.click();
+    await page.keyboard.type('Forensic Audit Guard Resource');
+
+    // Rapid double-click on Save Draft should create exactly ONE resource 091 (never duplicates)
+    const saveBtn = page.locator('button:has-text("Save Draft")');
+    await Promise.all([saveBtn.click(), saveBtn.click({ force: true })]);
+    await expect(
+      page.locator('[role="status"]:has-text("saved as draft")').first()
+    ).toBeVisible({ timeout: 15000 });
+
+    const countAfterDoubleSave = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.filter((r: any) => r.resourceNumber === '091').length;
+    });
+    expect(countAfterDoubleSave).toBe(1);
+
+    // 2. AttachmentManager rejects unsupported file extension (.exe) cleanly without partial attachments
+    const fileInput = page.locator('input[type="file"][multiple]');
+    await fileInput.setInputFiles([
+      {
+        name: 'valid-sheet.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('col1,col2\n1,2\n'),
+      },
+      {
+        name: 'blocked-binary.exe',
+        mimeType: 'application/octet-stream',
+        buffer: Buffer.from('MZ'),
+      },
+    ]);
+    await expect(page.locator('[role="alert"]')).toBeVisible();
+    await expect(page.locator('.attachment-item')).toHaveCount(0);
+
+    // 3. Upload two files sharing the exact same filename sequentially/batch and confirm both persist cleanly
+    await fileInput.setInputFiles({
+      name: 'guide.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%first\n'),
+    });
+    await expect(page.locator('.attachment-item')).toHaveCount(1);
+    await fileInput.setInputFiles({
+      name: 'guide.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%second\n'),
+    });
+    await expect(page.locator('.attachment-item')).toHaveCount(2);
+
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("saved as draft")').first()
+    ).toBeVisible({ timeout: 15000 });
+
+    // Strip generatedPdf/generatedDocx in Dev Preview storage to simulate an older/stale draft
+    await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      const idx = list.findIndex((r: any) => r.resourceNumber === '091');
+      if (idx >= 0) {
+        delete list[idx].generatedPdf;
+        delete list[idx].generatedDocx;
+        delete list[idx].contentVersion;
+        sessionStorage.setItem('aakashdas_cms_resources_preview', JSON.stringify(list));
+      }
+    });
+
+    await page.reload({ waitUntil: 'load' });
+    await page.locator('button[title="Back to Resources"]').click();
+
+    // Clicking Publish from ResourceList must auto-generate PDF & DOCX before publishing
+    await page.locator('button[aria-label="Publish Resource 091"]').click();
+    await expect(page.locator('button[aria-label="Unpublish Resource 091"]')).toBeVisible({
+      timeout: 15000,
+    });
+
+    const publishedRecord = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '091') || null;
+    });
+    expect(publishedRecord).toBeTruthy();
+    expect(publishedRecord.published).toBe(true);
+    expect(publishedRecord.contentVersion).toBeTruthy();
+    expect(publishedRecord.generatedPdf?.url).toMatch(/^data:application\/pdf;base64,/);
+    expect(publishedRecord.generatedDocx?.url).toMatch(
+      /^data:application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document;base64,/
+    );
+    expect(publishedRecord.generatedPdf.contentVersion).toBe(publishedRecord.contentVersion);
+    expect(publishedRecord.generatedDocx.contentVersion).toBe(publishedRecord.contentVersion);
+
+    // Unpublish toggles back to draft cleanly
+    await page.locator('button[aria-label="Unpublish Resource 091"]').click();
+    await expect(page.locator('button[aria-label="Publish Resource 091"]')).toBeVisible();
+  });
 });

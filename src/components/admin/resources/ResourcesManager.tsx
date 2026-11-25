@@ -6,6 +6,10 @@ import { ResourceEditor } from './ResourceEditor.tsx';
 import { ResourcePreview } from './ResourcePreview.tsx';
 import { cleanupObsoleteAttachmentBinary } from './AttachmentManager.tsx';
 import {
+  computeResourceContentVersion,
+  generateAndStoreResourceExports,
+} from '../../../utils/clientDocumentExport.ts';
+import {
   getAllResourcesForAdmin,
   getResourceByNumber,
   getResourceById,
@@ -38,6 +42,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   const [viewState, setViewState] = useState<'list' | 'editor' | 'preview'>('list');
   const [selectedResource, setSelectedResource] = useState<ResourceDocument | null>(null);
   const [editorSessionKey, setEditorSessionKey] = useState<string>('editor-init');
+  const [busyResourceId, setBusyResourceId] = useState<string | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -282,43 +287,102 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
   };
 
   const handleTogglePublish = async (resource: ResourceDocument) => {
+    const targetId = resource.id || resource.resourceNumber;
+    if (busyResourceId === targetId) return;
+    setBusyResourceId(targetId);
     setStatusFeedback(null);
     const willPublish = !resource.published;
     const updatedStatus = willPublish ? 'published' : 'draft';
 
-    const updatedResource: ResourceDocument = {
-      ...resource,
-      published: willPublish,
-      status: updatedStatus,
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (isDevPreview) {
-      const targetId = resource.id || resource.resourceNumber;
-      const updatedList = resources.map((r) =>
-        (r.id || r.resourceNumber) === targetId ? updatedResource : r
-      );
-      persistDevChanges(updatedList);
-      toast.success(willPublish ? `Resource #${resource.resourceNumber} published.` : `Resource #${resource.resourceNumber} unpublished.`);
-    } else {
-      try {
+    try {
+      if (isDevPreview) {
+        let updatedResource: ResourceDocument = {
+          ...resource,
+          published: willPublish,
+          status: updatedStatus,
+          updatedAt: new Date().toISOString(),
+        };
         if (willPublish) {
-          await publishResource(resource.id || resource.resourceNumber);
+          const v = await computeResourceContentVersion(updatedResource);
+          if (
+            !updatedResource.generatedPdf?.url ||
+            !updatedResource.generatedDocx?.url ||
+            updatedResource.generatedPdf.contentVersion !== v
+          ) {
+            const exportsBundle = await generateAndStoreResourceExports(updatedResource, {
+              isDevPreview: true,
+            });
+            updatedResource = { ...updatedResource, ...exportsBundle };
+          }
+        }
+        const updatedList = resources.map((r) =>
+          (r.id || r.resourceNumber) === targetId ? updatedResource : r
+        );
+        persistDevChanges(updatedList);
+        toast.success(
+          willPublish
+            ? `Resource #${resource.resourceNumber} published.`
+            : `Resource #${resource.resourceNumber} unpublished.`
+        );
+      } else {
+        if (willPublish) {
+          const fresh = (await getResourceById(targetId)) || resource;
+          const v = await computeResourceContentVersion(fresh);
+          const needsGen =
+            !fresh.generatedPdf?.url ||
+            !fresh.generatedDocx?.url ||
+            fresh.generatedPdf.contentVersion !== v ||
+            fresh.generatedDocx.contentVersion !== v;
+
+          if (needsGen) {
+            const exportsBundle = await generateAndStoreResourceExports(fresh, {
+              isDevPreview: false,
+            });
+            await updateResource(targetId, {
+              ...exportsBundle,
+              published: true,
+              status: 'published',
+              publishedAt: fresh.publishedAt || new Date().toISOString().split('T')[0],
+            });
+          } else {
+            await publishResource(targetId);
+          }
         } else {
-          await unpublishResource(resource.id || resource.resourceNumber);
+          const fresh = (await getResourceById(targetId)) || resource;
+          const attPaths = new Set((fresh.attachments || []).map((a) => a.storagePath).filter(Boolean));
+          const extExportPaths = [
+            fresh.generatedPdf?.storagePath,
+            fresh.generatedDocx?.storagePath,
+          ].filter((p): p is string => Boolean(p && !attPaths.has(p)));
+
+          if (extExportPaths.length > 0) {
+            await updateResource(targetId, {
+              published: false,
+              status: 'draft',
+              generatedPdf: undefined,
+              generatedDocx: undefined,
+              pdfPreviewUrl: attPaths.size > 0 ? fresh.pdfPreviewUrl : '',
+              docxUrl: '',
+            });
+            await Promise.allSettled(extExportPaths.map((p) => cleanupObsoleteAttachmentBinary(p)));
+          } else {
+            await unpublishResource(targetId);
+          }
         }
         const refreshed = await getAllResourcesForAdmin();
         setResources(refreshed);
         const msg = willPublish
-          ? `Resource #${resource.resourceNumber} published to Cloud Firestore.`
+          ? `Resource #${resource.resourceNumber} published to Cloud Firestore with up-to-date PDF & DOCX.`
           : `Resource #${resource.resourceNumber} unpublished and removed from public listing.`;
         toast.success(msg);
         setStatusFeedback({ type: 'success', message: msg });
-      } catch (err: any) {
-        const msg = err?.message || 'Failed to update publication status.';
-        toast.error(msg);
-        setStatusFeedback({ type: 'error', message: msg });
       }
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to update publication status.';
+      toast.error(msg);
+      setStatusFeedback({ type: 'error', message: msg });
+    } finally {
+      setBusyResourceId(null);
     }
   };
 
@@ -399,7 +463,10 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
     }
   };
 
-  const handleSaveEditor = async (doc: ResourceDocument): Promise<ResourceDocument> => {
+  const handleSaveEditor = async (
+    doc: ResourceDocument,
+    saveOptions?: { expectedUpdatedAt?: string }
+  ): Promise<ResourceDocument> => {
     setStatusFeedback(null);
 
     if (isDevPreview) {
@@ -451,7 +518,14 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
       const existing = existingDocId ? await getResourceById(existingDocId) : null;
 
       const savedDoc = existing
-        ? await updateResource(existing.id, doc)
+        ? await updateResource(
+            existing.id,
+            doc,
+            'aakashdas.photo@gmail.com',
+            saveOptions?.expectedUpdatedAt
+              ? { expectedUpdatedAt: saveOptions.expectedUpdatedAt }
+              : undefined
+          )
         : await createResource(doc);
 
       const refreshed = await getAllResourcesForAdmin();
@@ -582,6 +656,7 @@ export const ResourcesManager: React.FC<ResourcesManagerProps> = ({ isDevPreview
 
       <ResourceList
         resources={resources}
+        busyResourceId={busyResourceId}
         onCreate={handleCreate}
         onEdit={handleEdit}
         onPreview={handlePreview}

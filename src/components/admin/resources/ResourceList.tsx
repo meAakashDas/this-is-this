@@ -4,6 +4,7 @@ import type { ResourceDocument } from '../../../types/cms/resource.ts';
 
 interface ResourceListProps {
   resources: ResourceDocument[];
+  busyResourceId?: string | null;
   onCreate: () => void;
   onEdit: (resource: ResourceDocument) => void;
   onPreview?: (resource: ResourceDocument) => void;
@@ -16,6 +17,7 @@ interface ResourceListProps {
 
 export const ResourceList: React.FC<ResourceListProps> = ({
   resources,
+  busyResourceId = null,
   onCreate,
   onEdit,
   onTogglePublish,
@@ -121,8 +123,9 @@ export const ResourceList: React.FC<ResourceListProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
+                    disabled={busyResourceId === (res.id || res.resourceNumber)}
                     onClick={() => onEdit(res)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border border-border bg-background hover:bg-secondary text-foreground cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border border-border bg-background hover:bg-secondary text-foreground cursor-pointer disabled:opacity-50"
                     aria-label={`Edit Resource ${res.resourceNumber}`}
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -131,21 +134,27 @@ export const ResourceList: React.FC<ResourceListProps> = ({
 
                   <button
                     type="button"
+                    disabled={busyResourceId === (res.id || res.resourceNumber)}
                     onClick={() => onTogglePublish(res)}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded-md border cursor-pointer ${
+                    className={`px-2.5 py-1.5 text-xs font-medium rounded-md border cursor-pointer disabled:opacity-50 ${
                       isPub
                         ? 'border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground'
                         : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
                     }`}
                     aria-label={`${isPub ? 'Unpublish' : 'Publish'} Resource ${res.resourceNumber}`}
                   >
-                    {isPub ? 'Unpublish' : 'Publish'}
+                    {busyResourceId === (res.id || res.resourceNumber)
+                      ? 'Working...'
+                      : isPub
+                        ? 'Unpublish'
+                        : 'Publish'}
                   </button>
 
                   <button
                     type="button"
+                    disabled={busyResourceId === (res.id || res.resourceNumber)}
                     onClick={() => setDeleteTarget(res)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-destructive cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-destructive cursor-pointer disabled:opacity-50"
                     aria-label={`Delete Resource ${res.resourceNumber}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

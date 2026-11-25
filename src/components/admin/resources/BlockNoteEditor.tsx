@@ -4,6 +4,7 @@ import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/mantine/style.css';
 import { tryGetFirebaseStorage } from '../../../lib/firebase/index.ts';
+import { isFirebaseStorageUnavailableInSession } from '../../../lib/cms/storageUpload.ts';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { generateBlockId, blockNoteInlineToPlainText } from '../../../utils/blockNoteMigration.ts';
 import { compressImageFile } from '../../../utils/imageCompressor.ts';
@@ -99,7 +100,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     initialContent: validInitialContent,
     uploadFile: async (file: File) => {
       try {
-        if (!isDevPreview && !storageDisabledRef.current) {
+        if (!isDevPreview && !storageDisabledRef.current && !isFirebaseStorageUnavailableInSession()) {
           const storage = tryGetFirebaseStorage();
           if (storage) {
             const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');

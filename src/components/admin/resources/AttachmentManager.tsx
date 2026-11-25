@@ -26,6 +26,7 @@ interface AttachmentManagerProps {
   documentContentBytes?: number;
   onChange: (attachments: CmsAttachment[], meta?: { attachmentsMutated?: boolean; stagedAttachmentId?: string }) => void;
   onQueueBinaryCleanup?: (storagePath: string) => void;
+  onUploadingChange?: (uploading: boolean) => void;
   isDevPreview?: boolean;
 }
 
@@ -97,10 +98,12 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
   documentContentBytes = 0,
   onChange,
   onQueueBinaryCleanup,
+  onUploadingChange,
   isDevPreview = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const uploadingRef = useRef(false);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -134,7 +137,18 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     existingPool: CmsAttachment[]
   ): Promise<{ url: string; storagePath?: string }> => {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const repoFileName = `resource-${resourceNumber}-${cleanFileName}`;
+    const duplicateExists = existingPool.some(
+      (a) =>
+        a.fileName === file.name ||
+        (a.storagePath && a.storagePath.endsWith(`-${cleanFileName}`))
+    );
+    const uniqueSuffix = duplicateExists ? `-${Date.now().toString(36)}` : '';
+    const dotIdx = cleanFileName.lastIndexOf('.');
+    const disambiguatedName =
+      uniqueSuffix && dotIdx > 0
+        ? `${cleanFileName.slice(0, dotIdx)}${uniqueSuffix}${cleanFileName.slice(dotIdx)}`
+        : `${cleanFileName}${uniqueSuffix}`;
+    const repoFileName = `resource-${resourceNumber}-${disambiguatedName}`;
     const storagePath = `uploads/resources/${resourceNumber}/${Date.now()}-${cleanFileName}`;
     const existingInlineBytes =
       estimateInlineDataUriBytes(existingPool) + documentContentBytes;
@@ -155,20 +169,30 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    if (uploadingRef.current) {
+      setUploadError('Please wait for the active file upload to finish.');
+      return;
+    }
     setUploadError(null);
     setUploadSuccess(null);
 
+    // Pre-validate all selected files before starting any uploads
+    for (let i = 0; i < files.length; i++) {
+      const validationErr = validateFile(files[i]);
+      if (validationErr) {
+        setUploadError(validationErr);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+    }
+
+    uploadingRef.current = true;
+    onUploadingChange?.(true);
     const addedAttachments: CmsAttachment[] = [];
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const validationErr = validateFile(file);
-        if (validationErr) {
-          setUploadError(validationErr);
-          return;
-        }
-
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
         const isPdf = ext === 'pdf';
 
@@ -207,9 +231,15 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     } catch (err: any) {
       setUploadError(err?.message || 'Failed to process uploaded file.');
       if (addedAttachments.length > 0) {
-        onChange([...attachments, ...addedAttachments], { attachmentsMutated: true });
+        const stagedId = addedAttachments.map((a) => a.id).join(',');
+        onChange([...attachments, ...addedAttachments], {
+          attachmentsMutated: true,
+          stagedAttachmentId: stagedId,
+        });
       }
     } finally {
+      uploadingRef.current = false;
+      onUploadingChange?.(false);
       setUploadProgress(null);
       setProcessingFileName('');
       if (fileInputRef.current) {
@@ -223,6 +253,12 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     const files = e.target.files;
     if (idx === null || !files || files.length === 0) {
       setReplacingIndex(null);
+      return;
+    }
+    if (uploadingRef.current) {
+      setUploadError('Please wait for the active file upload to finish.');
+      setReplacingIndex(null);
+      if (replaceInputRef.current) replaceInputRef.current.value = '';
       return;
     }
 
@@ -241,6 +277,9 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     const oldAtt = attachments[idx];
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isPdf = ext === 'pdf';
+
+    uploadingRef.current = true;
+    onUploadingChange?.(true);
 
     try {
       setProcessingFileName(file.name);
@@ -276,6 +315,8 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
     } catch (replaceErr: any) {
       setUploadError(replaceErr?.message || `Failed to replace "${oldAtt.name}".`);
     } finally {
+      uploadingRef.current = false;
+      onUploadingChange?.(false);
       setUploadProgress(null);
       setProcessingFileName('');
       setReplacingIndex(null);
@@ -491,11 +532,12 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                   </a>
                   <button
                     type="button"
+                    disabled={uploadProgress !== null}
                     onClick={() => {
                       setReplacingIndex(index);
                       replaceInputRef.current?.click();
                     }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors cursor-pointer disabled:opacity-50"
                     aria-label={`Replace ${att.fileName || att.name}`}
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -503,8 +545,9 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                   </button>
                   <button
                     type="button"
+                    disabled={uploadProgress !== null}
                     onClick={() => handleDelete(index)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer disabled:opacity-50"
                     aria-label={`Delete ${att.fileName || att.name}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

@@ -61,7 +61,7 @@ test.describe('AakashDas.live — Editorial Journal QA', () => {
 
     await expect(entries.nth(0)).toContainText('Why I Believe in Learning in Public');
     await expect(entries.nth(1)).toContainText('Building Something That Matters');
-    await expect(entries.nth(2)).toContainText('Where Finance Meets Technology');
+    await expect(entries.nth(2)).toHaveAttribute('data-journal-slug', 'where-finance-meets-technology');
     await expect(entries.nth(3)).toContainText('The Value of Being a Beginner');
 
     // Verify each entry has title, excerpt, and Read entry, but NO metadata

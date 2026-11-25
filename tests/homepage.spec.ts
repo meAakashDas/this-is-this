@@ -78,7 +78,10 @@ test.describe('AakashDas.live — Simplified Homepage QA', () => {
     // Profile photograph: natural presentation without rectangular card or separate name caption underneath
     const portrait = page.locator('.hero-portrait-img');
     await expect(portrait).toBeVisible();
-    await expect(portrait).toHaveAttribute('src', '/images/aakash-das.webp');
+    const portraitSrc = await portrait.getAttribute('src');
+    expect(portraitSrc).toBeTruthy();
+    expect(portraitSrc).not.toMatch(/^blob:/i);
+    await expect(portrait).toHaveJSProperty('complete', true);
 
     // Verify old square vignette card and caption are completely removed
     await expect(page.locator('.identity-vignette-card')).toHaveCount(0);

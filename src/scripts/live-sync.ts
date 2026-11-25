@@ -1107,11 +1107,13 @@ async function syncGlobalSiteSettings(db: any) {
     }
 
     if (isSafePublicUrl(settings.profileImage)) {
-      const ogImage = document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
-      if (ogImage) {
-        ogImage.content = settings.profileImage.startsWith('/')
-          ? `${window.location.origin}${settings.profileImage}`
-          : settings.profileImage;
+      if (!settings.profileImage.startsWith('data:')) {
+        const ogImage = document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
+        if (ogImage) {
+          ogImage.content = settings.profileImage.startsWith('/')
+            ? `${window.location.origin}${settings.profileImage}`
+            : settings.profileImage;
+        }
       }
       const heroImg = document.querySelector<HTMLImageElement>('.hero-portrait-img');
       if (heroImg && (!heroImg.getAttribute('src') || heroImg.getAttribute('src') === '/images/aakash-das.webp')) {

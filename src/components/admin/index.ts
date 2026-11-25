@@ -2,8 +2,6 @@ export * from './AdminPortal.tsx';
 export * from './AdminLoginCard.tsx';
 export * from './AdminHeader.tsx';
 export * from './AdminSidebar.tsx';
-export * from './AdminOverview.tsx';
-export * from './AdminComingSoon.tsx';
 export * from './media/index.ts';
 export * from './profile/index.ts';
 export * from './homepage/index.ts';

@@ -133,7 +133,6 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     page,
   }) => {
     await openAdmin(page);
-    await page.waitForLoadState('networkidle');
 
     // Sidebar has Publishing tab
     const publishingTab = page.locator('nav[aria-label="Admin Navigation"] button:has-text("Publishing")');
@@ -163,7 +162,6 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     page,
   }) => {
     await openAdmin(page);
-    await page.waitForLoadState('networkidle');
 
     // Navigate to Publishing tab
     await page.locator('nav[aria-label="Admin Navigation"] button:has-text("Publishing")').click();
@@ -190,7 +188,6 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openAdmin(page);
-    await page.waitForLoadState('networkidle');
 
     // Navigate to Publishing tab
     await page.locator('nav[aria-label="Admin Navigation"] button:has-text("Publishing")').click();

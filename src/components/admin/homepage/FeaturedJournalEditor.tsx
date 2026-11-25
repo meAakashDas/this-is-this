@@ -26,17 +26,8 @@ export const FeaturedJournalEditor: React.FC<FeaturedJournalEditorProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-foreground m-0">
-          Journal Section
-        </h3>
-        <p className="text-xs text-muted-foreground m-0">
-          Manage journal preview section.
-        </p>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-2xs">
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-semibold text-foreground m-0">
             Preview Card Settings

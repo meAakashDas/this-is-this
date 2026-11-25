@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Home,
-  BookOpen,
-  PenSquare,
-  Layers,
-  Eye,
-  Save,
-  RotateCcw,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Send,
-} from 'lucide-react';
-import { HeroEditor, type HeroFormState } from './HeroEditor.tsx';
-import { FeaturedResourcesEditor, type FeaturedResourcesState } from './FeaturedResourcesEditor.tsx';
-import { FeaturedJournalEditor, type FeaturedJournalState } from './FeaturedJournalEditor.tsx';
+import { Save, RotateCcw, CheckCircle2, AlertCircle, Loader2, Send } from 'lucide-react';
+import { HeroEditor } from './HeroEditor.tsx';
+import { FeaturedResourcesEditor } from './FeaturedResourcesEditor.tsx';
+import { FeaturedJournalEditor } from './FeaturedJournalEditor.tsx';
 import { HomepageSectionsEditor, type SectionMeta } from './HomepageSectionsEditor.tsx';
-import { HomepagePreview } from './HomepagePreview.tsx';
 import { getHomePageContent, saveHomePageContent } from '../../../lib/cms/pages.repository.ts';
 import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
 import type { HomePageDocument } from '../../../types/cms/pages.ts';
 
-type HomepageSubTab = 'hero' | 'resources' | 'journal' | 'sections' | 'preview';
+type HomepageSubTab = 'hero' | 'resources' | 'journal' | 'sections';
 
 interface HomepageEditorProps {
   isDevPreview?: boolean;
@@ -51,34 +38,34 @@ const DEFAULT_HOMEPAGE_STATE = {
     {
       id: 'hero',
       name: 'Hero Section',
-      description: 'Profile portrait, main headline, role tagline, and action buttons.',
+      description: 'Introduction, portrait, and action buttons.',
       visible: true,
     },
     {
       id: 'finder',
       name: 'Resource Lookup',
-      description: 'Numerical input for direct educational resource lookup.',
+      description: 'Direct resource number lookup input.',
       visible: true,
     },
     {
       id: 'featuredResources',
       name: 'Free Resources',
-      description: 'Grid of selected featured educational resource cards.',
+      description: 'Selected featured educational resources.',
       visible: true,
     },
     {
       id: 'journal',
       name: 'Journal',
-      description: 'Editorial article preview card linking to the journal.',
+      description: 'Journal section link and intro.',
       visible: true,
     },
     {
       id: 'contact',
       name: 'Get in Touch',
-      description: 'Email contact button and verified social media links.',
+      description: 'Contact email and social links.',
       visible: true,
     },
-  ],
+  ] as SectionMeta[],
   resourcesConfig: {
     visible: true,
     heading: 'Free Resources',
@@ -88,7 +75,8 @@ const DEFAULT_HOMEPAGE_STATE = {
   journalConfig: {
     visible: true,
     heading: 'Journal',
-    description: 'Essays, research notes, and reflections on finance, technology, and building in Nepal.',
+    description:
+      'Essays, research notes, and reflections on finance, technology, and building in Nepal.',
     ctaText: 'Read articles',
     ctaUrl: '/journal',
   },
@@ -107,7 +95,6 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
     message: string;
   } | null>(null);
 
-  // Load initial content from Firestore or sessionStorage
   useEffect(() => {
     let isMounted = true;
 
@@ -123,7 +110,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
               return;
             }
           } catch {
-            // fallback
+            // Fall back
           }
         }
       }
@@ -139,7 +126,10 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
               heroRoleBrand: homeDoc.heroRoleBrand || DEFAULT_HOMEPAGE_STATE.hero.heroRoleBrand,
               heroRoleUrl: homeDoc.heroRoleUrl || DEFAULT_HOMEPAGE_STATE.hero.heroRoleUrl,
               heroTagline: homeDoc.heroTagline || DEFAULT_HOMEPAGE_STATE.hero.heroTagline,
-              heroPhotoUrl: sanitizeAssetUrl(homeDoc.heroPhotoUrl, DEFAULT_HOMEPAGE_STATE.hero.heroPhotoUrl),
+              heroPhotoUrl: sanitizeAssetUrl(
+                homeDoc.heroPhotoUrl,
+                DEFAULT_HOMEPAGE_STATE.hero.heroPhotoUrl
+              ),
               heroPhotoAlt: homeDoc.heroPhotoAlt || DEFAULT_HOMEPAGE_STATE.hero.heroPhotoAlt,
               primaryCta: homeDoc.primaryCta || DEFAULT_HOMEPAGE_STATE.hero.primaryCta,
               secondaryCta: homeDoc.secondaryCta || DEFAULT_HOMEPAGE_STATE.hero.secondaryCta,
@@ -186,7 +176,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
           setInitialData(loaded);
         }
       } catch (err) {
-        console.warn('[Homepage Editor] Loaded baseline state:', err);
+        console.warn('[HomepageEditor] Using baseline homepage state:', err);
       }
     }
 
@@ -202,25 +192,21 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
     setIsSaving(true);
     setSaveStatus(null);
 
-    // Development Preview mode
     if (isDevPreview) {
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-        }
-        setInitialData(formData);
-        setIsSaving(false);
-        setSaveStatus({
-          type: 'success',
-          message: publish
-            ? 'Homepage published to local preview state. (Live Firestore write disabled in Dev Preview)'
-            : 'Homepage draft saved to local preview state.',
-        });
-      }, 300);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+      }
+      setInitialData(formData);
+      setIsSaving(false);
+      setSaveStatus({
+        type: 'success',
+        message: publish
+          ? 'Homepage published to local preview state.'
+          : 'Homepage draft saved to local preview state.',
+      });
       return;
     }
 
-    // Authenticated Production Mode
     try {
       const safeHeroPhotoUrl = sanitizeAssetUrl(
         formData.hero.heroPhotoUrl,
@@ -236,7 +222,12 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
         heroPhotoAlt: formData.hero.heroPhotoAlt,
         primaryCta: formData.hero.primaryCta,
         secondaryCta: formData.hero.secondaryCta,
-        sectionOrder: loadedDoc?.sectionOrder || ['finder', 'featuredResources', 'journal', 'contact'],
+        sectionOrder: loadedDoc?.sectionOrder || [
+          'finder',
+          'featuredResources',
+          'journal',
+          'contact',
+        ],
         seo: loadedDoc?.seo || {},
         sections: {
           hero: {
@@ -250,13 +241,17 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
             visible: formData.sections.find((s) => s.id === 'finder')?.visible ?? true,
           },
           featuredResources: {
-            visible: formData.sections.find((s) => s.id === 'featuredResources')?.visible ?? formData.resourcesConfig.visible,
+            visible:
+              formData.sections.find((s) => s.id === 'featuredResources')?.visible ??
+              formData.resourcesConfig.visible,
             heading: formData.resourcesConfig.heading,
             count: formData.resourcesConfig.customResourceIds.length || 3,
             customResourceIds: formData.resourcesConfig.customResourceIds,
           },
           journal: {
-            visible: formData.sections.find((s) => s.id === 'journal')?.visible ?? formData.journalConfig.visible,
+            visible:
+              formData.sections.find((s) => s.id === 'journal')?.visible ??
+              formData.journalConfig.visible,
             heading: formData.journalConfig.heading,
             description: formData.journalConfig.description,
             ctaText: formData.journalConfig.ctaText,
@@ -264,7 +259,9 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
           },
           contact: {
             heading: loadedDoc?.sections?.contact?.heading || 'Get in Touch',
-            description: loadedDoc?.sections?.contact?.description || 'Feel free to reach out directly via email or connect on social platforms.',
+            description:
+              loadedDoc?.sections?.contact?.description ||
+              'Feel free to reach out directly via email or connect on social platforms.',
             showEmail: loadedDoc?.sections?.contact?.showEmail ?? true,
             showSocial: loadedDoc?.sections?.contact?.showSocial ?? true,
             visible: formData.sections.find((s) => s.id === 'contact')?.visible ?? true,
@@ -277,7 +274,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
       setSaveStatus({
         type: 'success',
         message: publish
-          ? 'Homepage successfully published to Cloud Firestore.'
+          ? 'Homepage published to Cloud Firestore.'
           : 'Homepage draft saved to Cloud Firestore.',
       });
     } catch (err) {
@@ -291,39 +288,38 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
   };
 
   const handleReset = () => {
-    if (confirm('Discard all unsaved changes to homepage content?')) {
-      setFormData(initialData);
-      setSaveStatus(null);
-    }
+    setFormData(initialData);
+    setSaveStatus(null);
   };
 
+  const tabs: Array<{ id: HomepageSubTab; label: string }> = [
+    { id: 'hero', label: 'Hero' },
+    { id: 'resources', label: 'Featured Resources' },
+    { id: 'journal', label: 'Journal' },
+    { id: 'sections', label: 'Sections' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground m-0">
-              Homepage CMS
-            </h1>
-            {isDirty && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                Unsaved changes
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1 m-0">
-            Manage homepage introduction, featured resources, journal preview, and section visibility.
-          </p>
+    <div className="space-y-5 max-w-3xl pb-10">
+      {/* Header & Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground m-0">
+            Homepage
+          </h1>
+          {isDirty && (
+            <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+              Unsaved changes
+            </span>
+          )}
         </div>
 
-        {/* Action Controls */}
         <div className="flex items-center gap-2">
           {isDirty && (
             <button
               type="button"
               onClick={handleReset}
-              className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
@@ -334,9 +330,13 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
             type="button"
             onClick={() => handleSave(false)}
             disabled={isSaving}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-xl border border-border bg-card hover:bg-secondary text-foreground transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-50 cursor-pointer"
           >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
             <span>Save Draft</span>
           </button>
 
@@ -344,7 +344,7 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
             type="button"
             onClick={() => handleSave(true)}
             disabled={isSaving}
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -356,11 +356,10 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
         </div>
       </div>
 
-      {/* Notification Banner */}
       {saveStatus && (
         <div
           role="alert"
-          className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 ${
+          className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${
             saveStatus.type === 'success'
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
               : 'border-destructive/30 bg-destructive/10 text-destructive'
@@ -368,95 +367,42 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
         >
           <div className="flex items-center gap-2">
             {saveStatus.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 shrink-0" />
             )}
-            <span className="font-medium">{saveStatus.message}</span>
+            <span>{saveStatus.message}</span>
           </div>
           <button
             type="button"
             onClick={() => setSaveStatus(null)}
-            className="text-[11px] underline cursor-pointer hover:opacity-80"
+            className="text-[11px] underline cursor-pointer shrink-0"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* 4 Simple Areas + Live Preview Sub-tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border/60 scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setSubTab('hero')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'hero'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Home className="w-3.5 h-3.5" />
-          <span>Hero Section</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSubTab('resources')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'resources'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>Featured Resources</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-background border border-border">
-            {formData.resourcesConfig.customResourceIds.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSubTab('journal')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'journal'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <PenSquare className="w-3.5 h-3.5" />
-          <span>Journal Section</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSubTab('sections')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'sections'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Section Visibility</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSubTab('preview')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'preview'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5 text-primary" />
-          <span>Live Preview</span>
-        </button>
+      {/* Simple Section Filter Tabs */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setSubTab(tab.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer ${
+              subTab === tab.id
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Active Area Panel */}
-      <div className="pt-2">
+      {/* Section Panel */}
+      <div>
         {subTab === 'hero' && (
           <HeroEditor
             hero={formData.hero}
@@ -488,33 +434,21 @@ export const HomepageEditor: React.FC<HomepageEditorProps> = ({ isDevPreview = f
           <HomepageSectionsEditor
             sections={formData.sections}
             onChange={(sections) => {
-              // Update formData.sections, and keep resourcesConfig/journalConfig in sync
               setFormData((prev) => {
-                const resVis = sections.find((s) => s.id === 'featuredResources')?.visible ?? prev.resourcesConfig.visible;
-                const jourVis = sections.find((s) => s.id === 'journal')?.visible ?? prev.journalConfig.visible;
+                const resVis =
+                  sections.find((s) => s.id === 'featuredResources')?.visible ??
+                  prev.resourcesConfig.visible;
+                const jourVis =
+                  sections.find((s) => s.id === 'journal')?.visible ??
+                  prev.journalConfig.visible;
                 return {
                   ...prev,
                   sections,
-                  resourcesConfig: {
-                    ...prev.resourcesConfig,
-                    visible: resVis,
-                  },
-                  journalConfig: {
-                    ...prev.journalConfig,
-                    visible: jourVis,
-                  },
+                  resourcesConfig: { ...prev.resourcesConfig, visible: resVis },
+                  journalConfig: { ...prev.journalConfig, visible: jourVis },
                 };
               });
             }}
-          />
-        )}
-
-        {subTab === 'preview' && (
-          <HomepagePreview
-            hero={formData.hero}
-            sections={formData.sections}
-            resourcesConfig={formData.resourcesConfig}
-            journalConfig={formData.journalConfig}
           />
         )}
       </div>

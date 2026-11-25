@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ArrowUp, ArrowDown, FileText, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface BiographyEditorProps {
   paragraphs: string[];
@@ -19,12 +19,8 @@ export const BiographyEditor: React.FC<BiographyEditorProps> = ({
   };
 
   const handleRemoveParagraph = (index: number) => {
-    if (paragraphs.length <= 1) {
-      alert('You must keep at least one biography paragraph.');
-      return;
-    }
-    const updated = paragraphs.filter((_, i) => i !== index);
-    onChange(updated);
+    if (paragraphs.length <= 1) return;
+    onChange(paragraphs.filter((_, i) => i !== index));
   };
 
   const handleMoveUp = (index: number) => {
@@ -52,54 +48,46 @@ export const BiographyEditor: React.FC<BiographyEditorProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-foreground m-0">
-          Editorial Biography Paragraphs
-        </h3>
-        <p className="text-xs text-muted-foreground m-0">
-          These paragraphs represent your narrative biography on the public About page.
-          You can add, edit, reorder, and remove paragraphs.
-        </p>
-      </div>
-
-      {/* Paragraphs List */}
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="space-y-3">
         {paragraphs.map((p, index) => (
           <div
             key={index}
-            className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-2xs transition-all"
+            className="rounded-lg border border-border bg-background p-3.5 space-y-2.5"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-              <span className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-primary" />
-                <span>Paragraph #{index + 1}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-mono text-muted-foreground">
+                Paragraph #{index + 1}
               </span>
 
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  title="Move paragraph up"
+                  title="Move up"
+                  aria-label={`Move paragraph ${index + 1} up`}
                   disabled={index === 0}
                   onClick={() => handleMoveUp(index)}
-                  className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-border bg-background hover:bg-secondary text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-30 cursor-pointer"
                 >
                   <ArrowUp className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
-                  title="Move paragraph down"
+                  title="Move down"
+                  aria-label={`Move paragraph ${index + 1} down`}
                   disabled={index === paragraphs.length - 1}
                   onClick={() => handleMoveDown(index)}
-                  className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-border bg-background hover:bg-secondary text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-30 cursor-pointer"
                 >
                   <ArrowDown className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
                   title="Delete paragraph"
+                  aria-label={`Delete paragraph ${index + 1}`}
+                  disabled={paragraphs.length <= 1}
                   onClick={() => handleRemoveParagraph(index)}
-                  className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/15 transition-colors cursor-pointer ml-1"
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/15 disabled:opacity-30 cursor-pointer ml-0.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -107,44 +95,38 @@ export const BiographyEditor: React.FC<BiographyEditorProps> = ({
             </div>
 
             <textarea
-              rows={4}
+              rows={3}
               value={p}
               onChange={(e) => handleUpdateParagraph(index, e.target.value)}
-              className="w-full text-xs font-normal leading-relaxed rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-y"
+              className="w-full text-xs leading-relaxed rounded-lg border border-input bg-card px-3 py-2 text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 resize-y"
               placeholder="Enter biography paragraph..."
             />
-
-            <div className="text-[11px] font-mono text-muted-foreground/70 text-right">
-              {p.length} characters • ~{Math.ceil(p.split(/\s+/).filter(Boolean).length)} words
-            </div>
           </div>
         ))}
       </div>
 
-      {/* Add New Paragraph Card */}
-      <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-4 space-y-3">
-        <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <Plus className="w-3.5 h-3.5 text-primary" />
-          <span>Add New Paragraph</span>
+      {/* Add Paragraph */}
+      <div className="pt-2 space-y-2 border-t border-border/60">
+        <label htmlFor="profile-new-paragraph" className="text-xs font-medium text-foreground block">
+          Add Paragraph
         </label>
         <textarea
-          rows={3}
+          id="profile-new-paragraph"
+          rows={2}
           value={newParagraph}
           onChange={(e) => setNewParagraph(e.target.value)}
-          placeholder="Type the next paragraph of your biography..."
-          className="w-full text-xs font-normal leading-relaxed rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-y"
+          placeholder="Write a new biography paragraph..."
+          className="w-full text-xs leading-relaxed rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 resize-y"
         />
-        <div className="flex justify-end">
-          <button
-            type="button"
-            disabled={!newParagraph.trim()}
-            onClick={handleAddParagraph}
-            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Paragraph</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={!newParagraph.trim()}
+          onClick={handleAddParagraph}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground disabled:opacity-40 cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Paragraph</span>
+        </button>
       </div>
     </div>
   );

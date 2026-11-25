@@ -3,8 +3,6 @@ import { useAdminAuth } from '../../lib/auth/useAdminAuth.ts';
 import { AdminLoginCard } from './AdminLoginCard.tsx';
 import { AdminHeader } from './AdminHeader.tsx';
 import { AdminSidebar, type AdminTab } from './AdminSidebar.tsx';
-import { AdminOverview } from './AdminOverview.tsx';
-import { AdminComingSoon } from './AdminComingSoon.tsx';
 import { ProfileEditor } from './profile/ProfileEditor.tsx';
 import { HomepageEditor } from './homepage/HomepageEditor.tsx';
 import { AboutEditor } from './about/AboutEditor.tsx';
@@ -16,7 +14,6 @@ import { Toaster } from '../ui/sonner.tsx';
 import { Loader2, Info } from 'lucide-react';
 
 const VALID_TABS: AdminTab[] = [
-  'overview',
   'profile',
   'homepage',
   'about',
@@ -25,6 +22,8 @@ const VALID_TABS: AdminTab[] = [
   'publishing',
   'settings',
 ];
+
+const DEFAULT_TAB: AdminTab = 'profile';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -39,7 +38,7 @@ export const AdminPortal: React.FC = () => {
     enableDevPreview,
   } = useAdminAuth();
 
-  // Read initial tab from URL if present
+  // Read initial tab from URL if valid; default directly to Profile (no Overview dashboard)
   const [activeTab, setActiveTab] = useState<AdminTab>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -48,7 +47,7 @@ export const AdminPortal: React.FC = () => {
         return tabParam;
       }
     }
-    return 'overview';
+    return DEFAULT_TAB;
   });
 
   // Handle tab selection and keep URL search params in sync
@@ -57,7 +56,6 @@ export const AdminPortal: React.FC = () => {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', tab);
-      // Clean up item IDs when switching primary tabs
       url.searchParams.delete('id');
       url.searchParams.delete('slug');
       url.searchParams.delete('edit');
@@ -73,6 +71,8 @@ export const AdminPortal: React.FC = () => {
         const tabParam = params.get('tab') as AdminTab;
         if (tabParam && VALID_TABS.includes(tabParam)) {
           setActiveTab(tabParam);
+        } else {
+          setActiveTab(DEFAULT_TAB);
         }
       }
     };
@@ -80,7 +80,6 @@ export const AdminPortal: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // 1. Initializing state: show dedicated loading screen while verifying Firebase session
   if (status === 'initializing') {
     return (
       <div className="min-h-[85vh] flex flex-col items-center justify-center px-4">
@@ -92,8 +91,6 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  // 2. Unauthenticated, Authenticating, Unauthorized, or Error state:
-  // Render ONLY the dedicated AdminLoginCard. The dashboard is NEVER rendered here.
   if (status !== 'authorized' || !user) {
     return (
       <AdminLoginCard
@@ -107,34 +104,25 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  // 3. ONLY 'authorized' state with real verified admin user renders the protected dashboard
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <AdminHeader user={user} onLogout={logout} />
 
-      {/* Dev Preview Mode Notice Bar */}
       {isDevPreview && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-mono text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
           <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
           <span>
-            Development Preview Mode Active. All forms and preview controls are interactive.
-            Live Firestore writes are disabled until Google Sign-In.
+            Development Preview Mode Active. Live Firestore writes require Google Sign-In.
           </span>
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Left Sidebar */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
           <AdminSidebar activeTab={activeTab} onSelectTab={handleSelectTab} />
 
-          {/* Right Main Content */}
           <section className="flex-1 w-full min-w-0" aria-label="Admin Content Pane">
-            {activeTab === 'overview' ? (
-              <AdminOverview user={user} onNavigateTab={handleSelectTab} />
-            ) : activeTab === 'profile' ? (
-              <ProfileEditor isDevPreview={isDevPreview} />
-            ) : activeTab === 'homepage' ? (
+            {activeTab === 'homepage' ? (
               <HomepageEditor isDevPreview={isDevPreview} />
             ) : activeTab === 'about' ? (
               <AboutEditor isDevPreview={isDevPreview} />
@@ -147,10 +135,7 @@ export const AdminPortal: React.FC = () => {
             ) : activeTab === 'settings' ? (
               <WebsiteSettingsEditor isDevPreview={isDevPreview} />
             ) : (
-              <AdminComingSoon
-                tab={activeTab}
-                onBackToOverview={() => handleSelectTab('overview')}
-              />
+              <ProfileEditor isDevPreview={isDevPreview} />
             )}
           </section>
         </div>

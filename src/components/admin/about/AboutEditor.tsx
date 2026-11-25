@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  User,
-  Briefcase,
-  Mic,
-  GraduationCap,
-  Building2,
-  Eye,
   Save,
   RotateCcw,
   CheckCircle2,
@@ -21,7 +15,6 @@ import { WorkEditor } from './WorkEditor.tsx';
 import { EducationEditor } from './EducationEditor.tsx';
 import { MediaMentionsEditor } from './MediaMentionsEditor.tsx';
 import { ExperienceEditor } from './ExperienceEditor.tsx';
-import { AboutPreview } from './AboutPreview.tsx';
 import { getAboutPageContent, saveAboutPageContent } from '../../../lib/cms/pages.repository.ts';
 import type {
   AboutPageDocument,
@@ -31,7 +24,7 @@ import type {
   CmsExperienceEntry,
 } from '../../../types/cms/pages.ts';
 
-type AboutSubTab = 'intro' | 'work' | 'media' | 'education' | 'experience' | 'preview';
+type AboutSubTab = 'intro' | 'work' | 'media' | 'education' | 'experience';
 
 interface AboutEditorProps {
   isDevPreview?: boolean;
@@ -53,11 +46,7 @@ const DEFAULT_ABOUT_STATE: AboutPageDocument = {
       index: '01',
       name: 'RisePaisa',
       desc: 'Building a Nepal-focused financial education platform that makes personal finance, banking, taxation, fintech, and investment concepts easier to understand through educational content, practical resources, and digital learning tools.',
-      link: {
-        text: 'Visit RisePaisa',
-        url: 'https://risepaisa.com',
-        isExternal: true,
-      },
+      link: { text: 'Visit RisePaisa', url: 'https://risepaisa.com', isExternal: true },
       order: 1,
       visible: true,
     },
@@ -74,11 +63,7 @@ const DEFAULT_ABOUT_STATE: AboutPageDocument = {
       index: '03',
       name: 'Finance Education & Content',
       desc: "Creating educational videos, research-based explanations, and practical digital resources covering Nepal's financial system, personal finance, and technology.",
-      link: {
-        text: 'Explore Resources',
-        url: '/resources',
-        isExternal: false,
-      },
+      link: { text: 'Explore Resources', url: '/resources', isExternal: false },
       order: 3,
       visible: true,
     },
@@ -127,11 +112,7 @@ const DEFAULT_ABOUT_STATE: AboutPageDocument = {
       visible: true,
     },
   ],
-  contact: {
-    visible: true,
-    showEmail: true,
-    showSocial: true,
-  },
+  contact: { visible: true, showEmail: true, showSocial: true },
   sectionOrder: ['about-intro', 'work', 'media', 'education', 'experience', 'contact'],
   sectionVisibility: {
     'about-intro': true,
@@ -143,7 +124,8 @@ const DEFAULT_ABOUT_STATE: AboutPageDocument = {
   },
   seo: {
     title: 'About Aakash Das — Personal Website',
-    description: "I'm Aakash Das, a Nepal-based finance educator, content creator, and founder of RisePaisa. I work at the intersection of finance, technology, and education.",
+    description:
+      "I'm Aakash Das, a Nepal-based finance educator, content creator, and founder of RisePaisa. I work at the intersection of finance, technology, and education.",
   },
 };
 
@@ -152,19 +134,30 @@ const DEV_STORAGE_KEY = 'aakashdas_cms_about_preview';
 export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }) => {
   const [activeSubTab, setActiveSubTab] = useState<AboutSubTab>('intro');
   const [title, setTitle] = useState(DEFAULT_ABOUT_STATE.title);
-  const [introParagraphs, setIntroParagraphs] = useState<string[]>(DEFAULT_ABOUT_STATE.introParagraphs);
+  const [introParagraphs, setIntroParagraphs] = useState<string[]>(
+    DEFAULT_ABOUT_STATE.introParagraphs
+  );
   const [workEntries, setWorkEntries] = useState<CmsWorkEntry[]>(DEFAULT_ABOUT_STATE.workEntries);
-  const [mediaEntries, setMediaEntries] = useState<CmsMediaEntry[]>(DEFAULT_ABOUT_STATE.mediaEntries);
-  const [educationEntries, setEducationEntries] = useState<CmsEducationEntry[]>(DEFAULT_ABOUT_STATE.educationEntries);
-  const [experienceEntries, setExperienceEntries] = useState<CmsExperienceEntry[]>(DEFAULT_ABOUT_STATE.experienceEntries);
+  const [mediaEntries, setMediaEntries] = useState<CmsMediaEntry[]>(
+    DEFAULT_ABOUT_STATE.mediaEntries
+  );
+  const [educationEntries, setEducationEntries] = useState<CmsEducationEntry[]>(
+    DEFAULT_ABOUT_STATE.educationEntries
+  );
+  const [experienceEntries, setExperienceEntries] = useState<CmsExperienceEntry[]>(
+    DEFAULT_ABOUT_STATE.experienceEntries
+  );
 
+  const [loadedData, setLoadedData] = useState<Partial<AboutPageDocument>>(DEFAULT_ABOUT_STATE);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
-  // Fixed section order & visibility
   const fixedSectionOrder = ['about-intro', 'work', 'media', 'education', 'experience', 'contact'];
   const fixedSectionVisibility = {
     'about-intro': true,
@@ -175,7 +168,37 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
     contact: true,
   };
 
-  // Load baseline on mount
+  const applyLoadedData = (data: Partial<AboutPageDocument>) => {
+    setLoadedData(data);
+    if (data.title) setTitle(data.title);
+    if (data.introParagraphs && data.introParagraphs.length > 0) {
+      setIntroParagraphs(data.introParagraphs);
+    } else {
+      setIntroParagraphs(DEFAULT_ABOUT_STATE.introParagraphs);
+    }
+    setWorkEntries(
+      data.workEntries && data.workEntries.length > 0
+        ? data.workEntries
+        : DEFAULT_ABOUT_STATE.workEntries
+    );
+    setMediaEntries(
+      data.mediaEntries && data.mediaEntries.length > 0
+        ? data.mediaEntries
+        : DEFAULT_ABOUT_STATE.mediaEntries
+    );
+    setEducationEntries(
+      data.educationEntries && data.educationEntries.length > 0
+        ? data.educationEntries
+        : DEFAULT_ABOUT_STATE.educationEntries
+    );
+    setExperienceEntries(
+      data.experienceEntries && data.experienceEntries.length > 0
+        ? data.experienceEntries
+        : DEFAULT_ABOUT_STATE.experienceEntries
+    );
+    setIsDirty(false);
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -199,50 +222,22 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
           applyLoadedData(data);
         }
       } catch (err) {
-        console.warn('Could not load About page content from Firestore, using baseline:', err);
+        console.warn('[AboutEditor] Using baseline About state:', err);
       } finally {
         if (mounted) setIsLoading(false);
       }
     }
 
     loadData();
-
     return () => {
       mounted = false;
     };
   }, [isDevPreview]);
 
-  const applyLoadedData = (data: Partial<AboutPageDocument>) => {
-    if (data.title) setTitle(data.title);
-    if (data.introParagraphs && data.introParagraphs.length > 0) setIntroParagraphs(data.introParagraphs);
-    if (data.workEntries && data.workEntries.length > 0) {
-      setWorkEntries(data.workEntries);
-    } else {
-      setWorkEntries(DEFAULT_ABOUT_STATE.workEntries);
-    }
-    if (data.mediaEntries && data.mediaEntries.length > 0) {
-      setMediaEntries(data.mediaEntries);
-    } else {
-      setMediaEntries(DEFAULT_ABOUT_STATE.mediaEntries);
-    }
-    if (data.educationEntries && data.educationEntries.length > 0) {
-      setEducationEntries(data.educationEntries);
-    } else {
-      setEducationEntries(DEFAULT_ABOUT_STATE.educationEntries);
-    }
-    if (data.experienceEntries && data.experienceEntries.length > 0) {
-      setExperienceEntries(data.experienceEntries);
-    } else {
-      setExperienceEntries(DEFAULT_ABOUT_STATE.experienceEntries);
-    }
-    setIsDirty(false);
-  };
-
   const markDirty = () => {
     if (!isDirty) setIsDirty(true);
   };
 
-  // Intro paragraph operations
   const handleUpdateParagraph = (index: number, text: string) => {
     const updated = [...introParagraphs];
     updated[index] = text;
@@ -281,25 +276,22 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
     markDirty();
   };
 
-  // Build current state payload
   const buildPayload = (): Partial<AboutPageDocument> => ({
-    title,
+    title: title.trim() || DEFAULT_ABOUT_STATE.title,
     introParagraphs: introParagraphs.filter((p) => p.trim().length > 0),
     workEntries,
     mediaEntries,
     educationEntries,
     experienceEntries,
-    contact: {
-      visible: true,
-      showEmail: true,
-      showSocial: true,
-    },
+    contact: loadedData.contact || { visible: true, showEmail: true, showSocial: true },
+    seo: loadedData.seo || DEFAULT_ABOUT_STATE.seo,
     sectionOrder: fixedSectionOrder,
     sectionVisibility: fixedSectionVisibility,
   });
 
-  const handleSaveDraft = async () => {
-    setIsSaving(true);
+  const handleSave = async (publish: boolean) => {
+    if (publish) setIsPublishing(true);
+    else setIsSaving(true);
     setStatusMessage(null);
 
     const payload = buildPayload();
@@ -307,117 +299,80 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
     try {
       if (isDevPreview && typeof window !== 'undefined') {
         sessionStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(payload));
+        setLoadedData(payload);
         setIsDirty(false);
         setStatusMessage({
           type: 'success',
-          text: 'About page draft saved to local preview state.',
+          text: publish
+            ? 'About page published to local preview state.'
+            : 'About page draft saved to local preview state.',
         });
-        setIsSaving(false);
         return;
       }
 
       await saveAboutPageContent(payload);
+      setLoadedData(payload);
       setIsDirty(false);
       setStatusMessage({
         type: 'success',
-        text: 'About page draft saved successfully to Cloud Firestore.',
+        text: publish
+          ? 'About page published to Cloud Firestore.'
+          : 'About page draft saved to Cloud Firestore.',
       });
     } catch (err: any) {
-      console.error('Error saving about page:', err);
       setStatusMessage({
         type: 'error',
-        text: err?.message || 'Failed to save About page draft.',
+        text: err?.message || 'Failed to save About page content.',
       });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    setIsPublishing(true);
-    setStatusMessage(null);
-
-    const payload = buildPayload();
-
-    try {
-      if (isDevPreview && typeof window !== 'undefined') {
-        sessionStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(payload));
-        setIsDirty(false);
-        setStatusMessage({
-          type: 'success',
-          text: 'About page published to local preview state. (Live Firestore write disabled in Dev Preview)',
-        });
-        setIsPublishing(false);
-        return;
-      }
-
-      await saveAboutPageContent(payload);
-      setIsDirty(false);
-      setStatusMessage({
-        type: 'success',
-        text: 'About page successfully published to Cloud Firestore.',
-      });
-    } catch (err: any) {
-      console.error('Error publishing about page:', err);
-      setStatusMessage({
-        type: 'error',
-        text: err?.message || 'Failed to publish About page content.',
-      });
-    } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleResetToBaseline = () => {
-    if (confirm('Discard unsaved edits and reset to default content?')) {
-      applyLoadedData(DEFAULT_ABOUT_STATE);
-      if (typeof window !== 'undefined' && isDevPreview) {
-        sessionStorage.removeItem(DEV_STORAGE_KEY);
-      }
-      setIsDirty(false);
-      setStatusMessage({
-        type: 'success',
-        text: 'About page reset to default baseline.',
-      });
-    }
+  const handleReset = () => {
+    applyLoadedData(loadedData);
+    setStatusMessage(null);
   };
 
   if (isLoading) {
     return (
-      <div className="p-12 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <p className="text-sm">Loading About Page CMS...</p>
+      <div className="py-12 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        <span>Loading About...</span>
       </div>
     );
   }
 
+  const tabs: Array<{ id: AboutSubTab; label: string }> = [
+    { id: 'intro', label: 'Intro' },
+    { id: 'work', label: 'Work' },
+    { id: 'media', label: 'Media' },
+    { id: 'education', label: 'Education' },
+    { id: 'experience', label: 'Experience' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header and Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 m-0">
-              <User className="w-5 h-5 text-primary" />
-              About Page CMS
-            </h2>
-            {isDirty && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                Unsaved changes
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1 m-0">
-            Manage your biography narrative, initiatives, media features, education, and professional experience.
-          </p>
+    <div className="space-y-5 max-w-3xl pb-10">
+      {/* Header & Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground m-0">
+            About
+          </h1>
+          {isDirty && (
+            <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+              Unsaved changes
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           {isDirty && (
             <button
               type="button"
-              onClick={handleResetToBaseline}
-              className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              onClick={handleReset}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
@@ -426,19 +381,23 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
 
           <button
             type="button"
-            onClick={handleSaveDraft}
-            disabled={isSaving}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-xl border border-border bg-card hover:bg-secondary text-foreground transition-colors cursor-pointer"
+            onClick={() => handleSave(false)}
+            disabled={isSaving || isPublishing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-50 cursor-pointer"
           >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
             <span>Save Draft</span>
           </button>
 
           <button
             type="button"
-            onClick={handlePublish}
-            disabled={isPublishing}
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs cursor-pointer"
+            onClick={() => handleSave(true)}
+            disabled={isSaving || isPublishing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
           >
             {isPublishing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -450,11 +409,10 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
         </div>
       </div>
 
-      {/* Status Feedback Message */}
       {statusMessage && (
         <div
           role="alert"
-          className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 ${
+          className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${
             statusMessage.type === 'success'
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
               : 'border-destructive/30 bg-destructive/10 text-destructive'
@@ -462,161 +420,68 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
         >
           <div className="flex items-center gap-2">
             {statusMessage.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 shrink-0" />
             )}
-            <span className="font-medium">{statusMessage.text}</span>
+            <span>{statusMessage.text}</span>
           </div>
           <button
             type="button"
             onClick={() => setStatusMessage(null)}
-            className="text-[11px] underline cursor-pointer hover:opacity-80"
+            className="text-[11px] underline cursor-pointer shrink-0"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* 5 Management Areas + Live Preview Sub-tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border/60 scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('intro')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'intro'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <User className="w-3.5 h-3.5" />
-          <span>Intro & Bio</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('work')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'work'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Briefcase className="w-3.5 h-3.5" />
-          <span>My Work</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-background border border-border">
-            {workEntries.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('media')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'media'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Mic className="w-3.5 h-3.5" />
-          <span>Conversations & Media</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-background border border-border">
-            {mediaEntries.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('education')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'education'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <GraduationCap className="w-3.5 h-3.5" />
-          <span>Education</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-background border border-border">
-            {educationEntries.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('experience')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'experience'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5" />
-          <span>Professional Experience</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-background border border-border">
-            {experienceEntries.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('preview')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'preview'
-              ? 'bg-secondary text-foreground font-semibold shadow-2xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5 text-primary" />
-          <span>Live Preview</span>
-        </button>
+      {/* Simple Section Filter Tabs */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveSubTab(tab.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer ${
+              activeSubTab === tab.id
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Sub Tab Content */}
-      <div className="pt-2">
+      {/* Section Panel */}
+      <div>
         {activeSubTab === 'intro' && (
-          <div className="space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-foreground m-0">
-                Introduction & Biography
-              </h3>
-              <p className="text-xs text-muted-foreground m-0">
-                Manage your introduction heading and biography narrative in presentation order.
-              </p>
-            </div>
-
-            {/* Page Heading Card */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-3 shadow-2xs">
-              <label className="text-xs font-semibold text-foreground block">
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+              <label htmlFor="about-heading-input" className="text-xs font-medium text-foreground block">
                 Page Heading
               </label>
               <input
+                id="about-heading-input"
                 type="text"
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
                   markDirty();
                 }}
-                className="w-full px-3 py-2 text-sm font-semibold rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-input bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                 placeholder="About Aakash Das"
               />
             </div>
 
-            {/* Paragraphs List Card */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-2xs">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-semibold text-foreground m-0">
-                    Narrative Paragraphs ({introParagraphs.length})
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 m-0">
-                    Paragraphs appear on the public About page in the exact sequence shown below.
-                  </p>
-                </div>
-
+                <h2 className="text-sm font-semibold text-foreground m-0">Paragraphs</h2>
                 <button
                   type="button"
                   onClick={handleAddParagraph}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Paragraph</span>
@@ -627,10 +492,10 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
                 {introParagraphs.map((para, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-lg border border-border bg-secondary/20 space-y-2 hover:bg-secondary/30 transition-colors"
+                    className="p-3.5 rounded-lg border border-border bg-background space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium border border-border bg-card text-muted-foreground">
+                      <span className="text-xs font-mono text-muted-foreground">
                         Paragraph {String(idx + 1).padStart(2, '0')}
                       </span>
 
@@ -640,7 +505,7 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
                           onClick={() => handleMoveParagraphUp(idx)}
                           disabled={idx === 0}
                           title="Move up"
-                          className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          className="w-7 h-7 inline-flex items-center justify-center rounded border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-30 cursor-pointer"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
                         </button>
@@ -649,7 +514,7 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
                           onClick={() => handleMoveParagraphDown(idx)}
                           disabled={idx === introParagraphs.length - 1}
                           title="Move down"
-                          className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          className="w-7 h-7 inline-flex items-center justify-center rounded border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-30 cursor-pointer"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>
@@ -657,7 +522,7 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
                           <button
                             type="button"
                             onClick={() => handleDeleteParagraph(idx)}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/15 transition-colors cursor-pointer ml-1"
+                            className="w-7 h-7 inline-flex items-center justify-center rounded border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/15 cursor-pointer ml-0.5"
                             title="Delete paragraph"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -670,8 +535,8 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
                       rows={3}
                       value={para}
                       onChange={(e) => handleUpdateParagraph(idx, e.target.value)}
-                      placeholder="Enter biography paragraph text..."
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-y"
+                      placeholder="Enter biography paragraph..."
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 leading-relaxed resize-y"
                     />
                   </div>
                 ))}
@@ -717,24 +582,6 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
               setExperienceEntries(updated);
               markDirty();
             }}
-          />
-        )}
-
-        {activeSubTab === 'preview' && (
-          <AboutPreview
-            title={title}
-            introParagraphs={introParagraphs}
-            workEntries={workEntries}
-            mediaEntries={mediaEntries}
-            educationEntries={educationEntries}
-            experienceEntries={experienceEntries}
-            contact={{
-              visible: true,
-              showEmail: true,
-              showSocial: true,
-            }}
-            sectionOrder={fixedSectionOrder}
-            sectionVisibility={fixedSectionVisibility}
           />
         )}
       </div>

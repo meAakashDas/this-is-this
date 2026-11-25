@@ -162,19 +162,10 @@ export const FeaturedResourcesEditor: React.FC<FeaturedResourcesEditorProps> = (
   );
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-foreground m-0">
-          Featured Resources
-        </h3>
-        <p className="text-xs text-muted-foreground m-0">
-          Choose and arrange featured resources.
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {/* Section Heading Card */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3 shadow-2xs">
-        <label className="text-xs font-semibold text-foreground block">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+        <label className="text-xs font-medium text-foreground block">
           Section Heading
         </label>
         <input
@@ -182,21 +173,16 @@ export const FeaturedResourcesEditor: React.FC<FeaturedResourcesEditorProps> = (
           value={resourcesConfig.heading}
           onChange={(e) => handleHeadingChange(e.target.value)}
           placeholder="Free Resources"
-          className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
         />
       </div>
 
       {/* Featured Resources List Card */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-2xs">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-xs font-semibold text-foreground m-0">
-              Selected Resources ({currentIds.length})
-            </h4>
-            <p className="text-[11px] text-muted-foreground mt-0.5 m-0">
-              Resources appear on the homepage in the exact order shown below.
-            </p>
-          </div>
+          <h3 className="text-sm font-semibold text-foreground m-0">
+            Selected Resources
+          </h3>
         </div>
 
         {currentIds.length === 0 ? (

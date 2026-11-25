@@ -104,7 +104,7 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
 
     // Clicking "Back to Resources" returns to listing
     await page.locator('button:has-text("Back to Resources")').click();
-    await expect(page.locator('h2:has-text("Educational Resources CMS")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Resources")')).toBeVisible();
   });
 
   test('D. Non-existent Journal displays explicit verified Not Found UI state', async ({
@@ -126,7 +126,7 @@ test.describe('Admin Resources & Journal - Record Retrieval & Editor Bug Fix Ver
   }) => {
     // 1. Go to resources list
     await page.goto('/admin?tab=resources');
-    await expect(page.locator('h2:has-text("Educational Resources CMS")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Resources")')).toBeVisible();
 
     // Find Resource 001 card and click Edit button
     const editBtn = page.locator('button[aria-label="Edit Resource 001"]');

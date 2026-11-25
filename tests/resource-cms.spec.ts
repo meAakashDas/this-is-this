@@ -24,12 +24,60 @@ test.describe('Simplified 2-Section Resource Editor QA', () => {
     await expect(resourcesTab.locator('text=Phase 7')).toHaveCount(0);
   });
 
-  test('2. Clicking Resources tab loads Resource CMS dashboard and metrics', async ({ page }) => {
+  test('2. Clicking Resources tab loads simplified Resource list UI cleanly', async ({ page }) => {
     await page.locator('aside button:has-text("Resources")').click();
-    await expect(page.locator('h2:has-text("Educational Resources CMS")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Resources")')).toBeVisible();
+    await expect(page.locator('button:has-text("Create Resource")')).toBeVisible();
+
+    // Status filter contains ONLY All, Published, Draft
+    const filterGroup = page.getByRole('group', { name: 'Filter resources by status' });
+    await expect(filterGroup.locator('button:has-text("All")')).toBeVisible();
+    await expect(filterGroup.locator('button:has-text("Published")')).toBeVisible();
+    await expect(filterGroup.locator('button:has-text("Draft")')).toBeVisible();
+    await expect(filterGroup.locator('button:has-text("Archived")')).toHaveCount(0);
+
+    // Removed elements must be completely absent
+    await expect(page.locator('text=Total Archive')).toHaveCount(0);
+    await expect(page.locator('text=Featured')).toHaveCount(0);
+    await expect(page.locator('select')).toHaveCount(0);
+    await expect(page.locator('button[aria-label^="Preview Resource"]')).toHaveCount(0);
+    await expect(page.locator('button[aria-label^="Duplicate Resource"]')).toHaveCount(0);
+    await expect(page.locator('button[aria-label^="Archive Resource"]')).toHaveCount(0);
+
+    // Existing resources render with number, title, status, and Edit/Publish-Unpublish/Delete actions
     await expect(page.locator('text=NO. 001')).toBeVisible();
+    await expect(page.locator('text=Starter Personal Budget Framework')).toBeVisible();
     await expect(page.locator('text=NO. 002')).toBeVisible();
     await expect(page.locator('text=NO. 003')).toBeVisible();
+    await expect(page.locator('button[aria-label="Edit Resource 001"]')).toBeVisible();
+    await expect(page.locator('button[aria-label="Unpublish Resource 001"]')).toBeVisible();
+    await expect(page.locator('button[aria-label="Delete Resource 001"]')).toBeVisible();
+
+    // Verify Publish / Unpublish toggle and Draft / Published / All filters
+    await page.locator('button[aria-label="Unpublish Resource 001"]').click();
+    await expect(page.locator('button[aria-label="Publish Resource 001"]')).toBeVisible();
+    await filterGroup.locator('button:has-text("Draft")').click();
+    await expect(page.locator('text=NO. 001')).toBeVisible();
+    await expect(page.locator('text=NO. 002')).toHaveCount(0);
+    await filterGroup.locator('button:has-text("Published")').click();
+    await expect(page.locator('text=NO. 001')).toHaveCount(0);
+    await expect(page.locator('text=NO. 002')).toBeVisible();
+    await filterGroup.locator('button:has-text("All")').click();
+    await page.locator('button[aria-label="Publish Resource 001"]').click();
+    await expect(page.locator('button[aria-label="Unpublish Resource 001"]')).toBeVisible();
+
+    // Verify Delete confirmation removes a resource cleanly
+    await page.locator('button[aria-label="Delete Resource 003"]').click();
+    await expect(page.locator('h3:has-text("Delete Resource")')).toBeVisible();
+    await page.locator('button:has-text("Confirm Delete")').click();
+    await expect(page.locator('text=NO. 003')).toHaveCount(0);
+
+    // Verify responsive mobile layout has zero horizontal overflow
+    await page.setViewportSize({ width: 390, height: 844 });
+    const hasOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth + 1
+    );
+    expect(hasOverflow).toBe(false);
   });
 
   test('3. Resource Editor contains ONLY TWO sections and removes all metadata/SEO/settings clutter', async ({

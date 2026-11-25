@@ -95,6 +95,7 @@ export function getPublicSiteConfig() {
     profileImage: (!settings.profileImage || settings.profileImage.startsWith('blob:'))
       ? '/images/aakash-das.webp'
       : settings.profileImage,
+    favicon: settings.favicon || '/favicon.svg',
     socialLinks: (settings.socialLinks && settings.socialLinks.length > 0)
       ? settings.socialLinks.filter((s) => s.visible !== false)
       : defaultSiteConfig.socialLinks,

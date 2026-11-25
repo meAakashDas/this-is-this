@@ -1080,10 +1080,78 @@ async function syncGlobalSiteSettings(db: any) {
       });
     }
 
+    if (settings.websiteTitle && settings.websiteTitle !== 'Aakash Das') {
+      document.title = settings.websiteTitle;
+    }
+
+    if (settings.websiteTitle) {
+      document.querySelectorAll<HTMLMetaElement>('meta[name="title"], meta[property="og:title"], meta[property="twitter:title"]').forEach((el) => {
+        el.content = settings.websiteTitle;
+      });
+    }
+
+    if (settings.shortDescription) {
+      document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[property="twitter:description"]').forEach((el) => {
+        el.content = settings.shortDescription;
+      });
+    }
+
     if (settings.fullName) {
       document.querySelectorAll<HTMLElement>('.brand-name').forEach((el) => {
         el.textContent = settings.fullName;
       });
+      const authorMeta = document.querySelector<HTMLMetaElement>('meta[name="author"]');
+      if (authorMeta) authorMeta.content = settings.fullName;
+      const siteNameMeta = document.querySelector<HTMLMetaElement>('meta[property="og:site_name"]');
+      if (siteNameMeta) siteNameMeta.content = settings.fullName;
+    }
+
+    if (isSafePublicUrl(settings.profileImage)) {
+      const ogImage = document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
+      if (ogImage) {
+        ogImage.content = settings.profileImage.startsWith('/')
+          ? `${window.location.origin}${settings.profileImage}`
+          : settings.profileImage;
+      }
+      const heroImg = document.querySelector<HTMLImageElement>('.hero-portrait-img');
+      if (heroImg && (!heroImg.getAttribute('src') || heroImg.getAttribute('src') === '/images/aakash-das.webp')) {
+        heroImg.src = settings.profileImage;
+      }
+    }
+
+    if (isSafePublicUrl(settings.favicon) && settings.favicon !== '/favicon.svg') {
+      document.querySelectorAll<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"], link[rel="shortcut icon"]').forEach((el) => {
+        el.href = settings.favicon;
+      });
+    }
+
+    if (Array.isArray(settings.socialLinks) && settings.socialLinks.length > 0) {
+      const visibleLinks = settings.socialLinks.filter(
+        (s: any) => s && s.visible !== false && isSafePublicUrl(s.url)
+      );
+      const footerSocial = document.querySelector<HTMLElement>('.footer-social-links');
+      if (footerSocial && visibleLinks.length > 0) {
+        footerSocial.innerHTML = visibleLinks
+          .map((social: any) => {
+            const label =
+              String(social.platform || '').includes('X') || String(social.platform || '').includes('Twitter')
+                ? 'X'
+                : social.platform || social.label || 'Link';
+            return `
+              <a
+                href="${escapeHtml(social.url)}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="footer-social-link inline-flex items-center gap-1 text-xs sm:text-[13px] font-medium text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-md hover:bg-secondary transition-colors no-underline whitespace-nowrap"
+                aria-label="${escapeHtml(social.platform)} (@${escapeHtml(social.handle || '')})"
+              >
+                <span>${escapeHtml(label)}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/70"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg>
+              </a>
+            `;
+          })
+          .join('');
+      }
     }
 
     if (settings.phone) {

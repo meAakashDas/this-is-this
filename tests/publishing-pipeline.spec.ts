@@ -142,16 +142,24 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     // Click Publishing tab
     await publishingTab.click();
 
-    // Verify Publishing Dashboard renders
-    await expect(page.locator('h1:has-text("Publishing & Static Site Pipeline")')).toBeVisible();
-    await expect(page.locator('text=Production Live & Synchronized')).toBeVisible();
-    await expect(page.locator('text=aakashdas.live')).toBeVisible();
-    await expect(page.locator('text=3 Published')).toBeVisible();
-    await expect(page.locator('text=4 Published')).toBeVisible();
+    // Verify simplified Publishing page renders only essential items
+    await expect(page.locator('h1:has-text("Publishing")')).toBeVisible();
+    await expect(page.locator('button:has-text("Build & Deploy")')).toBeVisible();
+    await expect(page.locator('text=Production Status')).toBeVisible();
+    await expect(page.locator('text=Last Deployment')).toBeVisible();
+    await expect(page.locator('text=Publishing Inventory')).toBeVisible();
+    await expect(page.locator('text=3 Published · 0 Draft')).toBeVisible();
+    await expect(page.locator('text=4 Published · 0 Draft')).toBeVisible();
+
+    // Verify removed clutter/technical items are absent
+    await expect(page.locator('text=Download Snapshot JSON')).toHaveCount(0);
+    await expect(page.locator('text=Configure Dispatch')).toHaveCount(0);
+    await expect(page.locator('text=.github/workflows/deploy.yml')).toHaveCount(0);
+    await expect(page.locator('text=Target Domain')).toHaveCount(0);
   });
 
-  // 7. Trigger Build Confirmation Modal & Dispatch Configuration
-  test('7. Trigger Build button opens confirmation modal and prompts for GitHub dispatch token when unconfigured', async ({
+  // 7. Build & Deploy Confirmation Modal & Honest Workflow Dispatch Check
+  test('7. Build & Deploy opens confirmation modal and requires valid dispatch token without false success', async ({
     page,
   }) => {
     await openAdmin(page);
@@ -160,21 +168,20 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     // Navigate to Publishing tab
     await page.locator('nav[aria-label="Admin Navigation"] button:has-text("Publishing")').click();
 
-    // Click Trigger Build & Deploy
-    const triggerBtn = page.locator('button:has-text("Trigger Build & Deploy")');
-    await expect(triggerBtn).toBeVisible();
-    await triggerBtn.click();
+    // Click Build & Deploy
+    const deployBtn = page.locator('button:has-text("Build & Deploy")');
+    await expect(deployBtn).toBeVisible();
+    await deployBtn.click();
 
-    // Verify confirmation modal shows real inventory counts
+    // Verify confirmation modal
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
-    await expect(modal.locator('h2')).toContainText('Trigger Production Static Build?');
-    await expect(modal.locator('text=/\\d+ Published Educational Resources included/')).toBeVisible();
-    await expect(modal.locator('text=/\\d+ Published Journal Articles included/')).toBeVisible();
+    await expect(modal.locator('h2')).toContainText('Build & Deploy Website');
+    await modal.locator('button:has-text("Confirm Build & Deploy")').click();
 
-    // Click Confirm & Build Website without token -> opens token configuration panel honestly (no fake build)
-    await modal.locator('button:has-text("Confirm & Build Website")').click();
+    // Without token: prompts for GitHub dispatch token and does NOT falsely show deployment succeeded
     await expect(page.locator('input#gh-token')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Deployment completed successfully')).toHaveCount(0);
   });
 
   // 8. Mobile Responsiveness of Publishing Dashboard
@@ -188,7 +195,7 @@ test.describe('Public Website CMS Integration & Publishing Pipeline QA', () => {
     // Navigate to Publishing tab
     await page.locator('nav[aria-label="Admin Navigation"] button:has-text("Publishing")').click();
 
-    await expect(page.locator('h1:has-text("Publishing & Static Site Pipeline")')).toBeVisible();
+    await expect(page.locator('h1:has-text("Publishing")')).toBeVisible();
 
     // Verify no horizontal overflow
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);

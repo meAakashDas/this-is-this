@@ -90,66 +90,65 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
     setIsBuilding(true);
     setIsBuildComplete(false);
 
-    // Reset steps
+    const token = sessionStorage.getItem('admin_gh_dispatch_token') || githubToken;
+
+    if (!token) {
+      setIsBuilding(false);
+      toast.info(
+        'Live Firestore Sync is active: your changes in Educational Resources and Journal are already live on aakashdas.live! To trigger an optional full GitHub Pages pre-render build, enter a GitHub token below.'
+      );
+      setShowTokenConfig(true);
+      return;
+    }
+
     setBuildSteps([
-      { id: 'snapshot', label: 'Capture Firestore Content Snapshot', status: 'running' },
-      { id: 'exports', label: 'Generate PDF & DOCX Resource Downloads', status: 'pending' },
-      { id: 'ssg', label: 'Pre-render 14 Static HTML Routes', status: 'pending' },
-      { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'pending' },
+      { id: 'snapshot', label: 'Connecting to GitHub Actions Workflow Dispatch', status: 'running' },
+      { id: 'exports', label: 'Dispatched deploy.yml on branch main', status: 'pending' },
+      { id: 'ssg', label: 'Triggering Static Route Build', status: 'pending' },
+      { id: 'deploy', label: 'Deploying to GitHub Pages', status: 'pending' },
     ]);
 
-    // Simulate step 1
-    await new Promise((r) => setTimeout(r, 600));
-    setBuildSteps((prev) =>
-      prev.map((s) =>
-        s.id === 'snapshot'
-          ? { ...s, status: 'success' }
-          : s.id === 'exports'
-          ? { ...s, status: 'running' }
-          : s
-      )
-    );
-
-    // Simulate step 2
-    await new Promise((r) => setTimeout(r, 700));
-    setBuildSteps((prev) =>
-      prev.map((s) =>
-        s.id === 'exports'
-          ? { ...s, status: 'success' }
-          : s.id === 'ssg'
-          ? { ...s, status: 'running' }
-          : s
-      )
-    );
-
-    // Simulate step 3
-    await new Promise((r) => setTimeout(r, 800));
-    setBuildSteps((prev) =>
-      prev.map((s) =>
-        s.id === 'ssg'
-          ? { ...s, status: 'success' }
-          : s.id === 'deploy'
-          ? { ...s, status: 'running' }
-          : s
-      )
-    );
-
-    // Simulate step 4
-    await new Promise((r) => setTimeout(r, 600));
-    setBuildSteps((prev) =>
-      prev.map((s) => (s.id === 'deploy' ? { ...s, status: 'success' } : s))
-    );
-
-    setIsBuilding(false);
-    setIsBuildComplete(true);
-    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const formatted = `Just now (${nowStr})`;
-    setLastBuildTime(formatted);
     try {
-      sessionStorage.setItem('aakashdas_last_build_time', formatted);
-    } catch {}
+      const res = await fetch('https://api.github.com/repos/meAakashDas/this-is-this/actions/workflows/deploy.yml/dispatches', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token.trim()}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      });
 
-    toast.success('Publishing pipeline complete! Static build deployed successfully.');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || `GitHub API error: ${res.status} ${res.statusText}`);
+      }
+
+      setBuildSteps([
+        { id: 'snapshot', label: 'Dispatched GitHub Actions build successfully', status: 'success' },
+        { id: 'exports', label: 'Generating PDF & DOCX Resource Downloads', status: 'running' },
+        { id: 'ssg', label: 'Pre-rendering Static HTML Routes', status: 'running' },
+        { id: 'deploy', label: 'Deploy to GitHub Pages (aakashdas.live)', status: 'running' },
+      ]);
+
+      setIsBuildComplete(true);
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const formatted = `Dispatched just now (${nowStr})`;
+      setLastBuildTime(formatted);
+      try {
+        sessionStorage.setItem('aakashdas_last_build_time', formatted);
+      } catch {}
+
+      toast.success('GitHub Actions build successfully dispatched to main branch!');
+    } catch (err: any) {
+      console.error('Workflow dispatch failed:', err);
+      toast.error(`Workflow dispatch failed: ${err.message}`);
+      setBuildSteps((prev) =>
+        prev.map((s) => (s.status === 'running' ? { ...s, status: 'failed' } : s))
+      );
+    } finally {
+      setIsBuilding(false);
+    }
   };
 
   const handleDownloadSnapshot = () => {

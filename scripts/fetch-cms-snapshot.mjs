@@ -403,26 +403,17 @@ async function fetchFromFirestore() {
     return null;
   }
 
-  const hasConfig = Boolean(
-    process.env.PUBLIC_FIREBASE_API_KEY ||
-    process.env.FIREBASE_CONFIG ||
-    process.env.GOOGLE_APPLICATION_CREDENTIALS
-  );
-
-  if (!hasConfig) {
-    return null;
-  }
-
   try {
     const { initializeApp } = await import('firebase/app');
     const { getFirestore, doc, getDoc, collection, getDocs, query, where } = await import('firebase/firestore');
 
     const config = {
-      apiKey: process.env.PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.PUBLIC_FIREBASE_AUTH_DOMAIN,
+      apiKey: process.env.PUBLIC_FIREBASE_API_KEY || 'AIzaSyBjYmwR6Zn4A9MCTdarlUEIodpTq0GOAHY',
+      authDomain: process.env.PUBLIC_FIREBASE_AUTH_DOMAIN || 'aakashdas-live.firebaseapp.com',
       projectId: process.env.PUBLIC_FIREBASE_PROJECT_ID || 'aakashdas-live',
-      storageBucket: process.env.PUBLIC_FIREBASE_STORAGE_BUCKET,
-      appId: process.env.PUBLIC_FIREBASE_APP_ID,
+      storageBucket: process.env.PUBLIC_FIREBASE_STORAGE_BUCKET || 'aakashdas-live.firebasestorage.app',
+      messagingSenderId: process.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '128286218310',
+      appId: process.env.PUBLIC_FIREBASE_APP_ID || '1:128286218310:web:962c0197ecfa1366a65247',
     };
 
     const app = initializeApp(config);
@@ -442,6 +433,9 @@ async function fetchFromFirestore() {
     }
 
     const siteSettings = settingsSnap.exists() ? settingsSnap.data() : null;
+    if (siteSettings && siteSettings.profileImage && siteSettings.profileImage.startsWith('blob:')) {
+      siteSettings.profileImage = '/images/aakash-das.webp';
+    }
     const homePage = homeSnap.exists() ? homeSnap.data() : null;
     const aboutPage = aboutSnap.exists() ? aboutSnap.data() : null;
     const resources = resourcesSnap.docs.map((d) => d.data());

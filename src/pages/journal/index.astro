@@ -27,7 +27,7 @@ const articles = getPublicJournalArticles();
     <section class="journal-entries-section" aria-label="Journal Entries">
       <div class="journal-list divide-y divide-border border-t border-b border-border" role="feed">
         {articles.map((article) => (
-          <article class="journal-entry-item py-7 sm:py-8.5 group transition-colors" role="article">
+          <article class="journal-entry-item py-7 sm:py-8.5 group transition-colors" role="article" data-journal-slug={article.slug}>
             <a
               href={`/journal/${article.slug}`}
               class="entry-link block no-underline text-inherit focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-lg"

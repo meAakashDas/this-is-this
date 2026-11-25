@@ -197,17 +197,14 @@ export async function getPublishedResources(): Promise<ResourceDocument[]> {
     const colRef = collection(db, COLLECTION);
     const q = query(colRef, where('published', '==', true), orderBy('resourceNumber', 'asc'));
     const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      return snapshot.docs.map((docSnap) => ({
-        ...restoreFromFirestore(docSnap.data()),
-        id: docSnap.id,
-      }));
-    }
+    return snapshot.docs.map((docSnap) => ({
+      ...restoreFromFirestore(docSnap.data()),
+      id: docSnap.id,
+    }));
   } catch (error) {
     console.warn('[CMS] Failed to fetch published resources from Firestore, using fallback:', error);
+    return getBaselineFallbackResources().filter((r) => r.published);
   }
-
-  return getBaselineFallbackResources().filter((r) => r.published);
 }
 
 /**
@@ -220,14 +217,13 @@ export async function getAllResourcesForAdmin(): Promise<ResourceDocument[]> {
       const colRef = collection(db, COLLECTION);
       const q = query(colRef, orderBy('resourceNumber', 'asc'));
       const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        return snapshot.docs.map((docSnap) => ({
-          ...restoreFromFirestore(docSnap.data()),
-          id: docSnap.id,
-        }));
-      }
+      return snapshot.docs.map((docSnap) => ({
+        ...restoreFromFirestore(docSnap.data()),
+        id: docSnap.id,
+      }));
     } catch (error) {
       console.warn('[CMS] Failed to fetch resources from Firestore, falling back to baseline:', error);
+      return getBaselineFallbackResources();
     }
   }
 
@@ -287,12 +283,18 @@ export async function getResourceByNumber(rawNumber: string): Promise<ResourceDo
         const d = qSlugSnap.docs[0];
         return { ...restoreFromFirestore(d.data()), id: d.id };
       }
-    } catch (error) {
-      console.warn(`[CMS] Error fetching resource #${num} from Firestore:`, error);
+
+      // Record does not exist in Firestore
+      return null;
+    } catch (error: any) {
+      if (error?.code !== 'permission-denied') {
+        console.warn(`[CMS] Error fetching resource #${num} from Firestore:`, error);
+      }
+      return null;
     }
   }
 
-  // Resilient fallback to local baseline/snapshot data
+  // Resilient fallback to local baseline/snapshot data only when Firestore is offline
   return findFallbackResource(num) || findFallbackResource(trimmed);
 }
 
@@ -548,6 +550,22 @@ export async function deleteResource(rawIdentifier: string): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION, targetDocId);
     await deleteDoc(docRef);
+
+    // Also delete non-padded or padded variant if different
+    const padded = trimmedId.padStart(3, '0');
+    if (padded !== targetDocId) {
+      try {
+        await deleteDoc(doc(db, COLLECTION, padded));
+      } catch {}
+    }
+
+    // Invalidate client-side live sync cache
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('risepaisa_live_resources');
+        sessionStorage.removeItem('risepaisa_live_timestamp');
+      } catch {}
+    }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to delete resource #${targetDocId}: ${msg}`, 'DELETE_FAILED');

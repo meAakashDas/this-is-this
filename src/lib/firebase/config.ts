@@ -83,34 +83,36 @@ export function getMissingFirebaseEnvVars(): string[] {
  * Retrieves the normalized Firebase configuration object.
  */
 export function getFirebaseConfig(): FirebaseOptions {
+  const metaEnv = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : undefined;
+
   return {
     apiKey: resolveConfigValue(
-      import.meta.env.PUBLIC_FIREBASE_API_KEY,
+      metaEnv ? metaEnv.PUBLIC_FIREBASE_API_KEY : undefined,
       'PUBLIC_FIREBASE_API_KEY',
       DEFAULT_FIREBASE_CONFIG.apiKey
     ),
     authDomain: resolveConfigValue(
-      import.meta.env.PUBLIC_FIREBASE_AUTH_DOMAIN,
+      metaEnv ? metaEnv.PUBLIC_FIREBASE_AUTH_DOMAIN : undefined,
       'PUBLIC_FIREBASE_AUTH_DOMAIN',
       DEFAULT_FIREBASE_CONFIG.authDomain
     ),
     projectId: resolveConfigValue(
-      import.meta.env.PUBLIC_FIREBASE_PROJECT_ID,
+      metaEnv ? metaEnv.PUBLIC_FIREBASE_PROJECT_ID : undefined,
       'PUBLIC_FIREBASE_PROJECT_ID',
       DEFAULT_FIREBASE_CONFIG.projectId
     ),
     storageBucket: resolveConfigValue(
-      import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET,
+      metaEnv ? metaEnv.PUBLIC_FIREBASE_STORAGE_BUCKET : undefined,
       'PUBLIC_FIREBASE_STORAGE_BUCKET',
       DEFAULT_FIREBASE_CONFIG.storageBucket
     ),
     messagingSenderId: resolveConfigValue(
-      import.meta.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      metaEnv ? metaEnv.PUBLIC_FIREBASE_MESSAGING_SENDER_ID : undefined,
       'PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
       DEFAULT_FIREBASE_CONFIG.messagingSenderId
     ),
     appId: resolveConfigValue(
-      import.meta.env.PUBLIC_FIREBASE_APP_ID,
+      metaEnv ? metaEnv.PUBLIC_FIREBASE_APP_ID : undefined,
       'PUBLIC_FIREBASE_APP_ID',
       DEFAULT_FIREBASE_CONFIG.appId
     ),

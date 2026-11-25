@@ -54,7 +54,8 @@ async function verifyPublicLinksAndAssets() {
   try {
     // 1. Verify standard public routes
     for (const route of PUBLIC_ROUTES) {
-      const response = await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle' });
+      const response = await page.goto(`${BASE_URL}${route}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(250);
       const status = response ? response.status() : 0;
       if (status !== 200 && status !== 304) {
         errors.push(`Route ${route} returned status ${status} (expected 200)`);
@@ -101,7 +102,8 @@ async function verifyPublicLinksAndAssets() {
     // 2. Verify 404 handling on draft / non-existent routes
     console.log('\n--- Verifying Draft Isolation & 404 Handlers ---');
     for (const route of NOT_FOUND_ROUTES) {
-      const response = await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle' });
+      const response = await page.goto(`${BASE_URL}${route}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(250);
       const status = response ? response.status() : 0;
       const text = await page.content();
       const has404 = status === 404 || text.includes('404') || text.includes('Not Found') || text.includes('Not Available');

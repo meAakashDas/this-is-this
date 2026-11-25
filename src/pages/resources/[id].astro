@@ -78,7 +78,7 @@ function getFileExtension(format?: string, url?: string): string {
       /* =======================================================================
          Published Resource View
          ======================================================================= */
-      <article class="resource-article space-y-8 sm:space-y-10">
+      <article class="resource-article space-y-8 sm:space-y-10" data-resource-id={resource!.resourceNumber}>
         <!-- 1. Breadcrumb Navigation -->
         <nav class="resource-nav-crumb flex items-center gap-2 text-xs text-muted-foreground" aria-label="Breadcrumb">
           <a href="/resources" class="crumb-link inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors no-underline">

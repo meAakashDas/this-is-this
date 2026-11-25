@@ -195,17 +195,14 @@ export async function getPublishedJournals(): Promise<JournalDocument[]> {
     const colRef = collection(db, COLLECTION);
     const q = query(colRef, where('published', '==', true), orderBy('publishedAt', 'desc'));
     const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      return snapshot.docs.map((docSnap) => ({
-        ...restoreFromFirestore(docSnap.data()),
-        id: docSnap.id,
-      }));
-    }
+    return snapshot.docs.map((docSnap) => ({
+      ...restoreFromFirestore(docSnap.data()),
+      id: docSnap.id,
+    }));
   } catch (error) {
     console.warn('[CMS] Failed to fetch published journals from Firestore, using fallback:', error);
+    return getBaselineFallbackJournals().filter((j) => j.published);
   }
-
-  return getBaselineFallbackJournals().filter((j) => j.published);
 }
 
 /**
@@ -218,14 +215,13 @@ export async function getAllJournalsForAdmin(): Promise<JournalDocument[]> {
       const colRef = collection(db, COLLECTION);
       const q = query(colRef, orderBy('publishedAt', 'desc'));
       const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        return snapshot.docs.map((docSnap) => ({
-          ...restoreFromFirestore(docSnap.data()),
-          id: docSnap.id,
-        }));
-      }
+      return snapshot.docs.map((docSnap) => ({
+        ...restoreFromFirestore(docSnap.data()),
+        id: docSnap.id,
+      }));
     } catch (error) {
       console.warn('[CMS] Failed to fetch journals for admin from Firestore, falling back to baseline:', error);
+      return getBaselineFallbackJournals();
     }
   }
 
@@ -285,12 +281,18 @@ export async function getJournalBySlug(rawSlug: string): Promise<JournalDocument
         const d = qLegacySnap.docs[0];
         return { ...restoreFromFirestore(d.data()), id: d.id };
       }
-    } catch (error) {
-      console.warn(`[CMS] Error fetching journal article "${slug}" from Firestore:`, error);
+
+      // Record does not exist in Firestore
+      return null;
+    } catch (error: any) {
+      if (error?.code !== 'permission-denied') {
+        console.warn(`[CMS] Error fetching journal article "${slug}" from Firestore:`, error);
+      }
+      return null;
     }
   }
 
-  // Resilient fallback to local baseline/snapshot data
+  // Resilient fallback to local baseline/snapshot data only when Firestore is offline
   return findFallbackJournal(slug) || findFallbackJournal(trimmed);
 }
 
@@ -550,6 +552,14 @@ export async function deleteJournal(rawIdentifier: string): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION, targetDocId);
     await deleteDoc(docRef);
+
+    // Invalidate client-side live sync cache
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('risepaisa_live_journals');
+        sessionStorage.removeItem('risepaisa_live_timestamp');
+      } catch {}
+    }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new CmsError(`Failed to delete journal article "${targetDocId}": ${msg}`, 'DELETE_FAILED');

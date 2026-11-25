@@ -92,7 +92,9 @@ export function getPublicSiteConfig() {
     phone: settings.phone || defaultSiteConfig.phone,
     whatsappNumber: settings.whatsappNumber || defaultSiteConfig.whatsappNumber,
     url: settings.seo?.canonicalUrl || defaultSiteConfig.url,
-    profileImage: settings.profileImage || '/images/aakash-das.webp',
+    profileImage: (!settings.profileImage || settings.profileImage.startsWith('blob:'))
+      ? '/images/aakash-das.webp'
+      : settings.profileImage,
     socialLinks: (settings.socialLinks && settings.socialLinks.length > 0)
       ? settings.socialLinks.filter((s) => s.visible !== false)
       : defaultSiteConfig.socialLinks,

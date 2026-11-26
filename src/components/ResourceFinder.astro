@@ -1,5 +1,14 @@
 ---
 import Icon from './Icon.astro';
+import { getPublicResources } from '../lib/cms/contentLoader';
+
+const staticFinderIndex = getPublicResources().map((res) => ({
+  id: res.id || res.resourceNumber,
+  resourceNumber: res.resourceNumber,
+  title: res.title,
+  slug: res.slug || '',
+  published: true,
+}));
 
 interface Props {
   idPrefix?: string;
@@ -220,11 +229,139 @@ const statusId = idPrefix === 'finder' ? 'finder-status' : `${idPrefix}-status`;
   </section>
 )}
 
+<script
+  id="resource-finder-index"
+  type="application/json"
+  set:html={JSON.stringify(staticFinderIndex)}
+></script>
+
 <script>
-  import { validateAndFormatResourceNumber } from '../utils/resourceValidation';
+  import { initializeApp, getApps, getApp } from 'firebase/app';
+  import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+  import { getFirebaseConfig } from '../lib/firebase/config';
+  import {
+    normalizeSearchNumber,
+    findPublishedResourceByNumber,
+    type SearchableResourceEntry,
+  } from '../utils/resourceSearch';
+
+  const FINDER_CACHE_KEY = 'risepaisa_live_resources';
+  const FINDER_CACHE_TIME_KEY = 'risepaisa_live_timestamp';
+  const FINDER_CACHE_TTL_MS = 10 * 1000;
+
+  let inflightFetch: Promise<SearchableResourceEntry[] | null> | null = null;
+
+  function readStaticFinderIndex(): SearchableResourceEntry[] {
+    try {
+      const el = document.getElementById('resource-finder-index');
+      if (!el || !el.textContent) return [];
+      const parsed = JSON.parse(el.textContent);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function readLiveCachedResources(): SearchableResourceEntry[] | null {
+    try {
+      const ts = sessionStorage.getItem(FINDER_CACHE_TIME_KEY);
+      if (!ts || Date.now() - parseInt(ts, 10) > FINDER_CACHE_TTL_MS) return null;
+      const raw = sessionStorage.getItem(FINDER_CACHE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchLivePublishedIndex(): Promise<SearchableResourceEntry[] | null> {
+    const cached = readLiveCachedResources();
+    if (cached) return cached;
+    if (inflightFetch) return inflightFetch;
+
+    inflightFetch = (async () => {
+      try {
+        const config = getFirebaseConfig();
+        const app = getApps().length > 0 ? getApp() : initializeApp(config);
+        const db = getFirestore(app);
+        const q = query(collection(db, 'resources'), where('published', '==', true));
+        const timeoutPromise = new Promise<null>((resolve) =>
+          window.setTimeout(() => resolve(null), 3200)
+        );
+        const snap = await Promise.race([getDocs(q), timeoutPromise]);
+        if (!snap) return null;
+
+        const list: SearchableResourceEntry[] = snap.docs
+          .map((d) => {
+            const data = d.data() as Record<string, any>;
+            return {
+              id: d.id,
+              resourceNumber: data.resourceNumber,
+              title: data.title,
+              slug: data.slug,
+              published: data.published === true,
+              status: data.status,
+            };
+          })
+          .filter((r) => r.published === true && r.status !== 'draft' && r.status !== 'archived');
+
+        try {
+          sessionStorage.setItem(FINDER_CACHE_KEY, JSON.stringify(list));
+          sessionStorage.setItem(FINDER_CACHE_TIME_KEY, Date.now().toString());
+        } catch {
+          // ignore storage quota errors
+        }
+        return list;
+      } catch {
+        return null;
+      } finally {
+        inflightFetch = null;
+      }
+    })();
+
+    return inflightFetch;
+  }
+
+  async function resolveResourceMatch(rawInput: string) {
+    // 1. In explicit Dev Preview mode, search the local Dev Preview resource store first
+    const isDevPreview = (() => {
+      try {
+        return sessionStorage.getItem('aakashdas_dev_preview_active') === 'true';
+      } catch {
+        return false;
+      }
+    })();
+
+    if (isDevPreview) {
+      try {
+        const previewRaw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+        if (previewRaw) {
+          const previewList = JSON.parse(previewRaw);
+          if (Array.isArray(previewList)) {
+            return findPublishedResourceByNumber(previewList, rawInput);
+          }
+        }
+      } catch {
+        // fall through to static index
+      }
+    }
+
+    // 2. Live Firestore published resources (returns null on offline/timeout)
+    const liveList = await fetchLivePublishedIndex();
+    if (liveList !== null) {
+      return findPublishedResourceByNumber(liveList, rawInput);
+    }
+
+    // 3. Offline/SSG snapshot fallback
+    const staticList = readStaticFinderIndex();
+    return findPublishedResourceByNumber(staticList, rawInput);
+  }
 
   function initResourceFinders() {
     const forms = document.querySelectorAll<HTMLFormElement>('[data-finder-form]');
+
+    // Warm live Firestore index in background so search submit resolves without perceptible delay
+    void fetchLivePublishedIndex();
 
     forms.forEach((form) => {
       if (form.dataset.bound === 'true') return;
@@ -274,27 +411,39 @@ const statusId = idPrefix === 'finder' ? 'finder-status' : `${idPrefix}-status`;
         }
       });
 
-      form.addEventListener('submit', (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
         clearFeedback();
 
         const rawVal = input.value;
-        const validation = validateAndFormatResourceNumber(rawVal);
+        const normalized = normalizeSearchNumber(rawVal);
 
-        if (!validation.valid) {
+        if (!normalized.valid || !normalized.formatted) {
           showFeedback(
-            validation.error || 'Please enter a valid resource number (e.g. 001).',
+            normalized.error || 'Please enter a valid resource number (e.g. 001).',
             'error'
           );
           input.focus();
           return;
         }
 
-        const formatted = validation.resourceNumber!;
+        const formatted = normalized.formatted;
         input.value = formatted;
 
-        showFeedback(`Opening resource #${formatted}...`, 'info');
-        window.location.href = `/resources/${formatted}`;
+        showFeedback(`Looking up NO. ${formatted}...`, 'info');
+        const match = await resolveResourceMatch(rawVal);
+
+        if (!match) {
+          showFeedback(
+            `No published resource found for NO. ${formatted}. Please check the number and try again.`,
+            'error'
+          );
+          input.focus();
+          return;
+        }
+
+        showFeedback(`Opening resource NO. ${match.formattedNumber}...`, 'info');
+        window.location.href = match.url;
       });
     });
   }

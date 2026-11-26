@@ -20,6 +20,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { getFirebaseConfig } from '../lib/firebase/config.ts';
+import { normalizeResourceNumberString } from '../utils/resourceSearch.ts';
 
 const CACHE_KEY_RESOURCES = 'risepaisa_live_resources';
 const CACHE_KEY_JOURNALS = 'risepaisa_live_journals';
@@ -112,11 +113,7 @@ async function fetchPublishedResourcesLive(db: any): Promise<any[] | null> {
   if (cached) return cached;
 
   try {
-    const q = query(
-      collection(db, 'resources'),
-      where('published', '==', true),
-      orderBy('resourceNumber', 'asc')
-    );
+    const q = query(collection(db, 'resources'), where('published', '==', true));
     const snap = await getDocs(q);
     const list = sortPublishedResources(
       snap.docs
@@ -165,6 +162,17 @@ function getFileExtLabel(att: any): string {
   if (lowerFormat.includes('docx') || lowerUrl.endsWith('.docx')) return 'DOCX';
   if (lowerFormat.includes('link')) return 'LINK';
   return 'FILE';
+}
+
+function getDisplayShortDescription(res: any): string {
+  const customShort = typeof res?.shortDescription === 'string' ? res.shortDescription.trim() : '';
+  if (customShort) return customShort;
+  const desc = typeof res?.description === 'string' ? res.description.trim() : '';
+  const title = typeof res?.title === 'string' ? res.title.trim() : '';
+  if (!desc) return '';
+  if (title && desc.toLowerCase() === title.toLowerCase()) return '';
+  if (/^(educational\s+)?resource\s*#?\d+$/i.test(desc)) return '';
+  return desc;
 }
 
 /**
@@ -222,11 +230,12 @@ async function syncResourcesCatalog(db: any) {
       }
       const titleEl = card.querySelector('.resource-title');
       const descEl = card.querySelector('.resource-desc');
+      const cardDesc = getDisplayShortDescription(res);
       if (titleEl && res.title && titleEl.textContent !== res.title) {
         titleEl.textContent = res.title;
       }
-      if (descEl && res.description !== undefined && descEl.textContent !== res.description) {
-        descEl.textContent = res.description || '';
+      if (descEl && descEl.textContent !== cardDesc) {
+        descEl.textContent = cardDesc;
       }
     } else {
       card = document.createElement('article');
@@ -247,7 +256,7 @@ async function syncResourcesCatalog(db: any) {
               ${escapeHtml(res.title)}
             </h3>
             <p class="resource-desc text-sm sm:text-[14.5px] text-muted-foreground leading-relaxed m-0 flex-1">
-              ${escapeHtml(res.description || '')}
+              ${escapeHtml(getDisplayShortDescription(res))}
             </p>
           </div>
           <div class="resource-card-footer flex items-center justify-end pt-3 mt-auto border-t border-border text-xs">
@@ -462,6 +471,7 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
     : [];
   const pdfUrl = resolveGeneratedPdfUrl(data);
   const docxUrl = resolveGeneratedDocxUrl(data);
+  const shortDesc = getDisplayShortDescription(data);
   const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
   const generatedSectionInner = renderGeneratedDocumentSectionHtml(data, pdfUrl, docxUrl, num);
   const dynamicSlug = String(data.title || 'resource')
@@ -489,6 +499,7 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
             </span>
           </div>
           <h1 class="resource-detail-title resource-title text-2xl sm:text-3xl lg:text-[34px] font-semibold tracking-tight text-foreground m-0 text-balance">${title}</h1>
+          ${shortDesc ? `<p class="resource-short-description text-sm sm:text-base text-muted-foreground leading-relaxed m-0 max-w-3xl">${escapeHtml(shortDesc)}</p>` : ''}
           ${data.publishedAt ? `<div class="resource-date-row"><time datetime="${escapeHtml(data.publishedAt)}" class="resource-date text-xs font-mono text-muted-foreground">Published ${escapeHtml(data.publishedAt)}</time></div>` : ''}
           <div class="resource-top-actions flex items-center gap-2.5 pt-2 flex-wrap" aria-label="Resource actions">
             ${pdfUrl ? `<a href="${escapeHtml(pdfUrl)}" download="${escapeHtml(dynamicPdfName)}" class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Save as PDF</span></a>` : ''}
@@ -586,25 +597,62 @@ async function syncResourceDetail(db: any, resourceId: string) {
   const mainContent = document.getElementById('main-content');
 
   try {
-    const padded = /^\d+$/.test(resourceId) && resourceId.length < 3 ? resourceId.padStart(3, '0') : resourceId;
-    let snap = await getDoc(doc(db, 'resources', resourceId));
-    if (!snap.exists() && padded !== resourceId) {
-      snap = await getDoc(doc(db, 'resources', padded));
-    }
+    const cleanId = decodeURIComponent(resourceId).trim();
+    const normalizedTarget = normalizeResourceNumberString(cleanId);
+    const targetInt = /^\d+$/.test(cleanId) ? parseInt(cleanId, 10) : NaN;
+    let resolvedDocId: string | null = null;
+    let data: any = null;
 
-    if (!snap.exists()) {
-      const q = query(
-        collection(db, 'resources'),
-        where('published', '==', true),
-        where('resourceNumber', '==', padded)
-      );
-      const qSnap = await getDocs(q);
-      if (!qSnap.empty) {
-        snap = qSnap.docs[0];
+    const directSnap = await getDoc(doc(db, 'resources', cleanId));
+    if (directSnap.exists()) {
+      resolvedDocId = directSnap.id;
+      data = { ...directSnap.data(), id: directSnap.id };
+    } else if (normalizedTarget && normalizedTarget !== cleanId) {
+      const paddedSnap = await getDoc(doc(db, 'resources', normalizedTarget));
+      if (paddedSnap.exists()) {
+        resolvedDocId = paddedSnap.id;
+        data = { ...paddedSnap.data(), id: paddedSnap.id };
       }
     }
 
-    const data = snap.exists() ? snap.data() : null;
+    if (!data && normalizedTarget) {
+      const q = query(
+        collection(db, 'resources'),
+        where('published', '==', true),
+        where('resourceNumber', '==', normalizedTarget)
+      );
+      const qSnap = await getDocs(q);
+      if (!qSnap.empty) {
+        const first = qSnap.docs[0];
+        resolvedDocId = first.id;
+        data = { ...first.data(), id: first.id };
+      }
+    }
+
+    // Fallback across all published resources (supports numeric fields, unpadded numbers, and slugs)
+    if (!data) {
+      const livePool = await fetchPublishedResourcesLive(db);
+      if (livePool && livePool.length > 0) {
+        const found = livePool.find((r) => {
+          if (String(r.id || '') === cleanId) return true;
+          if (String(r.slug || '').toLowerCase() === cleanId.toLowerCase()) return true;
+          if (normalizedTarget && normalizeResourceNumberString(r.resourceNumber) === normalizedTarget) {
+            return true;
+          }
+          if (!Number.isNaN(targetInt)) {
+            const rawNum = String(r.resourceNumber ?? '').trim();
+            return /^\d+$/.test(rawNum) && parseInt(rawNum, 10) === targetInt;
+          }
+          return false;
+        });
+        if (found) {
+          resolvedDocId = String(found.id || found.resourceNumber || cleanId);
+          data = found;
+        }
+      }
+    }
+
+    const snap = { id: resolvedDocId || cleanId };
     const existsAndPublished =
       Boolean(data) &&
       data?.published === true &&
@@ -739,6 +787,21 @@ async function syncResourceDetail(db: any, resourceId: string) {
     const titleEl = articleEl.querySelector('.resource-detail-title');
     if (titleEl && data.title) {
       titleEl.textContent = data.title;
+    }
+
+    const shortDescText = getDisplayShortDescription(data);
+    const existingShortDesc = articleEl.querySelector<HTMLElement>('.resource-short-description');
+    if (shortDescText) {
+      if (existingShortDesc) {
+        existingShortDesc.textContent = shortDescText;
+      } else if (titleEl) {
+        const p = document.createElement('p');
+        p.className = 'resource-short-description text-sm sm:text-base text-muted-foreground leading-relaxed m-0 max-w-3xl';
+        p.textContent = shortDescText;
+        titleEl.after(p);
+      }
+    } else if (existingShortDesc) {
+      existingShortDesc.remove();
     }
 
     const dateEl = articleEl.querySelector('.resource-date');
@@ -1110,7 +1173,7 @@ async function syncJournalDetail(db: any, slug: string) {
       return;
     }
 
-    const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
+  const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
 
     if (!articleEl && errorCard && mainContent) {
       mainContent.innerHTML = `

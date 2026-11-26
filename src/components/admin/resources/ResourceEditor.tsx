@@ -21,6 +21,7 @@ import {
   generateAndStoreResourceExports,
 } from '../../../utils/clientDocumentExport.ts';
 import { sanitizeAssetUrl } from '../../../lib/cms/sanitize.ts';
+import { isMeaningfulDescription } from '../../../utils/documentExport.ts';
 import { validateAndFormatResourceNumber } from '../../../utils/resourceValidation.ts';
 import type {
   ResourceDocument,
@@ -75,8 +76,23 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
   })();
 
   const resourceNumber = previewResourceNumber;
+  const [headingInput, setHeadingInput] = useState<string>(() => {
+    if (isNewRecord) {
+      const initTitle = (initialResource?.title || '').trim();
+      return /^resource\s*#?\d+$/i.test(initTitle) ? '' : initTitle;
+    }
+    return (initialResource?.title || '').trim();
+  });
+  const [shortDescriptionInput, setShortDescriptionInput] = useState<string>(() => {
+    const customShort = (initialResource?.shortDescription || '').trim();
+    if (customShort) return customShort;
+    if (isMeaningfulDescription(initialResource?.description, initialResource?.title)) {
+      return (initialResource?.description || '').trim();
+    }
+    return '';
+  });
   const displayTitle =
-    initialResource?.title?.trim() || `Resource #${resourceNumber}`;
+    headingInput.trim() || initialResource?.title?.trim() || `Resource #${resourceNumber}`;
 
   // Section 1: Downloadable Files
   const [attachments, setAttachments] = useState<CmsAttachment[]>(
@@ -203,13 +219,26 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
         ? rawExistingDownload
         : '');
 
-    const safeSlug =
-      initialResource?.slug?.trim() ||
-      (initialResource?.title || `resource-${resolvedNumber}`)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '') ||
-      `resource-${resolvedNumber}`;
+    const resolvedTitle =
+      headingInput.trim() || initialResource?.title?.trim() || `Resource #${resolvedNumber}`;
+    const trimmedShortDesc = shortDescriptionInput.trim();
+    const resolvedDescription =
+      trimmedShortDesc ||
+      (isMeaningfulDescription(initialResource?.description, initialResource?.title)
+        ? initialResource!.description!.trim()
+        : `Educational resource #${resolvedNumber}`);
+
+    const safeSlug = isNewRecord
+      ? resolvedTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') || `resource-${resolvedNumber}`
+      : initialResource?.slug?.trim() ||
+        resolvedTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') ||
+        `resource-${resolvedNumber}`;
 
     return {
       ...initialResource,
@@ -218,13 +247,11 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       createdAt: initialResource?.createdAt || now,
       updatedAt: now,
       updatedBy: 'aakashdas.photo@gmail.com',
-      title: initialResource?.title?.trim() || `Resource #${resolvedNumber}`,
+      title: resolvedTitle,
+      shortDescription: trimmedShortDesc || undefined,
       slug: safeSlug,
       category: initialResource?.category?.trim() || 'Personal Finance',
-      description:
-        initialResource?.description?.trim() ||
-        initialResource?.title?.trim() ||
-        `Resource #${resolvedNumber}`,
+      description: resolvedDescription,
       tags: initialResource?.tags || [],
       author: initialResource?.author || 'Aakash Das',
       language: initialResource?.language || 'English',
@@ -247,9 +274,10 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
       contentBlocks,
       summaryPoints: initialResource?.summaryPoints || [],
       targetAudience: initialResource?.targetAudience || '',
-      seo: initialResource?.seo || {
-        title: `Resource #${resolvedNumber} — Aakash Das`,
-        description: initialResource?.description || '',
+      seo: {
+        ...initialResource?.seo,
+        title: `Resource #${resolvedNumber}: ${resolvedTitle} — Aakash Das`,
+        description: trimmedShortDesc || initialResource?.seo?.description || resolvedTitle,
       },
     } as ResourceDocument;
   };
@@ -616,6 +644,55 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
           <span>{successMsg}</span>
         </div>
       )}
+
+      {/* Simple Resource Heading & Short Description (kept outside Section 1/2 structure) */}
+      <div className="resource-basic-fields grid grid-cols-1 gap-3.5 p-4 sm:p-5 rounded-xl border border-border bg-card shadow-xs">
+        <div className="space-y-1.5">
+          <label
+            htmlFor="resource-heading-field"
+            className="block text-xs font-medium text-foreground"
+          >
+            Resource Heading
+          </label>
+          <input
+            id="resource-heading-field"
+            type="text"
+            value={headingInput}
+            onChange={(e) => {
+              setHeadingInput(e.target.value);
+              setIsDirty(true);
+              setErrorMsg(null);
+              setSuccessMsg(null);
+            }}
+            placeholder={`e.g. Complete Guide to Personal Budgeting in Nepal (default: Resource #${resourceNumber})`}
+            aria-label="Resource Heading"
+            className="w-full px-3 py-2 text-sm font-medium rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label
+            htmlFor="resource-description-field"
+            className="block text-xs font-medium text-foreground"
+          >
+            Short Description
+          </label>
+          <textarea
+            id="resource-description-field"
+            rows={2}
+            value={shortDescriptionInput}
+            onChange={(e) => {
+              setShortDescriptionInput(e.target.value);
+              setIsDirty(true);
+              setErrorMsg(null);
+              setSuccessMsg(null);
+            }}
+            placeholder="e.g. A practical guide to managing monthly income, expenses, savings and emergency funds in Nepal."
+            aria-label="Short Description"
+            className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+          />
+        </div>
+      </div>
 
       {/* =====================================================================
           SECTION 1: DOWNLOADABLE FILES

@@ -375,6 +375,7 @@ function mapDocToResource(doc: ResourceDocument): Resource {
     ),
     youtubeEmbed: doc.youtubeEmbed,
     description: doc.description,
+    shortDescription: doc.shortDescription,
     fullDescription: doc.fullDescription,
     tags: doc.tags || [],
     summaryPoints: doc.summaryPoints || [],

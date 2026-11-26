@@ -187,12 +187,17 @@ export function normalizeResourceDocument(
   // content already serves as the single source of truth.
   const hasRichCanvas = hasCanvasJson || Boolean(effectiveHtml && effectiveHtml.trim());
 
+  const canonicalDescription =
+    (resource as { shortDescription?: string }).shortDescription?.trim() ||
+    resource.description ||
+    '';
+
   return {
     resourceNumber: resource.resourceNumber,
     title: resource.title,
     publishedAt: resource.publishedAt,
     updatedAt: resource.updatedAt,
-    description: resource.description,
+    description: canonicalDescription,
     category: resource.category,
     targetAudience: hasRichCanvas ? undefined : resource.targetAudience,
     summaryPoints: hasRichCanvas ? [] : (resource.summaryPoints || []),

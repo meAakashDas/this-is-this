@@ -40,6 +40,7 @@ export interface ResourceDocument extends CmsDocumentMeta {
   // Identification
   resourceNumber: string; // Immutable 3-digit ID: "001", "002"
   title: string;
+  shortDescription?: string;
   slug: string;
   category: string;
   subcategory?: string;

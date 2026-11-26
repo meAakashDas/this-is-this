@@ -11,7 +11,7 @@ import {
   getAllPublicResourceNumbers,
   getAdjacentPublicResources,
 } from '../../lib/cms/contentLoader';
-import { getResourceExportFilename } from '../../utils/documentExport';
+import { getResourceExportFilename, isMeaningfulDescription } from '../../utils/documentExport';
 
 export function getStaticPaths() {
   const published = getAllPublicResourceNumbers();
@@ -90,6 +90,12 @@ const effectiveDocxUrl = isPublished
       isDocxAssetUrl(u)
     ) || ''
   : '';
+const displayShortDescription = isPublished
+  ? resource!.shortDescription?.trim() ||
+    (isMeaningfulDescription(resource!.description, resource!.title)
+      ? resource!.description.trim()
+      : '')
+  : '';
 
 function getFileExtension(format?: string, url?: string): string {
   const lowerFormat = (format || '').toLowerCase();
@@ -146,6 +152,12 @@ function getFileExtension(format?: string, url?: string): string {
           <h1 class="resource-detail-title resource-title text-2xl sm:text-3xl lg:text-[34px] font-semibold tracking-tight text-foreground m-0 text-balance">
             {resource!.title}
           </h1>
+
+          {displayShortDescription && (
+            <p class="resource-short-description text-sm sm:text-base text-muted-foreground leading-relaxed m-0 max-w-3xl">
+              {displayShortDescription}
+            </p>
+          )}
 
           {resource!.publishedAt && (
             <div class="resource-date-row">

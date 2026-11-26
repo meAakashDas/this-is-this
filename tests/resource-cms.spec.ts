@@ -633,4 +633,137 @@ test.describe('Simplified 2-Section Resource Editor QA', () => {
     await page.locator('button[aria-label="Publish Resource 006"]').click();
     await expect(page.locator('button[aria-label="Unpublish Resource 006"]')).toBeVisible({ timeout: 15000 });
   });
+
+  test('12. Resource Heading & Short Description persistence, export metadata regeneration, and Find Resources number search across 1/001/007/015/999', async ({
+    page,
+  }) => {
+    await page.locator('aside button:has-text("Resources")').click();
+    await page.locator('button:has-text("Create Resource")').click();
+
+    await page.locator('#resource-number-field').fill('007');
+    const headingInput = page.locator('#resource-heading-field');
+    const descInput = page.locator('#resource-description-field');
+    await expect(headingInput).toBeVisible();
+    await expect(descInput).toBeVisible();
+
+    await headingInput.fill('Complete Guide to Personal Budgeting in Nepal');
+    await descInput.fill(
+      'A practical guide to managing monthly income, expenses, savings and emergency funds in Nepal.'
+    );
+
+    const editor = page.locator('.blocknote-canvas-container [contenteditable="true"]').first();
+    await editor.click();
+    await page.keyboard.type('Canvas Body Only Content');
+
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    await expect(
+      page.locator('[role="status"]:has-text("Auto-generated PDF")').first()
+    ).toBeVisible({ timeout: 20000 });
+
+    // Refresh admin editor and verify heading, description, and separate canvas persist
+    await page.reload({ waitUntil: 'load' });
+    await expect(page.locator('#resource-heading-field')).toHaveValue(
+      'Complete Guide to Personal Budgeting in Nepal'
+    );
+    await expect(page.locator('#resource-description-field')).toHaveValue(
+      'A practical guide to managing monthly income, expenses, savings and emergency funds in Nepal.'
+    );
+    await expect(page.locator('.blocknote-canvas-container')).not.toContainText(
+      'Complete Guide to Personal Budgeting in Nepal'
+    );
+
+    const created007 = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '007') || null;
+    });
+    expect(created007).toBeTruthy();
+    expect(created007.id).toMatch(/^res-/);
+    expect(created007.title).toBe('Complete Guide to Personal Budgeting in Nepal');
+    expect(created007.shortDescription).toBe(
+      'A practical guide to managing monthly income, expenses, savings and emergency funds in Nepal.'
+    );
+
+    const pdfV1 = extractPdfStreamText(Buffer.from(created007.generatedPdf.url.split(',')[1], 'base64'));
+    expect(pdfV1).toContain('Complete Guide to Personal Budgeting in Nepal');
+    expect(pdfV1).toContain('A practical guide to managing monthly income');
+    expect(pdfV1).toContain('Canvas Body Only Content');
+    const version1 = created007.contentVersion;
+
+    // Edit Heading & Short Description -> Update -> confirm metadata & PDF regenerate cleanly
+    await page.locator('#resource-heading-field').fill('Updated Nepal Budgeting Playbook');
+    await page
+      .locator('#resource-description-field')
+      .fill('Updated concise summary for personal cash flow planning.');
+    await page.locator('button:has-text("Update")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("Auto-generated PDF")').first()
+    ).toBeVisible({ timeout: 20000 });
+
+    const updated007 = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '007') || null;
+    });
+    expect(updated007.contentVersion).not.toBe(version1);
+    expect(updated007.title).toBe('Updated Nepal Budgeting Playbook');
+    expect(updated007.shortDescription).toBe('Updated concise summary for personal cash flow planning.');
+    const pdfV2 = extractPdfStreamText(Buffer.from(updated007.generatedPdf.url.split(',')[1], 'base64'));
+    expect(pdfV2).toContain('Updated Nepal Budgeting Playbook');
+    expect(pdfV2).toContain('Updated concise summary for personal cash flow planning.');
+
+    // Also add an unpublished draft #008 and custom-numbered #015 in preview session for search validation
+    await page.locator('button[title="Back to Resources"]').click();
+    await page.locator('button:has-text("Create Resource")').click();
+    await page.locator('#resource-number-field').fill('15');
+    await page.locator('#resource-heading-field').fill('Custom Fifteen Guide');
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    await expect(
+      page.locator('[role="status"]:has-text("Auto-generated PDF")').first()
+    ).toBeVisible({ timeout: 20000 });
+
+    const custom015 = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '015') || null;
+    });
+    expect(custom015?.id).toMatch(/^res-/);
+
+    await page.locator('button[title="Back to Resources"]').click();
+    await page.locator('button:has-text("Create Resource")').click();
+    await page.locator('#resource-number-field').fill('8');
+    await page.locator('#resource-heading-field').fill('Secret Draft Eight');
+    await page.locator('button:has-text("Save Draft")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("saved as draft")').first()
+    ).toBeVisible({ timeout: 15000 });
+
+    // Verify Find Resources resolves published 007 & 015 by immutable doc ID, rejects draft 008 & 999, and opens 1 -> /resources/001
+    await page.goto('/resources', { waitUntil: 'load' });
+    const searchInput = page.locator('.resources-search-wrap input[data-finder-input]');
+    const findBtn = page.locator('.resources-search-wrap button[type="submit"]');
+    const statusBox = page.locator('.resources-search-wrap [data-finder-status]');
+
+    await searchInput.fill('999');
+    await findBtn.click();
+    await expect(statusBox).toContainText('No published resource found for NO. 999');
+
+    await searchInput.fill('8');
+    await findBtn.click();
+    await expect(statusBox).toContainText('No published resource found for NO. 008');
+
+    await searchInput.fill('7');
+    await findBtn.click();
+    await page.waitForURL(new RegExp(`/resources/${created007.id}`), { timeout: 6000 });
+
+    await page.goto('/resources', { waitUntil: 'load' });
+    await page.locator('.resources-search-wrap input[data-finder-input]').fill('015');
+    await page.locator('.resources-search-wrap button[type="submit"]').click();
+    await page.waitForURL(new RegExp(`/resources/${custom015.id}`), { timeout: 6000 });
+
+    await page.goto('/resources', { waitUntil: 'load' });
+    await page.locator('.resources-search-wrap input[data-finder-input]').fill('1');
+    await page.locator('.resources-search-wrap button[type="submit"]').click();
+    await page.waitForURL(/\/resources\/001/, { timeout: 6000 });
+  });
 });

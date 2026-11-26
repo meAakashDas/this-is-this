@@ -114,6 +114,7 @@ export interface Resource {
   resourceNumber: string;
   slug?: string;
   title: string;
+  shortDescription?: string;
   description: string;
   fullDescription?: string;
   category: string;

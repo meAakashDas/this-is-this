@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import ResourceFinder from '../../components/ResourceFinder.astro';
 import Icon from '../../components/Icon.astro';
 import { getPublicSiteConfig, getPublicResources } from '../../lib/cms/contentLoader';
+import { isMeaningfulDescription } from '../../utils/documentExport';
 
 const siteConfig = getPublicSiteConfig();
 const publishedResources = getPublicResources();
@@ -74,7 +75,7 @@ const publishedResources = getPublicResources();
                     {res.title}
                   </h3>
                   <p class="resource-desc text-sm sm:text-[14.5px] text-muted-foreground leading-relaxed m-0 flex-1">
-                    {res.description}
+                    {res.shortDescription?.trim() || (isMeaningfulDescription(res.description, res.title) ? res.description : '')}
                   </p>
                 </div>
 

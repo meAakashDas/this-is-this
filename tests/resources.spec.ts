@@ -293,4 +293,28 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
       expect(wrapBox.width).toBeLessThanOrEqual(720);
     }
   });
+
+  test('12. Find Resources normalizes leading zeros and shows clear not-found feedback for 999', async ({
+    page,
+  }) => {
+    await page.goto('/resources');
+
+    const searchWrap = page.locator('.resources-search-wrap');
+    const input = searchWrap.locator('input[data-finder-input]');
+    const submitBtn = searchWrap.locator('button[type="submit"]');
+    const statusBox = searchWrap.locator('[data-finder-status]');
+
+    // Nonexistent 999 stays on /resources with explicit status message
+    await input.fill('999');
+    await submitBtn.click();
+    await expect(statusBox).toBeVisible();
+    await expect(statusBox).toContainText(/No published resource found for NO\. 999/i);
+    await expect(page).toHaveURL(/\/resources\/?$/);
+
+    // Leading-zero normalization ("2" -> 002)
+    await input.fill('2');
+    await submitBtn.click();
+    await page.waitForURL(/\/resources\/002/, { timeout: 8000 });
+    await expect(page.locator('.resource-num-badge')).toContainText('NO. 002');
+  });
 });

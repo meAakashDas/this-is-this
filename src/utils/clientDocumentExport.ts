@@ -39,6 +39,7 @@ export async function computeResourceContentVersion(
     exportSchemaVersion: 2,
     resourceNumber: resource.resourceNumber || '',
     title: resource.title || '',
+    shortDescription: resource.shortDescription || '',
     description: resource.description || '',
     blocknoteJson: resource.blocknoteJson || [],
     contentBlocks: resource.contentBlocks || [],

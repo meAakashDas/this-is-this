@@ -346,6 +346,7 @@ export const resourceSchema = z.object({
   updatedBy: z.string().optional(),
   resourceNumber: resourceNumberSchema,
   title: z.string().min(1, 'Resource title is required'),
+  shortDescription: z.string().optional(),
   slug: slugSchema,
   category: z.string().min(1, 'Category is required'),
   subcategory: z.string().optional(),

@@ -1,4 +1,6 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Icon from '../../components/Icon.astro';
 import ResourceContentRenderer from '../../components/ResourceContentRenderer.astro';
@@ -44,17 +46,49 @@ const pageDesc = isPublished
 
 const permanentUrl = `${siteConfig.url}/resources/${id}`;
 
+function isPdfAssetUrl(url?: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('data:application/pdf')) return true;
+  return trimmed.split(/[?#]/)[0].toLowerCase().endsWith('.pdf');
+}
+
+function isDocxAssetUrl(url?: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith(
+      'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+  ) {
+    return true;
+  }
+  return trimmed.split(/[?#]/)[0].toLowerCase().endsWith('.docx');
+}
+
 const pdfDownloadFilename = isPublished
   ? getResourceExportFilename(resource!.resourceNumber, resource!.title, 'pdf')
   : '';
 const docxDownloadFilename = isPublished
   ? getResourceExportFilename(resource!.resourceNumber, resource!.title, 'docx')
   : '';
+const staticGeneratedPdfPath =
+  isPublished && fs.existsSync(path.resolve('public/downloads', pdfDownloadFilename))
+    ? `/downloads/${pdfDownloadFilename}`
+    : '';
+const staticGeneratedDocxPath =
+  isPublished && fs.existsSync(path.resolve('public/downloads', docxDownloadFilename))
+    ? `/downloads/${docxDownloadFilename}`
+    : '';
 const effectivePdfUrl = isPublished
-  ? (resource!.generatedPdf?.url || resource!.pdfPreviewUrl || resource!.downloadUrl || '')
+  ? [resource!.generatedPdf?.url, resource!.pdfPreviewUrl, resource!.downloadUrl, staticGeneratedPdfPath].find(
+      (u) => isPdfAssetUrl(u)
+    ) || ''
   : '';
 const effectiveDocxUrl = isPublished
-  ? (resource!.generatedDocx?.url || resource!.docxUrl || '')
+  ? [resource!.generatedDocx?.url, resource!.docxUrl, staticGeneratedDocxPath].find((u) =>
+      isDocxAssetUrl(u)
+    ) || ''
   : '';
 
 function getFileExtension(format?: string, url?: string): string {
@@ -298,7 +332,7 @@ function getFileExtension(format?: string, url?: string): string {
         )}
 
         <!-- 3b. Generated Resource Documents (Distinct from manual attachments) -->
-        {(resource!.generatedPdf?.url || resource!.pdfPreviewUrl || resource!.generatedDocx?.url || resource!.docxUrl) && (
+        {(effectivePdfUrl || effectiveDocxUrl) && (
           <section
             class="resource-section generated-documents-section space-y-4"
             aria-labelledby="generated-documents-heading"
@@ -310,7 +344,7 @@ function getFileExtension(format?: string, url?: string): string {
             </div>
 
             <div class="generated-documents-list flex flex-col gap-3">
-              {(resource!.generatedPdf?.url || resource!.pdfPreviewUrl) && (
+              {effectivePdfUrl && (
                 <div class="generated-doc-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
                   <div class="flex flex-col gap-1.5">
                     <h3 class="text-sm font-semibold tracking-tight text-foreground m-0">
@@ -328,7 +362,7 @@ function getFileExtension(format?: string, url?: string): string {
                     </div>
                   </div>
                   <a
-                    href={resource!.generatedPdf?.url || resource!.pdfPreviewUrl}
+                    href={effectivePdfUrl}
                     download={resource!.generatedPdf?.fileName || pdfDownloadFilename}
                     class="generated-pdf-download-link btn btn-secondary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"
                     aria-label={`Download ${resource!.title} as PDF`}
@@ -339,7 +373,7 @@ function getFileExtension(format?: string, url?: string): string {
                 </div>
               )}
 
-              {(resource!.generatedDocx?.url || resource!.docxUrl) && (
+              {effectiveDocxUrl && (
                 <div class="generated-doc-card rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs hover:border-border-strong transition-all">
                   <div class="flex flex-col gap-1.5">
                     <h3 class="text-sm font-semibold tracking-tight text-foreground m-0">
@@ -357,7 +391,7 @@ function getFileExtension(format?: string, url?: string): string {
                     </div>
                   </div>
                   <a
-                    href={resource!.generatedDocx?.url || resource!.docxUrl}
+                    href={effectiveDocxUrl}
                     download={resource!.generatedDocx?.fileName || docxDownloadFilename}
                     class="generated-docx-download-link btn btn-secondary inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"
                     aria-label={`Download ${resource!.title} as DOCX`}

@@ -263,6 +263,40 @@ async function syncResourcesCatalog(db: any) {
   });
 }
 
+function isPdfAssetUrl(url: unknown): url is string {
+  if (!isSafePublicUrl(url)) return false;
+  const trimmed = String(url).trim();
+  if (trimmed.startsWith('data:application/pdf')) return true;
+  return trimmed.split(/[?#]/)[0].toLowerCase().endsWith('.pdf');
+}
+
+function isDocxAssetUrl(url: unknown): url is string {
+  if (!isSafePublicUrl(url)) return false;
+  const trimmed = String(url).trim();
+  if (
+    trimmed.startsWith(
+      'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+  ) {
+    return true;
+  }
+  return trimmed.split(/[?#]/)[0].toLowerCase().endsWith('.docx');
+}
+
+function resolveGeneratedPdfUrl(data: any, ssrFallback = ''): string {
+  return (
+    [data?.generatedPdf?.url, data?.pdfPreviewUrl, data?.downloadUrl, ssrFallback].find((u) =>
+      isPdfAssetUrl(u)
+    ) || ''
+  );
+}
+
+function resolveGeneratedDocxUrl(data: any, ssrFallback = ''): string {
+  return (
+    [data?.generatedDocx?.url, data?.docxUrl, ssrFallback].find((u) => isDocxAssetUrl(u)) || ''
+  );
+}
+
 function dataPdfUriToBlobUrl(dataUri: string): string {
   if (!dataUri.startsWith('data:application/pdf')) return dataUri;
   try {
@@ -399,18 +433,8 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
   const externalLinks = Array.isArray(data.externalLinks)
     ? data.externalLinks.filter((l: any) => isSafePublicUrl(l.url))
     : [];
-  const pdfUrl = isSafePublicUrl(data.generatedPdf?.url)
-    ? data.generatedPdf.url
-    : isSafePublicUrl(data.pdfPreviewUrl)
-    ? data.pdfPreviewUrl
-    : isSafePublicUrl(data.downloadUrl)
-    ? data.downloadUrl
-    : '';
-  const docxUrl = isSafePublicUrl(data.generatedDocx?.url)
-    ? data.generatedDocx.url
-    : isSafePublicUrl(data.docxUrl)
-    ? data.docxUrl
-    : '';
+  const pdfUrl = resolveGeneratedPdfUrl(data);
+  const docxUrl = resolveGeneratedDocxUrl(data);
   const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
   const generatedSectionInner = renderGeneratedDocumentSectionHtml(data, pdfUrl, docxUrl, num);
 
@@ -707,19 +731,20 @@ async function syncResourceDetail(db: any, resourceId: string) {
       existingFullDesc.remove();
     }
 
-    // Top action links & PDF preview sync
-    const pdfUrl = isSafePublicUrl(data.generatedPdf?.url)
-      ? data.generatedPdf.url
-      : isSafePublicUrl(data.pdfPreviewUrl)
-      ? data.pdfPreviewUrl
-      : isSafePublicUrl(data.downloadUrl)
-      ? data.downloadUrl
-      : '';
-    const docxUrl = isSafePublicUrl(data.generatedDocx?.url)
-      ? data.generatedDocx.url
-      : isSafePublicUrl(data.docxUrl)
-      ? data.docxUrl
-      : '';
+    // Top action links & PDF preview sync (preserve valid SSR static exports when Firestore generatedPdf/generatedDocx is absent)
+    const ssrPdfUrl =
+      [
+        articleEl.querySelector<HTMLAnchorElement>('a.generated-pdf-download-link')?.getAttribute('href'),
+        articleEl.querySelector<HTMLAnchorElement>('a.btn-download-pdf')?.getAttribute('href'),
+        articleEl.querySelector<HTMLAnchorElement>('a.btn-save-pdf')?.getAttribute('href'),
+      ].find((u) => isPdfAssetUrl(u)) || '';
+    const ssrDocxUrl =
+      [
+        articleEl.querySelector<HTMLAnchorElement>('a.generated-docx-download-link')?.getAttribute('href'),
+        articleEl.querySelector<HTMLAnchorElement>('a.btn-save-docx')?.getAttribute('href'),
+      ].find((u) => isDocxAssetUrl(u)) || '';
+    const pdfUrl = resolveGeneratedPdfUrl(data, ssrPdfUrl);
+    const docxUrl = resolveGeneratedDocxUrl(data, ssrDocxUrl);
 
     const genSection = articleEl.querySelector<HTMLElement>('.generated-documents-section');
     const genHtml = renderGeneratedDocumentSectionHtml(

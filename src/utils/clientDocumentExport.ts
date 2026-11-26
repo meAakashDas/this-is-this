@@ -3,7 +3,12 @@ import { Packer } from 'docx';
 import type { SiteConfig } from '../types/index.ts';
 import type { ResourceDocument, GeneratedDocumentMeta } from '../types/cms/resource.ts';
 import { siteConfig as defaultSiteConfig } from '../data/siteConfig.ts';
-import { normalizeResourceDocument, getResourceExportFilename, type NormalizedResourceDocument } from './documentExport.ts';
+import {
+  normalizeResourceDocument,
+  getResourceExportFilename,
+  isMeaningfulDescription,
+  type NormalizedResourceDocument,
+} from './documentExport.ts';
 import { generateResourceDocx, type DocxImageAsset } from './docxExport.ts';
 import {
   uploadBinaryPermanently,
@@ -31,6 +36,7 @@ export async function computeResourceContentVersion(
   resource: Partial<ResourceDocument>
 ): Promise<string> {
   const canonical = stableSerialize({
+    exportSchemaVersion: 2,
     resourceNumber: resource.resourceNumber || '',
     title: resource.title || '',
     description: resource.description || '',
@@ -183,6 +189,79 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
     }
   };
 
+  const drawSectionTitle = (title: string) => {
+    ensureSpace(16);
+    y += 1.5;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(13);
+    pdf.setTextColor(9, 9, 11);
+    pdf.text(normalizeWinAnsi(title), marginX, y + 4.2);
+    y += 6.2;
+    pdf.setDrawColor(244, 244, 245);
+    pdf.setLineWidth(0.35);
+    pdf.line(marginX, y, pageWidth - marginX, y);
+    pdf.setLineWidth(0.2);
+    y += 4;
+  };
+
+  interface InlineSpan {
+    text: string;
+    bold?: boolean;
+    italic?: boolean;
+    mono?: boolean;
+    linkUrl?: string;
+    color?: [number, number, number];
+  }
+
+  const collectInlineSpans = (
+    content: any,
+    defaults: { bold?: boolean; italic?: boolean; mono?: boolean; color?: [number, number, number] } = {}
+  ): InlineSpan[] => {
+    if (!content) return [];
+    if (typeof content === 'string') {
+      return content ? [{ text: content, ...defaults }] : [];
+    }
+    const items = Array.isArray(content)
+      ? content
+      : typeof content === 'object' && Array.isArray(content.content)
+        ? content.content
+        : [];
+    const spans: InlineSpan[] = [];
+    for (const item of items) {
+      if (typeof item === 'string') {
+        if (item) spans.push({ text: item, ...defaults });
+        continue;
+      }
+      if (!item || typeof item !== 'object') continue;
+      if (item.type === 'link') {
+        const href = typeof item.href === 'string' && /^https?:\/\//i.test(item.href.trim()) ? item.href.trim() : undefined;
+        const label = Array.isArray(item.content) ? extractInlineText(item.content) : item.text || href || '';
+        if (label) {
+          spans.push({
+            text: label,
+            bold: defaults.bold,
+            italic: defaults.italic,
+            linkUrl: href,
+            color: href ? [9, 105, 218] : defaults.color,
+          });
+        }
+        continue;
+      }
+      const st = item.styles || {};
+      const txt = item.text || '';
+      if (txt) {
+        spans.push({
+          text: txt,
+          bold: Boolean(defaults.bold || st.bold),
+          italic: Boolean(defaults.italic || st.italic),
+          mono: Boolean(defaults.mono || st.code),
+          color: defaults.color,
+        });
+      }
+    }
+    return spans;
+  };
+
   const drawTextBlock = (
     rawText: string,
     opts: {
@@ -243,14 +322,129 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
     y += opts.spaceAfter ?? 2.5;
   };
 
-  // Header Badge & Title
-  drawTextBlock(`NO. ${doc.resourceNumber}`, {
-    fontSize: 9,
-    bold: true,
-    mono: true,
-    color: [82, 82, 91],
-    spaceAfter: 2,
-  });
+  const drawRichParagraph = (
+    spans: InlineSpan[],
+    opts: {
+      prefix?: string;
+      prefixBold?: boolean;
+      prefixColor?: [number, number, number];
+      fontSize?: number;
+      indentMm?: number;
+      lineGap?: number;
+      spaceAfter?: number;
+      defaultColor?: [number, number, number];
+    } = {}
+  ) => {
+    const plain = `${opts.prefix || ''}${spans.map((s) => s.text).join('')}`;
+    if (!plain.trim()) return;
+
+    if (hasNonLatinUnicode(plain)) {
+      drawTextBlock(plain, {
+        fontSize: opts.fontSize ?? 10.5,
+        bold: spans.length > 0 && spans.every((s) => s.bold),
+        indentMm: opts.indentMm ?? 0,
+        lineGap: opts.lineGap ?? 1.45,
+        spaceAfter: opts.spaceAfter ?? 2.5,
+        color: opts.defaultColor ?? [39, 39, 42],
+      });
+      return;
+    }
+
+    const fontSize = opts.fontSize ?? 10.5;
+    const indent = opts.indentMm ?? 0;
+    const maxX = marginX + contentWidth;
+    const lineHeight = fontSize * 0.352778 * (opts.lineGap ?? 1.45);
+    const allSpans: InlineSpan[] = opts.prefix
+      ? [
+          {
+            text: opts.prefix,
+            bold: opts.prefixBold,
+            color: opts.prefixColor ?? opts.defaultColor,
+          },
+          ...spans,
+        ]
+      : spans;
+
+    // Tokenize into words/whitespace preserving style per token
+    const tokens: Array<InlineSpan & { word: string }> = [];
+    for (const sp of allSpans) {
+      const clean = normalizeWinAnsi(sp.text);
+      const parts = clean.split(/(\s+)/).filter((p) => p.length > 0);
+      for (const word of parts) {
+        tokens.push({ ...sp, word });
+      }
+    }
+
+    let curX = marginX + indent;
+    ensureSpace(lineHeight + 1);
+    const baselineOffset = fontSize * 0.3;
+
+    for (const tok of tokens) {
+      const family = tok.mono ? 'courier' : 'helvetica';
+      const style =
+        tok.bold && tok.italic ? 'bolditalic' : tok.bold ? 'bold' : tok.italic ? 'italic' : 'normal';
+      pdf.setFont(family, style);
+      pdf.setFontSize(fontSize);
+
+      const tokWidth = pdf.getTextWidth(tok.word);
+      const isSpace = /^\s+$/.test(tok.word);
+
+      if (!isSpace && curX > marginX + indent && curX + tokWidth > maxX) {
+        y += lineHeight;
+        ensureSpace(lineHeight + 1);
+        curX = marginX + indent;
+      }
+      if (isSpace && curX === marginX + indent) {
+        continue;
+      }
+
+      const [r, g, b] = tok.color ?? opts.defaultColor ?? [39, 39, 42];
+      pdf.setTextColor(r, g, b);
+
+      if (tok.linkUrl) {
+        pdf.textWithLink(tok.word, curX, y + baselineOffset, { url: tok.linkUrl });
+        pdf.setDrawColor(r, g, b);
+        pdf.line(curX, y + baselineOffset + 0.6, curX + tokWidth, y + baselineOffset + 0.6);
+      } else {
+        pdf.text(tok.word, curX, y + baselineOffset);
+      }
+      curX += tokWidth;
+    }
+
+    y += lineHeight + (opts.spaceAfter ?? 2.5);
+  };
+
+  // =========================================================================
+  // 1. Top Branding Banner (mirrors Resource #001 reference)
+  // =========================================================================
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(17, 17, 17);
+  pdf.text(normalizeWinAnsi(doc.author.name), marginX, y);
+  pdf.setFont('courier', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(113, 113, 122);
+  const rightIdText = `Resource #${doc.resourceNumber}`;
+  pdf.text(rightIdText, pageWidth - marginX - pdf.getTextWidth(rightIdText), y);
+  y += 3.5;
+  pdf.setDrawColor(228, 228, 231);
+  pdf.line(marginX, y, pageWidth - marginX, y);
+  y += 7;
+
+  // =========================================================================
+  // 2. Resource Header Badge, Title & Canonical URL
+  // =========================================================================
+  const badgeText = `NO. ${doc.resourceNumber}`;
+  pdf.setFont('courier', 'bold');
+  pdf.setFontSize(8.5);
+  const badgeW = pdf.getTextWidth(badgeText) + 5;
+  pdf.setFillColor(244, 244, 245);
+  pdf.setDrawColor(228, 228, 231);
+  pdf.roundedRect(marginX, y - 3.5, badgeW, 5.5, 1, 1, 'FD');
+  pdf.setTextColor(82, 82, 91);
+  pdf.text(badgeText, marginX + 2.5, y + 0.3);
+  y += 5;
+
   drawTextBlock(doc.title, {
     fontSize: 20,
     bold: true,
@@ -258,56 +452,82 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
     lineGap: 1.25,
     spaceAfter: 2.5,
   });
-  drawTextBlock(`Published ${doc.publishedAt} | ${doc.canonicalUrl}`, {
-    fontSize: 8.5,
-    mono: true,
-    color: [113, 113, 122],
-    spaceAfter: 4,
-    linkUrl: doc.canonicalUrl,
-  });
 
-  pdf.setDrawColor(228, 228, 231);
-  pdf.line(marginX, y, pageWidth - marginX, y);
-  y += 6;
+  drawRichParagraph(
+    [
+      { text: `Published ${doc.publishedAt} • AakashDas.live Educational Archive • `, mono: true },
+      { text: doc.canonicalUrl, mono: true, linkUrl: doc.canonicalUrl, color: [113, 113, 122] },
+    ],
+    { fontSize: 8, defaultColor: [113, 113, 122], spaceAfter: 5 }
+  );
 
-  // About Resource (when description is distinct and meaningful)
-  const hasMeaningfulDesc =
-    Boolean(doc.description?.trim()) &&
-    doc.description.trim().toLowerCase() !== doc.title.trim().toLowerCase() &&
-    !/^resource #\d+$/i.test(doc.description.trim());
-
-  if (hasMeaningfulDesc) {
-    ensureSpace(14);
-    drawTextBlock('About Resource', { fontSize: 13, bold: true, color: [9, 9, 11], spaceAfter: 2 });
-    drawTextBlock(doc.description, { fontSize: 10.5, color: [39, 39, 42], spaceAfter: 4 });
+  // =========================================================================
+  // 3. About Resource (meaningful description only)
+  // =========================================================================
+  if (isMeaningfulDescription(doc.description, doc.title)) {
+    drawSectionTitle('About Resource');
+    drawTextBlock(doc.description, { fontSize: 10.5, color: [39, 39, 42], spaceAfter: 5 });
   }
 
-  // Attachments overview (never replaces educational content)
+  // =========================================================================
+  // 4. Downloadable Resources (cards + clickable permanent HTTPS links)
+  // =========================================================================
   if (doc.attachments.length > 0) {
-    ensureSpace(16);
-    drawTextBlock('Downloadable Resources', { fontSize: 13, bold: true, color: [9, 9, 11], spaceAfter: 2.5 });
+    drawSectionTitle('Downloadable Resources');
+    drawTextBlock(
+      'The following downloadable resources and working files accompany this publication. Click any link to download directly:',
+      { fontSize: 9, color: [82, 82, 91], spaceAfter: 3 }
+    );
+
     for (const att of doc.attachments) {
-      drawTextBlock(`${att.name} [${att.format} | ${att.fileSize}]`, {
-        fontSize: 10,
-        bold: true,
-        indentMm: 3,
-        spaceAfter: 1,
-      });
-      if (/^https?:\/\//i.test(att.url)) {
-        drawTextBlock(att.url, {
-          fontSize: 8.5,
-          mono: true,
-          color: [9, 105, 218],
-          indentMm: 3,
-          spaceAfter: 2.5,
-          linkUrl: att.url,
-        });
-      }
+      const safeLinkUrl = /^https?:\/\//i.test(att.url) ? att.url : `${doc.canonicalUrl}#downloadable-resources`;
+      const actionLabel = att.isInlineAsset
+        ? `Download on Resource Page (${att.format}) ->`
+        : `Download Resource (${att.format}) ->`;
+      const cardHeight = 20;
+      ensureSpace(cardHeight + 3);
+
+      pdf.setFillColor(250, 250, 250);
+      pdf.setDrawColor(228, 228, 231);
+      pdf.roundedRect(marginX, y, contentWidth, cardHeight, 1.8, 1.8, 'FD');
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(17, 17, 17);
+      const safeName = normalizeWinAnsi(att.name || 'Attachment').slice(0, 62);
+      pdf.text(safeName, marginX + 3.5, y + 5.5);
+
+      const fmtBadge = normalizeWinAnsi(att.format || 'FILE');
+      pdf.setFont('courier', 'bold');
+      pdf.setFontSize(7.5);
+      const fmtW = pdf.getTextWidth(fmtBadge) + 4;
+      pdf.setFillColor(228, 228, 231);
+      pdf.roundedRect(pageWidth - marginX - fmtW - 3.5, y + 2.2, fmtW, 4.5, 1, 1, 'F');
+      pdf.setTextColor(63, 63, 70);
+      pdf.text(fmtBadge, pageWidth - marginX - fmtW - 1.5, y + 5.3);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.2);
+      pdf.setTextColor(113, 113, 122);
+      pdf.text(`File Size: ${normalizeWinAnsi(att.fileSize || 'Standard')}`, marginX + 3.5, y + 10);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor(9, 105, 218);
+      pdf.textWithLink(normalizeWinAnsi(actionLabel), marginX + 3.5, y + 14.5, { url: safeLinkUrl });
+
+      pdf.setFont('courier', 'normal');
+      pdf.setFontSize(7.2);
+      pdf.setTextColor(113, 113, 122);
+      const clippedUrl = safeLinkUrl.length > 86 ? `${safeLinkUrl.slice(0, 83)}...` : safeLinkUrl;
+      pdf.text(clippedUrl, marginX + 3.5, y + 18.2);
+
+      y += cardHeight + 3;
     }
     y += 2;
   }
 
-  // Render Table Helper
+  // Render Table Helper (with Unicode cell rasterization when needed)
   const drawTable = (headers: string[], rows: string[][]) => {
     const colCount = Math.max(headers.length, rows[0]?.length || 1);
     const colWidth = contentWidth / colCount;
@@ -317,13 +537,30 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
     const renderRow = (cells: string[], isHeader: boolean) => {
       pdf.setFont('helvetica', isHeader ? 'bold' : 'normal');
       pdf.setFontSize(8.5);
-      const wrappedCells = cells.map((c) => {
+      const cellImages: Array<{ dataUrl: string; widthMm: number; heightMm: number } | null> = [];
+      const wrappedCells = cells.map((c, idx) => {
         const clean = normalizeWinAnsi(c || '');
-        const ascii = hasNonLatinUnicode(clean) ? clean.replace(/[^\u0020-\u00FF]/g, '?') : clean;
-        return pdf.splitTextToSize(ascii || ' ', colWidth - cellPadX * 2) as string[];
+        if (hasNonLatinUnicode(clean)) {
+          const img = renderUnicodeLineToDataUrl(
+            clean,
+            8.5,
+            isHeader || idx === 0,
+            colWidth - cellPadX * 2
+          );
+          cellImages[idx] = img;
+          return img ? [''] : ['?'];
+        }
+        cellImages[idx] = null;
+        return pdf.splitTextToSize(clean || ' ', colWidth - cellPadX * 2) as string[];
       });
-      const maxLines = Math.max(1, ...wrappedCells.map((l) => l.length));
-      const rowHeight = maxLines * 4 + cellPadY * 2;
+      const maxHeight = Math.max(
+        8,
+        ...wrappedCells.map((l, idx) => {
+          const img = cellImages[idx];
+          return img ? img.heightMm + cellPadY * 2 : l.length * 4 + cellPadY * 2;
+        })
+      );
+      const rowHeight = maxHeight;
 
       if (y + rowHeight > bottomLimit) {
         pdf.addPage();
@@ -335,16 +572,25 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
 
       cells.forEach((_, idx) => {
         const x = marginX + idx * colWidth;
-        pdf.setFillColor(isHeader ? 244 : idx === 0 ? 250 : 255, isHeader ? 244 : idx === 0 ? 250 : 255, isHeader ? 245 : idx === 0 ? 250 : 255);
+        pdf.setFillColor(
+          isHeader ? 244 : idx === 0 ? 250 : 255,
+          isHeader ? 244 : idx === 0 ? 250 : 255,
+          isHeader ? 245 : idx === 0 ? 250 : 255
+        );
         pdf.setDrawColor(228, 228, 231);
         pdf.rect(x, y, colWidth, rowHeight, 'FD');
-        pdf.setFont('helvetica', isHeader || idx === 0 ? 'bold' : 'normal');
-        pdf.setFontSize(8.5);
-        pdf.setTextColor(24, 24, 27);
-        const lines = wrappedCells[idx] || [''];
-        lines.forEach((line, lIdx) => {
-          pdf.text(line, x + cellPadX, y + cellPadY + 3 + lIdx * 4);
-        });
+        const img = cellImages[idx];
+        if (img) {
+          pdf.addImage(img.dataUrl, 'PNG', x + cellPadX, y + cellPadY, img.widthMm, img.heightMm);
+        } else {
+          pdf.setFont('helvetica', isHeader || idx === 0 ? 'bold' : 'normal');
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(24, 24, 27);
+          const lines = wrappedCells[idx] || [''];
+          lines.forEach((line, lIdx) => {
+            pdf.text(line, x + cellPadX, y + cellPadY + 3 + lIdx * 4);
+          });
+        }
       });
 
       y += rowHeight;
@@ -356,8 +602,7 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
   };
 
   // Document Canvas Content
-  ensureSpace(14);
-  drawTextBlock('Read Me', { fontSize: 13, bold: true, color: [9, 9, 11], spaceAfter: 3 });
+  drawSectionTitle('Read Me');
 
   if (doc.summaryPoints && doc.summaryPoints.length > 0) {
     drawTextBlock("What's Included", { fontSize: 11.5, bold: true, spaceAfter: 2 });
@@ -379,6 +624,7 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
       else orderedIdx = 0;
 
       const text = extractInlineText(block.content);
+      const spans = collectInlineSpans(block.content);
       switch (block.type) {
         case 'heading': {
           const level = Number(block.props?.level) || 2;
@@ -389,45 +635,56 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
           break;
         }
         case 'paragraph': {
-          const runs = Array.isArray(block.content) ? block.content : [];
-          const hasBoldOnly =
-            runs.length > 0 && runs.every((r: any) => Boolean(r?.styles?.bold));
-          const hasItalicOnly =
-            runs.length > 0 && runs.every((r: any) => Boolean(r?.styles?.italic));
-          const firstLink = runs.find((r: any) => r?.type === 'link' && r?.href);
-          drawTextBlock(text, {
+          drawRichParagraph(spans, {
             fontSize: 10.5,
-            bold: hasBoldOnly,
-            italic: hasItalicOnly,
             indentMm: indentBase,
-            linkUrl: firstLink?.href,
             spaceAfter: 2.5,
           });
           break;
         }
         case 'bulletListItem': {
-          drawTextBlock(`* ${text}`, { fontSize: 10.5, indentMm: 4 + indentBase, spaceAfter: 1.5 });
+          drawRichParagraph(spans, {
+            prefix: '* ',
+            fontSize: 10.5,
+            indentMm: 4 + indentBase,
+            spaceAfter: 1.5,
+          });
           break;
         }
         case 'numberedListItem': {
-          drawTextBlock(`${orderedIdx}. ${text}`, { fontSize: 10.5, indentMm: 4 + indentBase, spaceAfter: 1.5 });
+          drawRichParagraph(spans, {
+            prefix: `${orderedIdx}. `,
+            prefixBold: true,
+            fontSize: 10.5,
+            indentMm: 4 + indentBase,
+            spaceAfter: 1.5,
+          });
           break;
         }
         case 'checkListItem': {
-          const prefix = block.props?.checked ? '[x]' : '[ ]';
-          drawTextBlock(`${prefix} ${text}`, { fontSize: 10.5, indentMm: 4 + indentBase, spaceAfter: 1.5 });
+          const prefix = block.props?.checked ? '[x] ' : '[ ] ';
+          drawRichParagraph(spans, {
+            prefix,
+            prefixBold: true,
+            prefixColor: block.props?.checked ? [5, 150, 105] : [113, 113, 122],
+            fontSize: 10.5,
+            indentMm: 4 + indentBase,
+            spaceAfter: 1.5,
+          });
           break;
         }
         case 'quote': {
           ensureSpace(10);
           const startY = y;
-          drawTextBlock(text, {
-            fontSize: 10.5,
-            italic: true,
-            color: [39, 39, 42],
-            indentMm: 6 + indentBase,
-            spaceAfter: 3,
-          });
+          drawRichParagraph(
+            spans.map((s) => ({ ...s, italic: true, color: [17, 17, 17] })),
+            {
+              fontSize: 10.5,
+              indentMm: 6 + indentBase,
+              spaceAfter: 3,
+              defaultColor: [17, 17, 17],
+            }
+          );
           pdf.setDrawColor(24, 24, 27);
           pdf.setLineWidth(0.8);
           pdf.line(marginX + 2 + indentBase, startY, marginX + 2 + indentBase, Math.max(startY + 4, y - 2));
@@ -436,11 +693,13 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
         }
         case 'callout': {
           const title = block.props?.title ? `[${block.props.title}] ` : '[Note] ';
-          drawTextBlock(`${title}${text}`, {
+          drawRichParagraph(spans, {
+            prefix: title,
+            prefixBold: true,
+            prefixColor: [24, 24, 27],
             fontSize: 10,
-            bold: false,
             indentMm: 4 + indentBase,
-            color: [63, 63, 70],
+            defaultColor: [63, 63, 70],
             spaceAfter: 3,
           });
           break;
@@ -547,6 +806,50 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
         y += 4;
       }
     }
+  }
+
+  // Video Walkthrough section (when configured)
+  if (doc.youtube) {
+    drawSectionTitle('Video Walkthrough');
+    drawTextBlock(doc.youtube.title, { fontSize: 11, bold: true, color: [17, 17, 17], spaceAfter: 1.5 });
+    if (doc.youtube.caption) {
+      drawTextBlock(doc.youtube.caption, { fontSize: 9.5, color: [113, 113, 122], spaceAfter: 2 });
+    }
+    drawRichParagraph(
+      [
+        { text: 'Direct Streaming Link: ', bold: true, color: [63, 63, 70] },
+        { text: doc.youtube.watchUrl, linkUrl: doc.youtube.watchUrl, color: [9, 105, 218] },
+      ],
+      { fontSize: 9, spaceAfter: 5 }
+    );
+  }
+
+  // Personal Branding End Block (matches Resource #001 .doc-end-branding)
+  ensureSpace(22);
+  y += 4;
+  pdf.setDrawColor(228, 228, 231);
+  pdf.line(marginX, y, pageWidth - marginX, y);
+  y += 5;
+  drawTextBlock(`${doc.author.name} • Educational Resources Archive`, {
+    fontSize: 9,
+    bold: true,
+    color: [24, 24, 27],
+    spaceAfter: 1.5,
+  });
+  drawRichParagraph(
+    [
+      { text: 'Personal Website: ', color: [113, 113, 122] },
+      { text: doc.author.website, linkUrl: doc.author.website, color: [9, 105, 218] },
+    ],
+    { fontSize: 8.5, spaceAfter: 1.5 }
+  );
+  if (doc.author.socialLinks.length > 0) {
+    const socialSpans: InlineSpan[] = [{ text: 'Connect: ', color: [113, 113, 122] }];
+    doc.author.socialLinks.forEach((s, i) => {
+      if (i > 0) socialSpans.push({ text: ' • ', color: [161, 161, 170] });
+      socialSpans.push({ text: s.platform, linkUrl: s.url, color: [9, 105, 218] });
+    });
+    drawRichParagraph(socialSpans, { fontSize: 8.5, spaceAfter: 2 });
   }
 
   // Footer with page numbers across all pages

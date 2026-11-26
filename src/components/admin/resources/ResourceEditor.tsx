@@ -149,12 +149,14 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     }
     setIsDirty(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
   };
 
   const handleBlockNoteChange = useCallback((blocks: any[]) => {
     setBlocknoteJson(blocks);
     setIsDirty(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
   }, []);
 
   /**
@@ -174,18 +176,32 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
     );
 
     // Keep generated Resource Document exports strictly independent from manual attachments.
-    const existingPdfPreview = sanitizeAssetUrl(
+    const rawPdfCandidate = sanitizeAssetUrl(
       initialResource?.generatedPdf?.url || initialResource?.pdfPreviewUrl,
       ''
     );
+    const existingPdfPreview =
+      rawPdfCandidate.startsWith('data:application/pdf') ||
+      rawPdfCandidate.split(/[?#]/)[0].toLowerCase().endsWith('.pdf')
+        ? rawPdfCandidate
+        : '';
     const existingDocxUrl = sanitizeAssetUrl(
       initialResource?.generatedDocx?.url || initialResource?.docxUrl,
       ''
     );
-    const existingDownloadUrl = sanitizeAssetUrl(
-      initialResource?.downloadUrl || existingPdfPreview || visibleAttachments[0]?.url,
-      ''
-    );
+    const firstPdfAttachment = visibleAttachments.find(
+      (a) =>
+        a.url?.startsWith('data:application/pdf') ||
+        a.url?.split(/[?#]/)[0].toLowerCase().endsWith('.pdf')
+    )?.url;
+    const rawExistingDownload = sanitizeAssetUrl(initialResource?.downloadUrl, '');
+    const existingDownloadUrl =
+      existingPdfPreview ||
+      firstPdfAttachment ||
+      (rawExistingDownload.startsWith('data:application/pdf') ||
+      rawExistingDownload.split(/[?#]/)[0].toLowerCase().endsWith('.pdf')
+        ? rawExistingDownload
+        : '');
 
     const safeSlug =
       initialResource?.slug?.trim() ||
@@ -387,9 +403,11 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
             pdfPreviewUrl: exportsBundle.pdfPreviewUrl,
             docxUrl: exportsBundle.docxUrl,
             downloadUrl:
-              persisted.attachments.length > 0
-                ? persisted.downloadUrl || exportsBundle.pdfPreviewUrl
-                : exportsBundle.pdfPreviewUrl,
+              persisted.attachments.find(
+                (a) =>
+                  a.url?.startsWith('data:application/pdf') ||
+                  a.url?.split(/[?#]/)[0].toLowerCase().endsWith('.pdf')
+              )?.url || exportsBundle.pdfPreviewUrl,
             lastGenerationError: undefined,
           };
 
@@ -532,6 +550,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
                 setNumberInput(e.target.value);
                 setIsDirty(true);
                 setErrorMsg(null);
+                setSuccessMsg(null);
               }}
               placeholder={isNewRecord ? `Auto (${fallbackAutoNumber})` : 'Number'}
               aria-label="Resource Number"

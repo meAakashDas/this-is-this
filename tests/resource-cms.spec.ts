@@ -1,4 +1,30 @@
 import { test, expect } from '@playwright/test';
+import zlib from 'node:zlib';
+
+function extractPdfStreamText(pdfBuf: Buffer): string {
+  const chunks: string[] = [pdfBuf.toString('latin1')];
+  let idx = 0;
+  while (true) {
+    const start = pdfBuf.indexOf('stream', idx, 'latin1');
+    if (start === -1) break;
+    const nl = pdfBuf[start + 6] === 13 && pdfBuf[start + 7] === 10 ? start + 8 : pdfBuf[start + 6] === 10 ? start + 7 : -1;
+    if (nl === -1) break;
+    const end = pdfBuf.indexOf('endstream', nl, 'latin1');
+    if (end === -1) break;
+    try {
+      const inflated = zlib.inflateSync(pdfBuf.subarray(nl, end));
+      chunks.push(inflated.toString('latin1'));
+    } catch {
+      // ignore non-flate streams
+    }
+    idx = end + 9;
+  }
+  const rawText = chunks.join('\n').replace(/\\([()\\])/g, '$1');
+  const tjJoined = Array.from(rawText.matchAll(/\(([^()\\]*)\)\s*Tj/g))
+    .map((m) => m[1])
+    .join('');
+  return `${rawText}\n${tjJoined}`;
+}
 
 test.describe('Simplified 2-Section Resource Editor QA', () => {
   test.beforeEach(async ({ page }) => {
@@ -492,5 +518,119 @@ test.describe('Simplified 2-Section Resource Editor QA', () => {
     // Unpublish toggles back to draft cleanly
     await page.locator('button[aria-label="Unpublish Resource 091"]').click();
     await expect(page.locator('button[aria-label="Publish Resource 091"]')).toBeVisible();
+  });
+
+  test('11. New Resource #006 lifecycle: rich canvas + inline JPEG attachment, branded PDF/DOCX generation, edit regeneration, and unpublish/republish', async ({
+    page,
+  }) => {
+    await page.locator('aside button:has-text("Resources")').click();
+    await page.locator('button:has-text("Create Resource")').click();
+
+    await page.locator('#resource-number-field').fill('006');
+    const editor = page.locator('.blocknote-canvas-container [contenteditable="true"]').first();
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.type('/h2');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Compound Framework Overview');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Structured learning paragraph with real guidance.');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/bullet');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Verify emergency fund target');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/table');
+    await page.keyboard.press('Enter');
+
+    // Upload inline image attachment matching Resource #005's attachment pattern
+    const pngTiny = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await page.locator('input[type="file"][multiple]').setInputFiles({
+      name: 'IMG-20260813-WA0011.png',
+      mimeType: 'image/png',
+      buffer: pngTiny,
+    });
+    await expect(page.locator('.attachment-item')).toHaveCount(1);
+
+    // Publish directly -> pre-publish gate generates branded PDF & DOCX before publishing
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    await expect(
+      page.locator('[role="status"]:has-text("Auto-generated PDF")').first()
+    ).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[role="alert"]')).toHaveCount(0);
+
+    const created006 = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '006') || null;
+    });
+    expect(created006).toBeTruthy();
+    expect(created006.published).toBe(true);
+    expect(created006.downloadUrl).toMatch(/^data:application\/pdf;base64,/);
+    expect(created006.generatedPdf?.url).toMatch(/^data:application\/pdf;base64,/);
+    expect(created006.generatedDocx?.url).toMatch(
+      /^data:application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document;base64,/
+    );
+
+    const pdfBuf = Buffer.from(created006.generatedPdf.url.split(',')[1], 'base64');
+    const pdfLatin = extractPdfStreamText(pdfBuf);
+    expect(pdfBuf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    expect(pdfLatin).toContain('Aakash Das');
+    expect(pdfLatin).toContain('Resource #006');
+    expect(pdfLatin).toContain('Downloadable Resources');
+    expect(pdfLatin).toMatch(/IMG[- ]20260813[- ]WA0011/i);
+    expect(pdfLatin).toContain('https://aakashdas.live/resources/006#downloadable-resources');
+    expect(pdfLatin).not.toContain('aakashdas.live/data:');
+
+    const docxBuf = Buffer.from(created006.generatedDocx.url.split(',')[1], 'base64');
+    expect(docxBuf.subarray(0, 2).toString('ascii')).toBe('PK');
+
+    const firstVersion = created006.contentVersion;
+
+    // Edit content & replace attachment -> Update -> confirm regeneration updates contentVersion
+    const firstParagraph = page.locator('.blocknote-canvas-container p').first();
+    await firstParagraph.click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Edited Section 006 Regeneration Check');
+
+    const replaceBtn = page.locator('button[aria-label^="Replace "]').first();
+    await replaceBtn.click();
+    await page.locator('input[type="file"]:not([multiple])').setInputFiles({
+      name: 'budget-sheet-v2.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Category,Amount\nEmergency,10000\n'),
+    });
+    await expect(page.locator('text=budget-sheet-v2.csv')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('button:has-text("Update")').click();
+    await expect(
+      page.locator('[role="status"]:has-text("Auto-generated PDF")').first()
+    ).toBeVisible({ timeout: 20000 });
+
+    const edited006 = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
+      const list = raw ? JSON.parse(raw) : [];
+      return list.find((r: any) => r.resourceNumber === '006') || null;
+    });
+    expect(edited006.contentVersion).not.toBe(firstVersion);
+    expect(edited006.generatedPdf.contentVersion).toBe(edited006.contentVersion);
+    expect(edited006.generatedDocx.contentVersion).toBe(edited006.contentVersion);
+    const editedPdfLatin = extractPdfStreamText(
+      Buffer.from(edited006.generatedPdf.url.split(',')[1], 'base64')
+    );
+    expect(editedPdfLatin).toContain('Edited Section 006 Regeneration Check');
+    expect(editedPdfLatin).toMatch(/budget[- ]sheet[- ]v2/i);
+
+    // Back to list: Unpublish & Republish
+    await page.locator('button[title="Back to Resources"]').click();
+    await page.locator('button[aria-label="Unpublish Resource 006"]').click();
+    await expect(page.locator('button[aria-label="Publish Resource 006"]')).toBeVisible();
+    await page.locator('button[aria-label="Publish Resource 006"]').click();
+    await expect(page.locator('button[aria-label="Unpublish Resource 006"]')).toBeVisible({ timeout: 15000 });
   });
 });

@@ -240,6 +240,7 @@ function getFileExtension(format?: string, url?: string): string {
         <!-- 2. Downloadable Resources (Immediately below header & divider) -->
         {resource!.attachments && resource!.attachments.length > 0 && (
           <section
+            id="downloadable-resources"
             class="resource-section attachments-section space-y-4"
             aria-labelledby="attachments-section-heading"
           >
@@ -438,7 +439,13 @@ function getFileExtension(format?: string, url?: string): string {
               </div>
             </div>
 
-            <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+            <div class="preview-viewer-container relative w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+              <div
+                data-pdf-loading
+                class="hidden absolute inset-0 flex items-center justify-center bg-background/90 text-xs font-mono text-muted-foreground z-10 pointer-events-none"
+              >
+                Loading PDF preview…
+              </div>
               <object
                 data={effectivePdfUrl}
                 type="application/pdf"

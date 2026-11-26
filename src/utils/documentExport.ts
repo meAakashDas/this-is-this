@@ -7,8 +7,9 @@ export interface NormalizedAttachment {
   name: string;
   format: string;
   fileSize: string;
-  url: string; // Absolute URL for external document usage
-  relativeUrl: string; // Relative URL for same-origin downloads
+  url: string; // Permanent HTTPS URL for external/document usage
+  relativeUrl: string; // Relative path or original data URI for same-origin downloads
+  isInlineAsset?: boolean;
 }
 
 export interface NormalizedYouTube {
@@ -77,6 +78,18 @@ export function getResourceExportFilename(
 }
 
 /**
+ * Returns true when a resource description carries real editorial text
+ * rather than an auto-generated placeholder label.
+ */
+export function isMeaningfulDescription(description?: string, title?: string): boolean {
+  const clean = (description || '').trim();
+  if (!clean) return false;
+  if (title && clean.toLowerCase() === title.trim().toLowerCase()) return false;
+  if (/^(educational\s+)?resource\s*#?\d+$/i.test(clean)) return false;
+  return true;
+}
+
+/**
  * Normalizes any Resource into a consistent, validated document structure.
  */
 export function normalizeResourceDocument(
@@ -85,6 +98,7 @@ export function normalizeResourceDocument(
 ): NormalizedResourceDocument {
   const baseUrl = siteConfig.url.replace(/\/+$/, '');
   const slug = getResourceSlug(resource.title);
+  const canonicalUrl = `${baseUrl}/resources/${resource.resourceNumber}`;
   const pdfFilename = getResourceExportFilename(resource.resourceNumber, resource.title, 'pdf');
   const docxFilename = getResourceExportFilename(resource.resourceNumber, resource.title, 'docx');
 
@@ -100,28 +114,42 @@ export function normalizeResourceDocument(
     '003': 'student-productivity-tracker-003.docx',
   };
 
-  // Normalize attachments with absolute URLs
-  const attachments: NormalizedAttachment[] = (resource.attachments || []).map((att) => {
-    const rawUrl = att.url || '';
-    const isAbsolute = rawUrl.startsWith('http://') || rawUrl.startsWith('https://');
-    const absoluteUrl = isAbsolute
-      ? rawUrl
-      : `${baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
-    const relativeUrl = isAbsolute
-      ? rawUrl.replace(/^https?:\/\/[^/]+/, '')
-      : rawUrl.startsWith('/')
-        ? rawUrl
-        : `/${rawUrl}`;
+  // Normalize attachments without ever corrupting data: URIs with an HTTPS prefix
+  const attachments: NormalizedAttachment[] = (resource.attachments || [])
+    .filter((att) => att && att.visible !== false && typeof att.url === 'string' && att.url.trim().length > 0)
+    .map((att) => {
+      const rawUrl = att.url.trim();
+      const lower = rawUrl.toLowerCase();
+      const isInlineData = lower.startsWith('data:');
+      const isHttp = lower.startsWith('http://') || lower.startsWith('https://');
 
-    return {
-      id: att.id,
-      name: att.name,
-      format: att.format || 'Downloadable File',
-      fileSize: att.fileSize || 'Standard',
-      url: absoluteUrl,
-      relativeUrl,
-    };
-  });
+      let absoluteUrl: string;
+      let relativeUrl: string;
+
+      if (isInlineData) {
+        // Data URIs are too large and unsupported as external PDF/DOCX hyperlinks;
+        // link cleanly to the Resource's public Downloadable Resources section instead.
+        absoluteUrl = `${canonicalUrl}#downloadable-resources`;
+        relativeUrl = rawUrl;
+      } else if (isHttp) {
+        absoluteUrl = rawUrl;
+        relativeUrl = rawUrl.replace(/^https?:\/\/[^/]+/, '');
+      } else {
+        const normalizedRel = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+        absoluteUrl = `${baseUrl}${normalizedRel}`;
+        relativeUrl = normalizedRel;
+      }
+
+      return {
+        id: att.id,
+        name: att.name,
+        format: att.format || 'Downloadable File',
+        fileSize: att.fileSize || 'Standard',
+        url: absoluteUrl,
+        relativeUrl,
+        isInlineAsset: isInlineData,
+      };
+    });
 
   // Normalize YouTube video data
   let youtube: NormalizedYouTube | undefined;
@@ -300,7 +328,7 @@ export function generateResourcePdfHtml(
               </div>
               <div class="attachment-actions">
                 <a href="${escapeHtml(att.url)}" class="attachment-link" target="_blank" rel="noopener">
-                  Download Resource (${escapeHtml(att.format)}) &rarr;
+                  ${att.isInlineAsset ? `Download on Resource Page (${escapeHtml(att.format)})` : `Download Resource (${escapeHtml(att.format)})`} &rarr;
                 </a>
                 <span class="attachment-url">${escapeHtml(att.url)}</span>
               </div>
@@ -352,10 +380,7 @@ export function generateResourcePdfHtml(
     )
     .join(' <span class="footer-sep">&bull;</span> ');
 
-  const hasMeaningfulDesc =
-    Boolean(doc.description?.trim()) &&
-    doc.description.trim().toLowerCase() !== doc.title.trim().toLowerCase() &&
-    !/^resource #\d+$/i.test(doc.description.trim());
+  const hasMeaningfulDesc = isMeaningfulDescription(doc.description, doc.title);
 
   const aboutSectionHtml = hasMeaningfulDesc
     ? `

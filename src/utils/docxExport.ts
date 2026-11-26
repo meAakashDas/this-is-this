@@ -15,7 +15,7 @@ import {
   ImageRun,
   AlignmentType,
 } from 'docx';
-import type { NormalizedResourceDocument } from './documentExport';
+import { isMeaningfulDescription, type NormalizedResourceDocument } from './documentExport.ts';
 
 export interface DocxImageAsset {
   data: Uint8Array;
@@ -477,8 +477,30 @@ export function generateResourceDocx(
   const children: Array<Paragraph | Table> = [];
 
   // =========================================================================
-  // Document Header / Title
+  // Document Header / Branding Banner & Title
   // =========================================================================
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `${doc.author.name}`,
+          bold: true,
+          size: 20, // 10pt
+          color: '111111',
+        }),
+        new TextRun({
+          text: `  •  Resource #${doc.resourceNumber}`,
+          font: 'Consolas',
+          size: 18, // 9pt
+          color: '71717A',
+        }),
+      ],
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E4E4E7' },
+      },
+      spacing: { after: 180 },
+    })
+  );
 
   children.push(
     new Paragraph({
@@ -532,10 +554,7 @@ export function generateResourceDocx(
   // =========================================================================
   // 1. About Resource Section (only when description is meaningful & distinct)
   // =========================================================================
-  const hasMeaningfulDesc =
-    Boolean(doc.description?.trim()) &&
-    doc.description.trim().toLowerCase() !== doc.title.trim().toLowerCase() &&
-    !/^resource #\d+$/i.test(doc.description.trim());
+  const hasMeaningfulDesc = isMeaningfulDescription(doc.description, doc.title);
 
   if (hasMeaningfulDesc) {
     children.push(
@@ -592,19 +611,24 @@ export function generateResourceDocx(
         })
       );
 
+      const safeDownloadHref = /^https?:\/\//i.test(att.url || '')
+        ? att.url
+        : `${doc.canonicalUrl}#downloadable-resources`;
+      const linkPrefix = att.isInlineAsset ? '  Download from Resource page: ' : '  Download link: ';
+
       children.push(
         new Paragraph({
           children: [
-            new TextRun({ text: '  Download link: ', color: '71717A' }),
+            new TextRun({ text: linkPrefix, color: '71717A' }),
             new ExternalHyperlink({
               children: [
                 new TextRun({
-                  text: att.url,
+                  text: safeDownloadHref,
                   color: '0969DA',
                   underline: {},
                 }),
               ],
-              link: att.url,
+              link: safeDownloadHref,
             }),
           ],
           spacing: { after: 120 },

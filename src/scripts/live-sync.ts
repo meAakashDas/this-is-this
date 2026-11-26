@@ -314,8 +314,11 @@ function dataPdfUriToBlobUrl(dataUri: string): string {
 }
 
 function hydratePdfPreviewElement(pdfSection: HTMLElement, pdfUrl: string) {
+  const container = pdfSection.querySelector<HTMLElement>('.preview-viewer-container');
   const obj = pdfSection.querySelector<HTMLObjectElement>('object.pdf-object');
   const iframe = pdfSection.querySelector<HTMLIFrameElement>('iframe.pdf-iframe');
+  const loadingEl = pdfSection.querySelector<HTMLElement>('[data-pdf-loading]');
+
   if (obj && obj.getAttribute('data-raw-pdf') !== pdfUrl) {
     const prevBlob = obj.getAttribute('data-blob-url');
     if (prevBlob && prevBlob.startsWith('blob:')) {
@@ -332,8 +335,32 @@ function hydratePdfPreviewElement(pdfSection: HTMLElement, pdfUrl: string) {
     } else {
       obj.removeAttribute('data-blob-url');
     }
+
+    if (loadingEl) {
+      loadingEl.classList.remove('hidden');
+      const hideLoading = () => loadingEl.classList.add('hidden');
+      obj.addEventListener('load', hideLoading, { once: true });
+      if (iframe) iframe.addEventListener('load', hideLoading, { once: true });
+      window.setTimeout(hideLoading, 1800);
+    }
+
     obj.setAttribute('data', renderUrl);
     if (iframe) iframe.setAttribute('src', renderUrl);
+
+    if (container && !container.querySelector('.pdf-preview-error-fallback')) {
+      obj.addEventListener(
+        'error',
+        () => {
+          if (loadingEl) loadingEl.classList.add('hidden');
+          const notice = document.createElement('div');
+          notice.className =
+            'pdf-preview-error-fallback p-6 text-center text-sm text-muted-foreground space-y-2';
+          notice.innerHTML = `<p class="m-0">Unable to display inline PDF preview in this browser.</p><a href="${escapeHtml(pdfUrl)}" download class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border border-input bg-background text-foreground underline">Download PDF directly</a>`;
+          container.appendChild(notice);
+        },
+        { once: true }
+      );
+    }
   }
 }
 
@@ -437,6 +464,12 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
   const docxUrl = resolveGeneratedDocxUrl(data);
   const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
   const generatedSectionInner = renderGeneratedDocumentSectionHtml(data, pdfUrl, docxUrl, num);
+  const dynamicSlug = String(data.title || 'resource')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  const dynamicPdfName = data.generatedPdf?.fileName || `resource-${num}-${dynamicSlug || 'guide'}.pdf`;
+  const dynamicDocxName = data.generatedDocx?.fileName || `resource-${num}-${dynamicSlug || 'guide'}.docx`;
 
   container.innerHTML = `
     <div class="page-container resource-detail-page max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 pb-24">
@@ -457,9 +490,12 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
           </div>
           <h1 class="resource-detail-title resource-title text-2xl sm:text-3xl lg:text-[34px] font-semibold tracking-tight text-foreground m-0 text-balance">${title}</h1>
           ${data.publishedAt ? `<div class="resource-date-row"><time datetime="${escapeHtml(data.publishedAt)}" class="resource-date text-xs font-mono text-muted-foreground">Published ${escapeHtml(data.publishedAt)}</time></div>` : ''}
-          <div class="resource-top-actions flex items-center gap-2.5 pt-2 flex-wrap">
-            ${pdfUrl ? `<a href="${escapeHtml(pdfUrl)}" download="resource-${num}.pdf" class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Save as PDF</span></a>` : ''}
-            ${docxUrl ? `<a href="${escapeHtml(docxUrl)}" download="resource-${num}.docx" class="action-btn btn-save-docx btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Save as DOCX</span></a>` : ''}
+          <div class="resource-top-actions flex items-center gap-2.5 pt-2 flex-wrap" aria-label="Resource actions">
+            ${pdfUrl ? `<a href="${escapeHtml(pdfUrl)}" download="${escapeHtml(dynamicPdfName)}" class="action-btn btn-save-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Save as PDF</span></a>` : ''}
+            ${docxUrl ? `<a href="${escapeHtml(docxUrl)}" download="${escapeHtml(dynamicDocxName)}" class="action-btn btn-save-docx btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Save as DOCX</span></a>` : ''}
+            ${pdfUrl ? `<a href="#view-as-pdf" class="action-btn btn-view-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline" aria-label="View embedded PDF preview"><span>View as PDF</span></a>` : ''}
+            <button type="button" class="action-btn btn-share-resource btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer" data-share-btn aria-label="Share resource"><span data-share-label>Share</span></button>
+            <span data-share-feedback class="share-feedback-msg text-xs font-medium text-emerald-600 dark:text-emerald-400" style="display:none;" role="status" aria-live="polite">Link copied to clipboard</span>
           </div>
         </header>
 
@@ -469,7 +505,7 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
         ${data.fullDescription ? `<div class="resource-full-description text-sm sm:text-base text-muted-foreground leading-relaxed"><p class="m-0">${escapeHtml(data.fullDescription)}</p></div>` : ''}
 
         ${attachments.length > 0 ? `
-          <section class="resource-section attachments-section space-y-4">
+          <section id="downloadable-resources" class="resource-section attachments-section space-y-4">
             <h2 id="attachments-section-heading" class="section-heading text-xl sm:text-[22px] font-semibold tracking-tight text-foreground m-0">${escapeHtml(data.detailActionLabel || 'Download Resources')}</h2>
             <div class="attachments-list flex flex-col gap-3">${renderAttachmentsHtml(attachments)}</div>
           </section>
@@ -501,10 +537,12 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
             <div class="preview-header flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border bg-secondary/50 flex-wrap">
               <h2 id="pdf-preview-heading" class="section-heading text-base sm:text-lg font-semibold tracking-tight text-foreground m-0">View as PDF</h2>
               <div class="preview-actions-bar flex items-center gap-2 flex-wrap">
-                <a href="${escapeHtml(pdfUrl)}" download="resource-${num}.pdf" class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Download PDF</span></a>
+                <a href="${escapeHtml(pdfUrl)}" download="${escapeHtml(dynamicPdfName)}" class="preview-action-btn btn-download-pdf btn btn-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md border border-input bg-background hover:bg-secondary text-foreground transition-colors shadow-xs no-underline"><span>Download PDF</span></a>
+                ${docxUrl ? `<a href="${escapeHtml(docxUrl)}" download="${escapeHtml(dynamicDocxName)}" class="preview-action-btn btn-save-docx btn btn-primary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs no-underline"><span>Save as DOCX</span></a>` : ''}
               </div>
             </div>
-            <div class="preview-viewer-container w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+            <div class="preview-viewer-container relative w-full h-[580px] sm:h-[640px] bg-background" id="pdf-viewer-frame">
+              <div data-pdf-loading class="hidden absolute inset-0 flex items-center justify-center bg-background/90 text-xs font-mono text-muted-foreground z-10 pointer-events-none">Loading PDF preview…</div>
               <object data="" type="application/pdf" class="pdf-object w-full h-full border-0 block"><iframe src="" class="pdf-iframe w-full h-full border-0" loading="lazy"></iframe></object>
             </div>
           </section>
@@ -513,6 +551,24 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
       </article>
     </div>
   `;
+
+  const shareBtn = container.querySelector<HTMLButtonElement>('[data-share-btn]');
+  const shareFeedback = container.querySelector<HTMLElement>('[data-share-feedback]');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard?.writeText(window.location.href);
+      } catch {
+        // fallback ignored
+      }
+      if (shareFeedback) {
+        shareFeedback.style.display = 'inline';
+        window.setTimeout(() => {
+          shareFeedback.style.display = 'none';
+        }, 2500);
+      }
+    });
+  }
 
   if (pdfUrl) {
     const pdfSec = container.querySelector<HTMLElement>('.pdf-preview-section');
@@ -861,6 +917,7 @@ async function syncResourceDetail(db: any, resourceId: string) {
           const anchor = articleEl.querySelector('.resource-full-description') || articleEl.querySelector('.resource-cover-figure') || articleEl.querySelector('header + div[role="separator"]');
           if (anchor) {
             const sec = document.createElement('section');
+            sec.id = 'downloadable-resources';
             sec.className = 'resource-section attachments-section space-y-4';
             sec.innerHTML = `
               <div class="section-header">
@@ -1543,6 +1600,13 @@ function initLiveSync() {
   // Do not run on Admin Portal (Admin has its own interactive React state)
   if (pathname.startsWith('/admin')) {
     return;
+  }
+
+  // Immediately upgrade any SSR data:application/pdf preview before async Firestore resolves
+  const ssrPdfSection = document.querySelector<HTMLElement>('.pdf-preview-section');
+  const ssrObjData = ssrPdfSection?.querySelector<HTMLObjectElement>('object.pdf-object')?.getAttribute('data') || '';
+  if (ssrPdfSection && ssrObjData.startsWith('data:application/pdf')) {
+    hydratePdfPreviewElement(ssrPdfSection, ssrObjData);
   }
 
   const db = initClientFirestore();

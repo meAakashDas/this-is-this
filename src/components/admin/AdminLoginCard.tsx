@@ -26,10 +26,10 @@ export const AdminLoginCard: React.FC<AdminLoginCardProps> = ({
     : null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background selection:bg-primary/10 selection:text-primary">
+    <div className="min-h-screen flex items-center justify-center p-3.5 sm:p-4 bg-background selection:bg-primary/10 selection:text-primary">
       <div className="w-full max-w-[360px] sm:max-w-[380px]">
         {/* Minimal White Card with Subtle Border */}
-        <div className="bg-white dark:bg-card border border-border rounded-2xl p-8 sm:p-10 shadow-xs flex flex-col items-center text-center space-y-6">
+        <div className="bg-white dark:bg-card border border-border rounded-2xl p-6 sm:p-10 shadow-xs flex flex-col items-center text-center space-y-6">
           {/* 1. Heading */}
           <h1 className="text-2xl font-semibold tracking-tight text-foreground m-0">
             Admin Access

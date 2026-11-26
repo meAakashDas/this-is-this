@@ -124,7 +124,7 @@ export const JournalPreview: React.FC<JournalPreviewProps> = ({ article }) => {
       <div
         className={`mx-auto transition-all ${
           deviceMode === 'mobile'
-            ? 'w-[390px] border-4 border-muted-foreground/30 rounded-[32px] overflow-hidden shadow-xl my-4 bg-background'
+            ? 'w-full max-w-[390px] border-4 border-muted-foreground/30 rounded-[32px] overflow-hidden shadow-xl my-4 bg-background'
             : 'w-full rounded-xl border border-border bg-background shadow-xs'
         }`}
       >

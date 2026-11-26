@@ -49,6 +49,7 @@ export const AdminPortal: React.FC = () => {
     }
     return DEFAULT_TAB;
   });
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Handle tab selection and keep URL search params in sync
   const handleSelectTab = (tab: AdminTab) => {
@@ -105,21 +106,32 @@ export const AdminPortal: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <AdminHeader user={user} onLogout={logout} />
+    <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-clip">
+      <AdminHeader
+        user={user}
+        onLogout={logout}
+        mobileNavOpen={mobileNavOpen}
+        onOpenMobileNav={() => setMobileNavOpen(true)}
+      />
 
       {isDevPreview && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-mono text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-mono text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
           <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-          <span>
+          <span className="leading-snug">
             Development Preview Mode Active. Live Firestore writes require Google Sign-In.
           </span>
         </div>
       )}
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
-          <AdminSidebar activeTab={activeTab} onSelectTab={handleSelectTab} />
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-start">
+          <AdminSidebar
+            activeTab={activeTab}
+            onSelectTab={handleSelectTab}
+            mobileOpen={mobileNavOpen}
+            onCloseMobile={() => setMobileNavOpen(false)}
+            user={user}
+          />
 
           <section className="flex-1 w-full min-w-0" aria-label="Admin Content Pane">
             {activeTab === 'homepage' ? (

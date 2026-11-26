@@ -145,16 +145,16 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
   }, [editor]);
 
   return (
-    <div className="blocknote-canvas-container w-full min-h-[520px] rounded-xl border border-border bg-card text-card-foreground shadow-xs focus-within:border-border-strong transition-all overflow-hidden flex flex-col">
-      <div className="blocknote-canvas-header notion-toolbar px-4 py-2 border-b border-border/50 bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
+    <div className="blocknote-canvas-container w-full min-h-[380px] sm:min-h-[520px] rounded-xl border border-border bg-card text-card-foreground shadow-xs focus-within:border-border-strong transition-all overflow-hidden flex flex-col">
+      <div className="blocknote-canvas-header notion-toolbar px-3 sm:px-4 py-2 border-b border-border/50 bg-muted/20 flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
         <span className="text-[11px] font-medium text-muted-foreground">Document Canvas</span>
         <span className="text-[11px] font-mono opacity-70">Type / for commands</span>
       </div>
-      <div className="blocknote-editor-wrapper notion-prose p-2 sm:p-6 flex-1">
+      <div className="blocknote-editor-wrapper notion-prose p-2 sm:p-6 flex-1 min-w-0 max-w-full overflow-x-auto">
         <BlockNoteView
           editor={editor}
           theme={theme}
-          className="notion-style-editor apple-editorial-typography min-h-[440px]"
+          className="notion-style-editor apple-editorial-typography min-h-[320px] sm:min-h-[440px]"
         />
       </div>
     </div>

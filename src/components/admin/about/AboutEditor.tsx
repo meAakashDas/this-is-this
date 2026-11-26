@@ -306,12 +306,12 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
           About
         </h1>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => handleSave(false)}
             disabled={isSaving || isPublishing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-50 cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-50 cursor-pointer whitespace-nowrap"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -325,7 +325,7 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
             type="button"
             onClick={() => handleSave(true)}
             disabled={isSaving || isPublishing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer whitespace-nowrap"
           >
             {isPublishing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -365,7 +365,7 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
       )}
 
       {/* Section 1: Introduction & Biography */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
         <h2 className="text-sm font-semibold text-foreground m-0">Introduction & Biography</h2>
 
         <div className="space-y-1.5">
@@ -383,12 +383,12 @@ export const AboutEditor: React.FC<AboutEditorProps> = ({ isDevPreview = false }
         </div>
 
         <div className="space-y-2.5 pt-2 border-t border-border/60">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground">Biography Paragraphs</span>
             <button
               type="button"
               onClick={handleAddParagraph}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Paragraph</span>

@@ -58,13 +58,13 @@ export const ResourceList: React.FC<ResourceListProps> = ({
       </div>
 
       {/* Simple status filter: All, Published, Draft */}
-      <div className="flex items-center gap-1.5" role="group" aria-label="Filter resources by status">
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter resources by status">
         {(['all', 'published', 'draft'] as const).map((st) => (
           <button
             key={st}
             type="button"
             onClick={() => setStatusFilter(st)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
+            className={`px-3 py-1.5 min-h-[36px] sm:min-h-0 rounded-lg text-xs font-medium cursor-pointer ${
               statusFilter === st
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -120,12 +120,12 @@ export const ResourceList: React.FC<ResourceListProps> = ({
                 </div>
 
                 {/* Actions: Edit, Publish/Unpublish, Delete */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto sm:shrink-0">
                   <button
                     type="button"
                     disabled={busyResourceId === (res.id || res.resourceNumber)}
                     onClick={() => onEdit(res)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border border-border bg-background hover:bg-secondary text-foreground cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 text-xs font-medium rounded-md border border-border bg-background hover:bg-secondary text-foreground cursor-pointer disabled:opacity-50"
                     aria-label={`Edit Resource ${res.resourceNumber}`}
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -136,7 +136,7 @@ export const ResourceList: React.FC<ResourceListProps> = ({
                     type="button"
                     disabled={busyResourceId === (res.id || res.resourceNumber)}
                     onClick={() => onTogglePublish(res)}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded-md border cursor-pointer disabled:opacity-50 ${
+                    className={`px-2.5 py-1.5 min-h-[36px] sm:min-h-0 text-xs font-medium rounded-md border cursor-pointer disabled:opacity-50 ${
                       isPub
                         ? 'border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground'
                         : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
@@ -154,7 +154,7 @@ export const ResourceList: React.FC<ResourceListProps> = ({
                     type="button"
                     disabled={busyResourceId === (res.id || res.resourceNumber)}
                     onClick={() => setDeleteTarget(res)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-destructive cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 text-xs font-medium rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-destructive cursor-pointer disabled:opacity-50"
                     aria-label={`Delete Resource ${res.resourceNumber}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

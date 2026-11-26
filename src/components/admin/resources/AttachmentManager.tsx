@@ -411,7 +411,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
           handleFiles(e.dataTransfer.files);
         }}
         onClick={() => fileInputRef.current?.click()}
-        className={`p-7 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center ${
+        className={`p-5 sm:p-7 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center ${
           isDragging
             ? 'border-primary bg-primary/5 scale-[0.99]'
             : 'border-border/80 hover:border-border hover:bg-card/40'
@@ -485,19 +485,19 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
             <div
               key={att.id || index}
               data-attachment-id={att.id}
-              className="attachment-item p-4 rounded-xl border border-border bg-card shadow-xs space-y-3"
+              className="attachment-item p-3.5 sm:p-4 rounded-xl border border-border bg-card shadow-xs space-y-3"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0">
                     {getFormatIcon(att.fileExtension)}
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-border bg-secondary text-foreground shrink-0">
                         {(att.fileExtension || 'FILE').toUpperCase()}
                       </span>
-                      <span className="text-xs text-muted-foreground font-mono truncate">
+                      <span className="text-xs text-muted-foreground font-mono truncate max-w-full">
                         {att.fileName || att.name}
                       </span>
                       {att.fileSize && (
@@ -518,13 +518,13 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto sm:shrink-0">
                   <a
                     href={att.url}
                     download={att.fileName || att.name}
                     target={att.url.startsWith('http') ? '_blank' : undefined}
                     rel={att.url.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors no-underline"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors no-underline"
                     aria-label={`Download ${att.fileName || att.name}`}
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -537,7 +537,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                       setReplacingIndex(index);
                       replaceInputRef.current?.click();
                     }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 rounded-md border border-border bg-background hover:bg-secondary text-xs font-medium text-foreground transition-colors cursor-pointer disabled:opacity-50"
                     aria-label={`Replace ${att.fileName || att.name}`}
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -547,7 +547,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({
                     type="button"
                     disabled={uploadProgress !== null}
                     onClick={() => handleDelete(index)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 rounded-md border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer disabled:opacity-50"
                     aria-label={`Delete ${att.fileName || att.name}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

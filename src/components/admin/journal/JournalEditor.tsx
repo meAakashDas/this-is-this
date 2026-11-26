@@ -288,11 +288,11 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
         </div>
 
         {/* Actions: Cancel, Save Draft, Live Preview, Publish / Update Article */}
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:shrink-0">
           <button
             type="button"
             onClick={onCancel}
-            className="px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-initial px-3.5 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer"
           >
             Cancel
           </button>
@@ -301,7 +301,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
             type="button"
             disabled={isSaving}
             onClick={() => handleSave('draft')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -314,7 +314,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
           <button
             type="button"
             onClick={() => setActiveMode(activeMode === 'preview' ? 'editor' : 'preview')}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors shadow-xs cursor-pointer ${
+            className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg border transition-colors shadow-xs cursor-pointer whitespace-nowrap ${
               activeMode === 'preview'
                 ? 'border-primary bg-primary/10 text-primary font-semibold'
                 : 'border-border bg-card hover:bg-secondary text-foreground'
@@ -328,7 +328,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
             type="button"
             disabled={isSaving}
             onClick={() => handleSave('publish')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -370,7 +370,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
             placeholder="Article Title (e.g. Why I Believe in Learning in Public)"
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="w-full text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight bg-transparent text-foreground placeholder:text-muted-foreground/35 border-0 outline-none px-1 focus:ring-0 leading-tight"
+            className="w-full text-xl sm:text-3xl lg:text-4xl font-bold tracking-tight bg-transparent text-foreground placeholder:text-muted-foreground/35 border-0 outline-none px-1 focus:ring-0 leading-tight"
           />
 
           <BlockNoteEditor

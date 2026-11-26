@@ -873,6 +873,31 @@
   height: 0;
 }
 
+/* Mobile safeguards for BlockNote rich-text editor inside Admin Portal */
+@media (max-width: 767px) {
+  .blocknote-canvas-container .bn-container,
+  .blocknote-canvas-container .bn-editor {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .blocknote-canvas-container .bn-editor {
+    padding-inline: 0.75rem;
+  }
+
+  .blocknote-canvas-container .bn-toolbar {
+    max-width: calc(100vw - 2rem);
+    overflow-x: auto;
+  }
+
+  .notion-prose table,
+  .resource-document-content table {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+}
+
 /* ==========================================================================
    Print Styles (@media print)
    ========================================================================== */

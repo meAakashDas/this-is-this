@@ -558,8 +558,8 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <div className="flex items-center gap-1.5 mr-1">
+        <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0 flex-wrap">
+          <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto sm:mr-1">
             <label
               htmlFor="resource-number-field"
               className="text-xs font-medium text-muted-foreground whitespace-nowrap"
@@ -582,7 +582,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
               }}
               placeholder={isNewRecord ? `Auto (${fallbackAutoNumber})` : 'Number'}
               aria-label="Resource Number"
-              className="w-24 px-2.5 py-1.5 text-xs font-mono rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-28 sm:w-24 px-2.5 py-1.5 text-xs font-mono rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -590,7 +590,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
             type="button"
             disabled={isSaving || isAttachmentUploading}
             onClick={onCancel}
-            className="px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial justify-center px-3.5 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -599,7 +599,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
             type="button"
             disabled={isSaving || isAttachmentUploading}
             onClick={() => handleSave('draft')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-card hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -613,7 +613,7 @@ export const ResourceEditor: React.FC<ResourceEditorProps> = ({
             type="button"
             disabled={isSaving || isAttachmentUploading}
             onClick={() => handleSave('published')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[38px] sm:min-h-0 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

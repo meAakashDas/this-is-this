@@ -66,7 +66,7 @@ export const JournalList: React.FC<JournalListProps> = ({
         <button
           type="button"
           onClick={onCreate}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] sm:min-h-0 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Create Article</span>
@@ -75,7 +75,7 @@ export const JournalList: React.FC<JournalListProps> = ({
 
       {/* Simple Search & Status Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -86,13 +86,13 @@ export const JournalList: React.FC<JournalListProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
           {(['all', 'published', 'draft'] as const).map((st) => (
             <button
               key={st}
               type="button"
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 min-h-[36px] sm:min-h-0 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 statusFilter === st
                   ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -150,11 +150,11 @@ export const JournalList: React.FC<JournalListProps> = ({
                 </div>
 
                 {/* Essential Actions: Edit, Publish/Unpublish, Delete */}
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                <div className="flex items-center gap-2 flex-wrap w-full md:w-auto md:shrink-0 md:self-center">
                   <button
                     type="button"
                     onClick={() => onEdit(art.slug)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-[36px] sm:min-h-0 text-xs font-medium rounded-lg border border-border bg-background hover:bg-secondary text-foreground transition-colors shadow-xs cursor-pointer"
                     aria-label={`Edit Article ${art.slug}`}
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -164,7 +164,7 @@ export const JournalList: React.FC<JournalListProps> = ({
                   <button
                     type="button"
                     onClick={() => onTogglePublish(art.slug)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors shadow-xs cursor-pointer ${
+                    className={`px-3 py-1.5 min-h-[36px] sm:min-h-0 text-xs font-medium rounded-lg border transition-colors shadow-xs cursor-pointer ${
                       isPub
                         ? 'border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground'
                         : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
@@ -177,7 +177,7 @@ export const JournalList: React.FC<JournalListProps> = ({
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmSlug(art.slug)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 min-h-[36px] sm:min-h-0 rounded-lg border border-destructive/20 bg-destructive/5 hover:bg-destructive/15 text-xs font-medium text-destructive transition-colors cursor-pointer"
                     aria-label={`Delete Article ${art.slug}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

@@ -386,14 +386,14 @@ export const PublishingDashboard: React.FC<PublishingDashboardProps> = ({
       <div className="space-y-2.5">
         <h2 className="text-sm font-semibold text-foreground m-0">Publishing Inventory</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="p-4 rounded-lg border border-border bg-card flex items-center justify-between">
+          <div className="p-4 rounded-lg border border-border bg-card flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-medium text-foreground">Resources</span>
             <span className="text-xs font-mono text-muted-foreground">
               {inventory.publishedResources} Published · {inventory.draftResources} Draft
             </span>
           </div>
 
-          <div className="p-4 rounded-lg border border-border bg-card flex items-center justify-between">
+          <div className="p-4 rounded-lg border border-border bg-card flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-medium text-foreground">Journal</span>
             <span className="text-xs font-mono text-muted-foreground">
               {inventory.publishedJournals} Published · {inventory.draftJournals} Draft

@@ -1,4 +1,24 @@
 import { test, expect } from '@playwright/test';
+import { getPublicResources, getPublicHomePage } from '../src/lib/cms/contentLoader';
+
+const publishedResources = getPublicResources();
+const homePage = getPublicHomePage();
+const primaryResource = publishedResources[0];
+
+const customIds = homePage.sections?.featuredResources?.customResourceIds;
+const customCount = homePage.sections?.featuredResources?.count || 3;
+let featuredPool = publishedResources;
+if (customIds && customIds.length > 0) {
+  const matched = customIds
+    .map((id) => publishedResources.find((r) => r.id === id || r.resourceNumber === id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r));
+  if (matched.length > 0) featuredPool = matched;
+}
+const expectedFeatured = featuredPool.slice(0, customCount);
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 test.describe('AakashDas.live — Simplified Homepage QA', () => {
   test('1. Homepage loads successfully with proper metadata and no console errors', async ({
@@ -146,14 +166,19 @@ test.describe('AakashDas.live — Simplified Homepage QA', () => {
     await expect(statusBox).toBeVisible();
     await expect(statusBox).toContainText(/Please enter a.*resource number/i);
 
-    // Enter valid resource number '001'
-    await input.fill('001');
+    // Enter valid primary resource number and submit
+    const primaryNum = primaryResource?.resourceNumber || '001';
+    const primaryId = primaryResource?.id || primaryNum;
+    const expectedUrlRegex = new RegExp(
+      `/resources/(?:${escapeRegex(primaryNum)}|${escapeRegex(primaryId)})`
+    );
+    await input.fill(primaryNum);
     await submitBtn.click();
-    await page.waitForURL(/\/resources\/001/, { timeout: 10000 });
-    await expect(page).toHaveURL(/\/resources\/001/);
+    await page.waitForURL(expectedUrlRegex, { timeout: 10000 });
+    await expect(page).toHaveURL(expectedUrlRegex);
   });
 
-  test('5. Free Resources cards section displays three items with View all link', async ({
+  test('5. Free Resources cards section displays featured items with View all link', async ({
     page,
   }) => {
     await page.goto('/');
@@ -171,12 +196,14 @@ test.describe('AakashDas.live — Simplified Homepage QA', () => {
     await expect(viewAll).toContainText('View all');
     await expect(viewAll).toHaveAttribute('href', '/resources');
 
-    // Check three cards
+    // Check featured cards match active published snapshot
+    expect(expectedFeatured.length).toBeGreaterThanOrEqual(1);
     const cards = libZone.locator('.featured-card');
-    await expect(cards).toHaveCount(3);
-    await expect(cards.nth(0)).toContainText('Starter Personal Budget Framework');
-    await expect(cards.nth(1)).toContainText('Nepal Banking & Account Checklist');
-    await expect(cards.nth(2)).toContainText('Student Productivity & Semester Tracker');
+    await expect(cards).toHaveCount(expectedFeatured.length);
+    for (let i = 0; i < expectedFeatured.length; i++) {
+      await expect(cards.nth(i)).toContainText(`NO. ${expectedFeatured[i].resourceNumber}`);
+      await expect(cards.nth(i)).toContainText(expectedFeatured[i].title);
+    }
   });
 
   test('6. Journal section displays only the word Journal and is clickable', async ({

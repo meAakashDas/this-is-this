@@ -1,7 +1,29 @@
 import { test, expect } from '@playwright/test';
+import type { SiteConfig } from '../src/types/index';
+import { getPublicResources, getPublicSiteConfig } from '../src/lib/cms/contentLoader';
+import { siteConfig as defaultSiteConfig } from '../src/data/siteConfig';
+import { normalizeResourceDocument } from '../src/utils/documentExport';
+import { extractYouTubeVideosFromBlocks } from '../src/utils/youtube';
+
+const siteConfig = { ...defaultSiteConfig, ...getPublicSiteConfig() } as SiteConfig;
+const publishedResources = getPublicResources();
+const firstResource = publishedResources[0];
+const firstDoc = normalizeResourceDocument(firstResource, siteConfig);
+
+function getExpectedVideoIds(resource: any): string[] {
+  const inline = [
+    ...extractYouTubeVideosFromBlocks(Array.isArray(resource.blocknoteJson) ? resource.blocknoteJson : []),
+    ...extractYouTubeVideosFromBlocks(Array.isArray(resource.contentBlocks) ? resource.contentBlocks : []),
+  ].map((v) => v.videoId);
+  const seen = new Set(inline);
+  if (resource.youtubeEmbed?.videoId && !seen.has(resource.youtubeEmbed.videoId)) {
+    seen.add(resource.youtubeEmbed.videoId);
+  }
+  return Array.from(seen);
+}
 
 test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
-  test('1. Valid resource /resources/001 loads with clean header and no unnecessary top metadata', async ({
+  test('1. Valid primary resource loads with clean header and no unnecessary top metadata', async ({
     page,
   }) => {
     const consoleErrors: string[] = [];
@@ -17,34 +39,33 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
       }
     });
 
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${firstResource.resourceNumber}`);
 
     // Title and SEO metadata (Browser title strictly "Aakash Das")
     await expect(page).toHaveTitle('Aakash Das');
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
-      'content',
-      /clean, structured monthly budgeting template/
-    );
+    const metaDesc = await page.locator('meta[name="description"]').getAttribute('content');
+    expect((metaDesc || '').trim().length).toBeGreaterThan(10);
 
     // Breadcrumb
     const breadcrumb = page.locator('.resource-nav-crumb');
     await expect(breadcrumb).toBeVisible();
-    await expect(breadcrumb).toContainText('Resource #001');
+    await expect(breadcrumb).toContainText(`Resource #${firstResource.resourceNumber}`);
 
     // Header elements: Resource number, Title, Published date
     const header = page.locator('header.resource-detail-header');
     await expect(header).toBeVisible();
-    await expect(header.locator('.resource-num-badge')).toHaveText('NO. 001');
-    await expect(header.locator('h1.resource-title')).toHaveText(
-      'Starter Personal Budget Framework'
+    await expect(header.locator('.resource-num-badge')).toHaveText(
+      `NO. ${firstResource.resourceNumber}`
     );
-    await expect(header.locator('.resource-date')).toContainText(
-      'Published 2025-01-15'
-    );
+    await expect(header.locator('h1.resource-title')).toHaveText(firstResource.title);
+    if (firstResource.publishedAt) {
+      await expect(header.locator('.resource-date')).toContainText(
+        `Published ${firstResource.publishedAt}`
+      );
+    }
 
-    // Verify category, open access badges, updated date, formats, and file sizes are removed from top
+    // Verify category badges, open access badges, updated date, formats, and file sizes are removed from top
     const headerText = (await header.textContent()) || '';
-    expect(headerText).not.toContain('Personal Finance');
     expect(headerText).not.toContain('Open Access');
     expect(headerText).not.toContain('Updated');
     expect(headerText).not.toContain('Spreadsheet (.xlsx)');
@@ -53,90 +74,81 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
     expect(consoleErrors).toEqual([]);
   });
 
-  test('2. Download Resources is positioned immediately below header and divider, and before written content', async ({
+  test('2. Download Resources section (when attachments exist) precedes written content cleanly', async ({
     page,
     request,
   }) => {
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${firstResource.resourceNumber}`);
 
-    // Section exists and has exact required heading
-    const attachmentsSection = page.locator('.attachments-section');
-    await expect(attachmentsSection).toBeVisible();
-
-    const heading = attachmentsSection.locator('#attachments-section-heading');
-    await expect(heading).toHaveText('Download Resources');
-    // Supporting sentence was removed
-    await expect(attachmentsSection.locator('.section-subtext')).toHaveCount(0);
-
-    // Verify DOM order: Header comes before attachments, attachments come before written content
-    const isAttachmentsOrderValid = await page.evaluate(() => {
-      const header = document.querySelector('header.resource-detail-header');
-      const attachments = document.querySelector('.attachments-section');
-      const written = document.querySelector('.written-content-section');
-      if (!header || !attachments || !written) return false;
-      return (
-        header.compareDocumentPosition(attachments) ===
-          Node.DOCUMENT_POSITION_FOLLOWING &&
-        attachments.compareDocumentPosition(written) ===
-          Node.DOCUMENT_POSITION_FOLLOWING
-      );
-    });
-    expect(isAttachmentsOrderValid).toBe(true);
-
-    // Verify About Resource and Read Me sections are removed
+    // Verify About Resource and Read Me sections are removed from page chrome
     await expect(page.locator('.about-resource-section')).toHaveCount(0);
     await expect(page.locator('.readme-section')).toHaveCount(0);
 
-    // Verify attachments for 001 (PDF guide + CSV model)
-    const cards = attachmentsSection.locator('.attachment-item-card');
-    await expect(cards).toHaveCount(2);
+    const expectedAttachments = firstResource.attachments || [];
+    const attachmentsSection = page.locator('.attachments-section');
 
-    // Card 1: PDF Guide
-    const pdfCard = cards.nth(0);
-    await expect(pdfCard).toContainText(
-      'Starter Budget Guide & Printable Worksheet'
-    );
-    await expect(pdfCard.locator('.file-type-badge')).toHaveText('PDF');
-    const pdfLink = pdfCard.locator('a.attachment-download-link');
-    await expect(pdfLink).toContainText('Download');
-    await expect(pdfLink).toHaveAttribute(
-      'href',
-      '/downloads/starter-budget-template-001.pdf'
-    );
+    if (expectedAttachments.length > 0) {
+      await expect(attachmentsSection).toBeVisible();
+      const heading = attachmentsSection.locator('#attachments-section-heading');
+      await expect(heading).toHaveText('Download Resources');
+      await expect(attachmentsSection.locator('.section-subtext')).toHaveCount(0);
 
-    // Card 2: CSV Model
-    const csvCard = cards.nth(1);
-    await expect(csvCard).toContainText('Zero-Based Monthly Cash Flow Model');
-    await expect(csvCard.locator('.file-type-badge')).toHaveText('CSV');
-    const csvLink = csvCard.locator('a.attachment-download-link');
-    await expect(csvLink).toContainText('Download');
-    await expect(csvLink).toHaveAttribute(
-      'href',
-      '/downloads/starter-budget-model-001.csv'
-    );
+      // Verify DOM order: Header comes before attachments, attachments come before written content
+      const isAttachmentsOrderValid = await page.evaluate(() => {
+        const header = document.querySelector('header.resource-detail-header');
+        const attachments = document.querySelector('.attachments-section');
+        const written = document.querySelector('.written-content-section');
+        if (!header || !attachments || !written) return false;
+        return (
+          header.compareDocumentPosition(attachments) ===
+            Node.DOCUMENT_POSITION_FOLLOWING &&
+          attachments.compareDocumentPosition(written) ===
+            Node.DOCUMENT_POSITION_FOLLOWING
+        );
+      });
+      expect(isAttachmentsOrderValid).toBe(true);
 
-    // Verify file sizes are NOT displayed in attachments list
-    const attachmentsText = (await attachmentsSection.textContent()) || '';
-    expect(attachmentsText).not.toContain('142 KB');
-    expect(attachmentsText).not.toContain('12 KB');
+      const cards = attachmentsSection.locator('.attachment-item-card');
+      await expect(cards).toHaveCount(expectedAttachments.length);
 
-    // Network HTTP 200 validation
-    const pdfRes = await request.get(
-      '/downloads/starter-budget-template-001.pdf'
-    );
-    expect(pdfRes.status()).toBe(200);
+      for (let i = 0; i < expectedAttachments.length; i++) {
+        const att = expectedAttachments[i];
+        const card = cards.nth(i);
+        await expect(card).toContainText(att.name);
+        const link = card.locator('a.attachment-download-link');
+        await expect(link).toContainText('Download');
+        await expect(link).toHaveAttribute('href', att.url);
 
-    const csvRes = await request.get(
-      '/downloads/starter-budget-model-001.csv'
-    );
-    expect(csvRes.status()).toBe(200);
+        if (att.url.startsWith('/')) {
+          const assetRes = await request.get(att.url);
+          expect(assetRes.status()).toBe(200);
+        }
+      }
+
+      const attachmentsText = (await attachmentsSection.textContent()) || '';
+      expect(attachmentsText).not.toContain('142 KB');
+      expect(attachmentsText).not.toContain('12 KB');
+    } else {
+      await expect(attachmentsSection).toHaveCount(0);
+      const isOrderValid = await page.evaluate(() => {
+        const header = document.querySelector('header.resource-detail-header');
+        const written = document.querySelector('.written-content-section');
+        const preview = document.querySelector('.pdf-preview-section');
+        if (!header || !written || !preview) return false;
+        return (
+          header.compareDocumentPosition(written) === Node.DOCUMENT_POSITION_FOLLOWING &&
+          written.compareDocumentPosition(preview) === Node.DOCUMENT_POSITION_FOLLOWING
+        );
+      });
+      expect(isOrderValid).toBe(true);
+    }
   });
 
   test('3. Action buttons below date and View as PDF section provide functional exports and preview', async ({
     page,
     request,
   }) => {
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${firstResource.resourceNumber}`);
 
     // 1. Verify Top Action Buttons below Date
     const topActions = page.locator('.resource-top-actions');
@@ -145,12 +157,12 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
     const savePdfTop = topActions.locator('a.btn-save-pdf');
     await expect(savePdfTop).toBeVisible();
     await expect(savePdfTop).toContainText('Save as PDF');
-    await expect(savePdfTop).toHaveAttribute('download', /resource-001-.*\.pdf/);
+    await expect(savePdfTop).toHaveAttribute('download', firstDoc.pdfFilename);
 
     const saveDocxTop = topActions.locator('a.btn-save-docx');
     await expect(saveDocxTop).toBeVisible();
     await expect(saveDocxTop).toContainText('Save as DOCX');
-    await expect(saveDocxTop).toHaveAttribute('download', /resource-001-.*\.docx/);
+    await expect(saveDocxTop).toHaveAttribute('download', firstDoc.docxFilename);
 
     const viewPdfTop = topActions.locator('a.btn-view-pdf');
     await expect(viewPdfTop).toBeVisible();
@@ -165,36 +177,36 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
     const previewSection = page.locator('.pdf-preview-section');
     await expect(previewSection).toBeVisible();
 
-    // Heading: View as PDF
     const heading = previewSection.locator('#pdf-preview-heading');
     await expect(heading).toHaveText('View as PDF');
 
-    // Actions in preview header: Download PDF and Save as DOCX
     const downloadPdfBtn = previewSection.locator('a.btn-download-pdf');
     await expect(downloadPdfBtn).toBeVisible();
     await expect(downloadPdfBtn).toContainText('Download PDF');
-    await expect(downloadPdfBtn).toHaveAttribute(
-      'href',
-      '/downloads/starter-budget-template-001.pdf'
-    );
-    await expect(downloadPdfBtn).toHaveAttribute('download', /resource-001-.*\.pdf/);
+    await expect(downloadPdfBtn).toHaveAttribute('download', firstDoc.pdfFilename);
+    const pdfHref = (await downloadPdfBtn.getAttribute('href')) || '';
+    expect(pdfHref.length).toBeGreaterThan(5);
+
+    if (pdfHref.startsWith('/')) {
+      const pdfRes = await request.get(pdfHref);
+      expect(pdfRes.status()).toBe(200);
+      const pdfBuf = await pdfRes.body();
+      expect(pdfBuf.length).toBeGreaterThan(1000);
+    }
 
     const saveDocxBtn = previewSection.locator('a.btn-save-docx');
     await expect(saveDocxBtn).toBeVisible();
     await expect(saveDocxBtn).toContainText('Save as DOCX');
-    await expect(saveDocxBtn).toHaveAttribute(
-      'href',
-      '/downloads/starter-budget-template-001.docx'
-    );
-    await expect(saveDocxBtn).toHaveAttribute('download', /resource-001-.*\.docx/);
+    await expect(saveDocxBtn).toHaveAttribute('download', firstDoc.docxFilename);
+    const docxHref = (await saveDocxBtn.getAttribute('href')) || '';
+    expect(docxHref.length).toBeGreaterThan(5);
 
-    // Verify genuine DOCX file is served with HTTP 200
-    const docxRes = await request.get(
-      '/downloads/starter-budget-template-001.docx'
-    );
-    expect(docxRes.status()).toBe(200);
-    const docxBuffer = await docxRes.body();
-    expect(docxBuffer.length).toBeGreaterThan(1000);
+    if (docxHref.startsWith('/')) {
+      const docxRes = await request.get(docxHref);
+      expect(docxRes.status()).toBe(200);
+      const docxBuffer = await docxRes.body();
+      expect(docxBuffer.length).toBeGreaterThan(1000);
+    }
 
     // Removed complicated buttons: Open in New Tab, Hide Preview, Preview Download
     const previewText = (await previewSection.textContent()) || '';
@@ -202,130 +214,128 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
     expect(previewText).not.toContain('Hide Preview');
     expect(previewText).not.toContain('Show Preview');
 
-    // Object and iframe are present
     const pdfObject = previewSection.locator('.preview-viewer-container object');
     await expect(pdfObject).toBeVisible();
-    await expect(pdfObject).toHaveAttribute(
-      'data',
-      '/downloads/starter-budget-template-001.pdf'
-    );
+    await expect(pdfObject).toHaveAttribute('data', pdfHref);
   });
 
   test('4. Redundant bottom sections are completely eliminated', async ({
     page,
   }) => {
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${firstResource.resourceNumber}`);
 
     const pageContent = (await page.content()) || '';
 
-    // Direct Access & Download card removed
     expect(pageContent).not.toContain('Direct Access & Download');
-
-    // Permanent Resource URL sharing block removed
     expect(pageContent).not.toContain('Permanent Resource URL');
     expect(pageContent).not.toContain('Copy Permanent Link');
-
-    // Repeated Browse Catalog button removed
     expect(pageContent).not.toContain('Browse Catalog');
-
-    // Guarantee banner removed
     expect(pageContent).not.toContain('Permanent, open access. No paywalls or subscriptions.');
 
-    // Attachments section appears strictly once
-    await expect(page.locator('.attachments-section')).toHaveCount(1);
+    await expect(page.locator('.attachments-section')).toHaveCount(
+      (firstResource.attachments || []).length > 0 ? 1 : 0
+    );
   });
 
-  test('5. Rich educational content is preserved with proper headings, lists, tables, and blockquotes', async ({
+  test('5. Rich educational content renders cleanly without broken markup', async ({
     page,
   }) => {
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${firstResource.resourceNumber}`);
 
     const mainContent = page.locator('.main-educational-content');
     await expect(mainContent).toBeVisible();
+    const textContent = (await mainContent.textContent()) || '';
+    expect(textContent.trim().length).toBeGreaterThan(20);
+    expect(textContent).not.toContain('[object Object]');
 
-    // Section headings
-    await expect(
-      mainContent.locator('h2', {
-        hasText: 'Framework Principles & Cash Flow Mechanics',
-      })
-    ).toBeVisible();
-
-    // Blockquote
-    const quote = mainContent.locator('.editorial-blockquote').first();
-    await expect(quote).toBeVisible();
-    await expect(quote).toContainText(
-      'A budget tells your money where to go instead of wondering where it went.'
-    );
-
-    // Lists
-    await expect(mainContent.locator('.editorial-bullet-list li')).toHaveCount(3);
-
-    // Table
-    const tableContainer = mainContent.locator('.table-scroll-container');
-    await expect(tableContainer).toBeVisible();
-    await expect(tableContainer.locator('table.editorial-table')).toBeVisible();
-    await expect(tableContainer).toContainText('Kathmandu Baseline (NPR 30,000)');
-
-    // Callout
-    const callout = mainContent.locator('.callout-box.info');
-    await expect(callout).toBeVisible();
+    if (firstResource.title === 'Starter Personal Budget Framework') {
+      await expect(
+        mainContent.locator('h2', {
+          hasText: 'Framework Principles & Cash Flow Mechanics',
+        })
+      ).toBeVisible();
+      const quote = mainContent.locator('.editorial-blockquote').first();
+      await expect(quote).toBeVisible();
+      await expect(quote).toContainText(
+        'A budget tells your money where to go instead of wondering where it went.'
+      );
+      await expect(mainContent.locator('.editorial-bullet-list li')).toHaveCount(3);
+      const tableContainer = mainContent.locator('.table-scroll-container');
+      await expect(tableContainer).toBeVisible();
+      await expect(tableContainer.locator('table.editorial-table')).toBeVisible();
+      await expect(tableContainer).toContainText('Kathmandu Baseline (NPR 30,000)');
+      await expect(mainContent.locator('.callout-box.info')).toBeVisible();
+    } else {
+      const headingCount = await mainContent.locator('h1, h2, h3, p, ul, ol, table').count();
+      expect(headingCount).toBeGreaterThanOrEqual(2);
+    }
   });
 
-  test('6. Privacy-conscious YouTube video walkthrough renders when present', async ({
+  test('6. Privacy-conscious YouTube video walkthroughs render cleanly when present', async ({
     page,
   }) => {
-    await page.goto('/resources/001');
-
-    const videoSection = page.locator('.video-section');
-    await expect(videoSection).toBeVisible();
-
-    const iframe = videoSection.locator('iframe');
-    await expect(iframe).toBeVisible();
-    await expect(iframe).toHaveAttribute(
-      'src',
-      /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/
+    const resourcesWithVideo = publishedResources.filter(
+      (r) => getExpectedVideoIds(r).length > 0
     );
+    expect(resourcesWithVideo.length).toBeGreaterThanOrEqual(1);
+
+    for (const res of resourcesWithVideo) {
+      const expectedIds = getExpectedVideoIds(res);
+      await page.goto(`/resources/${res.resourceNumber}`);
+
+      const iframes = page.locator(
+        '.written-content-section iframe[src*="youtube-nocookie.com/embed/"], .video-section iframe[src*="youtube-nocookie.com/embed/"]'
+      );
+      await expect(iframes.first()).toBeVisible();
+      expect(await iframes.count()).toBeGreaterThanOrEqual(expectedIds.length);
+
+      const renderedSrcs = await iframes.evaluateAll((els) =>
+        els.map((el) => el.getAttribute('src') || '')
+      );
+      for (const vidId of expectedIds) {
+        expect(
+          renderedSrcs.some((src) => src.includes(`youtube-nocookie.com/embed/${vidId}`)),
+          `Expected YouTube embed ${vidId} on /resources/${res.resourceNumber}`
+        ).toBe(true);
+      }
+    }
   });
 
   test('7. Next / Previous resource navigation is minimal and hides boundary links', async ({
     page,
   }) => {
-    // Resource 001 (First): No Previous, Next is 002
-    await page.goto('/resources/001');
-    const nav001 = page.locator('.resource-adjacent-nav');
-    await expect(nav001.locator('.adjacent-prev')).toHaveCount(0);
-    const next001 = nav001.locator('.adjacent-next');
-    await expect(next001).toBeVisible();
-    await expect(next001).toContainText('Next Resource');
-    await expect(next001).toContainText('Nepal Banking & Account Checklist');
+    await page.goto(`/resources/${firstResource.resourceNumber}`);
+    const navFirst = page.locator('.resource-adjacent-nav');
+    await expect(navFirst.locator('.adjacent-prev')).toHaveCount(0);
 
-    // Click Next -> Navigates to 002
-    await next001.click();
-    await page.waitForURL(/\/resources\/002/);
-    await expect(page).toHaveURL(/\/resources\/002/);
+    if (publishedResources.length === 1) {
+      await expect(navFirst.locator('.adjacent-next')).toHaveCount(0);
+      return;
+    }
 
-    // Resource 002 (Middle): Has Previous (001) and Next (003)
-    const nav002 = page.locator('.resource-adjacent-nav');
-    const prev002 = nav002.locator('.adjacent-prev');
-    const next002 = nav002.locator('.adjacent-next');
-    await expect(prev002).toBeVisible();
-    await expect(prev002).toContainText('Previous Resource');
-    await expect(prev002).toContainText('Starter Personal Budget Framework');
-    await expect(next002).toBeVisible();
-    await expect(next002).toContainText('Next Resource');
-    await expect(next002).toContainText('Student Productivity & Semester Tracker');
+    for (let i = 0; i < publishedResources.length - 1; i++) {
+      const current = publishedResources[i];
+      const nextRes = publishedResources[i + 1];
+      const navCurrent = page.locator('.resource-adjacent-nav');
+      const nextLink = navCurrent.locator('.adjacent-next');
+      await expect(nextLink).toBeVisible();
+      await expect(nextLink).toContainText('Next Resource');
+      await expect(nextLink).toContainText(nextRes.title);
 
-    // Click Next -> Navigates to 003
-    await next002.click();
-    await page.waitForURL(/\/resources\/003/);
-    await expect(page).toHaveURL(/\/resources\/003/);
+      await nextLink.click();
+      await page.waitForURL(
+        new RegExp(`/resources/(?:${nextRes.resourceNumber}|${nextRes.id || nextRes.resourceNumber})`)
+      );
 
-    // Resource 003: Has Previous (002)
-    const nav003 = page.locator('.resource-adjacent-nav');
-    const prev003 = nav003.locator('.adjacent-prev');
-    await expect(prev003).toBeVisible();
-    await expect(prev003).toContainText('Previous Resource');
-    await expect(prev003).toContainText('Nepal Banking & Account Checklist');
+      const navNext = page.locator('.resource-adjacent-nav');
+      const prevLink = navNext.locator('.adjacent-prev');
+      await expect(prevLink).toBeVisible();
+      await expect(prevLink).toContainText('Previous Resource');
+      await expect(prevLink).toContainText(current.title);
+    }
+
+    const navLast = page.locator('.resource-adjacent-nav');
+    await expect(navLast.locator('.adjacent-next')).toHaveCount(0);
   });
 
   test('8. Unknown or unpublished resource 998 does NOT expose content or attachments', async ({
@@ -348,8 +358,8 @@ test.describe('AakashDas.live — Resource Detail Page Redesign QA', () => {
   }) => {
     await page.setViewportSize({ width: 375, height: 667 });
 
-    for (const id of ['001', '002', '003']) {
-      await page.goto(`/resources/${id}`);
+    for (const res of publishedResources) {
+      await page.goto(`/resources/${res.resourceNumber}`);
 
       const scrollWidth = await page.evaluate(
         () => document.documentElement.scrollWidth

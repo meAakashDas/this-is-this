@@ -135,6 +135,17 @@ test.describe('Resources Pipeline — End-to-End YouTube Video Verification', ()
             children: [],
           },
           {
+            id: 'v-live',
+            type: 'video',
+            props: {
+              url: 'https://www.youtube.com/live/jfKfPfyJRdk',
+              name: 'Live Stream Session',
+              caption: '',
+              showPreview: true,
+            },
+            children: [],
+          },
+          {
             id: 'v-invalid',
             type: 'video',
             props: {
@@ -170,6 +181,23 @@ test.describe('Resources Pipeline — End-to-End YouTube Video Verification', ()
     await edit097Btn.click();
 
     await expect(page.locator('.resource-editor-container')).toBeVisible();
+
+    // Verify Admin Document Canvas renders responsive 16:9 YouTube iframes (not blank black <video> boxes)
+    const adminCanvas = page.locator('.blocknote-canvas-container');
+    const adminIframes = adminCanvas.locator('iframe[src*="youtube-nocookie.com/embed/"]');
+    await expect(adminIframes).toHaveCount(5, { timeout: 10000 });
+    await expect(adminCanvas.locator('video')).toHaveCount(0);
+    await expect(adminCanvas.locator('[data-video-kind="invalid"]')).toContainText(
+      'Invalid or unsupported video URL'
+    );
+    const firstAdminIframeBox = await adminIframes.first().boundingBox();
+    expect(firstAdminIframeBox).not.toBeNull();
+    expect(firstAdminIframeBox!.width).toBeGreaterThan(200);
+    expect(firstAdminIframeBox!.height).toBeGreaterThan(100);
+    const adminRatio = firstAdminIframeBox!.width / firstAdminIframeBox!.height;
+    expect(adminRatio).toBeGreaterThan(1.65);
+    expect(adminRatio).toBeLessThan(1.9);
+
     // Click Update without altering content to confirm regeneration & persistence
     await page.locator('button:has-text("Update")').click();
     await expect(
@@ -181,6 +209,10 @@ test.describe('Resources Pipeline — End-to-End YouTube Video Verification', ()
     await expect(page.locator('.resource-editor-container')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('.resource-editor-container')).toContainText('NO. 097');
     await expect(page.locator('.blocknote-canvas-container h2', { hasText: 'Section 1' })).toBeVisible();
+    await expect(adminCanvas.locator('iframe[src*="youtube-nocookie.com/embed/"]')).toHaveCount(5, {
+      timeout: 10000,
+    });
+    await expect(adminCanvas.locator('video')).toHaveCount(0);
 
     const savedRecord = await page.evaluate(() => {
       const raw = sessionStorage.getItem('aakashdas_cms_resources_preview');
@@ -189,15 +221,16 @@ test.describe('Resources Pipeline — End-to-End YouTube Video Verification', ()
     });
     expect(savedRecord).toBeTruthy();
 
-    // Verify all 4 valid videos remain in blocknoteJson, blocknoteHtml, and contentBlocks
+    // Verify all 5 valid videos remain in blocknoteJson, blocknoteHtml, and contentBlocks
     const videoBlocks = (savedRecord.blocknoteJson || []).filter((b: any) => b?.type === 'video');
-    expect(videoBlocks.length).toBeGreaterThanOrEqual(4);
+    expect(videoBlocks.length).toBeGreaterThanOrEqual(5);
 
     const html = String(savedRecord.blocknoteHtml || '');
     expect(html).toContain('https://www.youtube-nocookie.com/embed/J32SjC1LTMs');
     expect(html).toContain('https://www.youtube-nocookie.com/embed/Unzc731iCUY');
     expect(html).toContain('https://www.youtube-nocookie.com/embed/MCDVcQIA3UM');
     expect(html).toContain('https://www.youtube-nocookie.com/embed/atw9Nx0Njzo');
+    expect(html).toContain('https://www.youtube-nocookie.com/embed/jfKfPfyJRdk');
     expect(html).not.toContain('javascript:alert');
     expect(html).not.toContain('watch?v=Unzc731iCUY'); // stripped fake URL stub title
 
@@ -225,6 +258,7 @@ test.describe('Resources Pipeline — End-to-End YouTube Video Verification', ()
     expect(pdfText).toContain('youtu.be/Unzc731iCUY');
     expect(pdfText).toContain('youtube.com/shorts/MCDVcQIA3UM');
     expect(pdfText).toContain('youtube.com/embed/atw9Nx0Njzo');
+    expect(pdfText).toContain('youtube.com/live/jfKfPfyJRdk');
     expect(pdfText).not.toContain('javascript:alert');
 
     // Verify generated DOCX bytes contain valid ZIP header & video text

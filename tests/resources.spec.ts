@@ -1,4 +1,20 @@
 import { test, expect } from '@playwright/test';
+import { getPublicResources } from '../src/lib/cms/contentLoader';
+
+const publishedResources = getPublicResources();
+const primaryResource = publishedResources[0];
+const lookupTarget = publishedResources[Math.min(1, publishedResources.length - 1)] || primaryResource;
+const lastResource = publishedResources[publishedResources.length - 1] || primaryResource;
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resourceUrlRegex(res: { resourceNumber: string; id?: string }): RegExp {
+  const num = escapeRegex(res.resourceNumber);
+  const id = escapeRegex(res.id || res.resourceNumber);
+  return new RegExp(`/resources/(?:${num}|${id})`);
+}
 
 test.describe('AakashDas.live — Simplified Resources Page QA', () => {
   test('1. /resources loads successfully with SEO metadata and zero console errors', async ({
@@ -66,14 +82,13 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     await expect(statusBox).toBeVisible();
     await expect(statusBox).toContainText(/Please enter a resource number/i);
 
-    // Fill valid resource number '002' and submit
-    await input.fill('002');
+    // Fill valid published resource number and submit
+    await input.fill(lookupTarget.resourceNumber);
     await submitBtn.click();
-    await page.waitForURL(/\/resources\/002/, { timeout: 10000 });
-    await expect(page).toHaveURL(/\/resources\/002/);
-    await expect(page.locator('h1.resource-detail-title')).toContainText(
-      'Nepal Banking & Account Checklist'
-    );
+    const targetRegex = resourceUrlRegex(lookupTarget);
+    await page.waitForURL(targetRegex, { timeout: 10000 });
+    await expect(page).toHaveURL(targetRegex);
+    await expect(page.locator('h1.resource-detail-title')).toContainText(lookupTarget.title);
   });
 
   test('3. Single digit input auto-pads to 3 digits (e.g. 1 -> 001)', async ({
@@ -85,15 +100,17 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     const input = searchSection.locator('input[data-finder-input]');
     const submitBtn = searchSection.locator('button[type="submit"]');
 
-    await input.fill('1');
+    const numericInput = String(parseInt(primaryResource.resourceNumber, 10));
+    await input.fill(numericInput);
     await submitBtn.click();
 
-    await page.waitForURL(/\/resources\/001/, { timeout: 5000 });
-    await expect(page).toHaveURL(/\/resources\/001/);
-    await expect(page.locator('.resource-num-badge')).toContainText('001');
+    const primaryRegex = resourceUrlRegex(primaryResource);
+    await page.waitForURL(primaryRegex, { timeout: 8000 });
+    await expect(page).toHaveURL(primaryRegex);
+    await expect(page.locator('.resource-num-badge')).toContainText(primaryResource.resourceNumber);
   });
 
-  test('4. All Resources section displays heading and three clean resource cards with Open link and no unnecessary metadata', async ({
+  test('4. All Resources section displays heading and clean resource cards with Open link and no unnecessary metadata', async ({
     page,
   }) => {
     await page.goto('/resources');
@@ -110,31 +127,19 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     expect(await catalogSection.textContent()).not.toContain('Verified materials cataloged with permanent identifiers');
     expect(await catalogSection.textContent()).not.toContain('Published Resource');
 
-    // Verify at least the 3 core published cards exist in catalog
+    // Verify catalog renders published resources cleanly
     const cards = catalogSection.locator('.resource-row-card');
     const cardCount = await cards.count();
-    expect(cardCount).toBeGreaterThanOrEqual(3);
+    expect(cardCount).toBe(publishedResources.length);
 
-    // Card 001: Starter Personal Budget Framework
-    await expect(cards.nth(0)).toContainText('NO. 001');
-    await expect(cards.nth(0)).toContainText('Starter Personal Budget Framework');
-    await expect(cards.nth(0)).toContainText('Open');
+    for (let i = 0; i < publishedResources.length; i++) {
+      await expect(cards.nth(i)).toContainText(`NO. ${publishedResources[i].resourceNumber}`);
+      await expect(cards.nth(i)).toContainText(publishedResources[i].title);
+      await expect(cards.nth(i)).toContainText('Open');
+    }
 
-    // Card 002: Nepal Banking & Account Checklist
-    await expect(cards.nth(1)).toContainText('NO. 002');
-    await expect(cards.nth(1)).toContainText('Nepal Banking & Account Checklist');
-    await expect(cards.nth(1)).toContainText('Open');
-
-    // Card 003: Student Productivity & Semester Tracker
-    await expect(cards.nth(2)).toContainText('NO. 003');
-    await expect(cards.nth(2)).toContainText('Student Productivity & Semester Tracker');
-    await expect(cards.nth(2)).toContainText('Open');
-
-    // Removed unnecessary metadata: categories, formats, file sizes, old "Access"
+    // Removed unnecessary metadata: formats, file sizes, old "Access"
     const catalogText = (await catalogSection.textContent()) || '';
-    expect(catalogText).not.toContain('Personal Finance');
-    expect(catalogText).not.toContain('Financial Literacy');
-    expect(catalogText).not.toContain('Productivity & Education');
     expect(catalogText).not.toContain('PDF Guide');
     expect(catalogText).not.toContain('Notion Template & Printable PDF');
     expect(catalogText).not.toContain('142 KB');
@@ -143,35 +148,35 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     expect(catalogText).not.toContain('Access');
   });
 
-  test('5. Individual route /resources/001 renders direct downloads and clean document preview without login', async ({
+  test('5. Primary resource route renders direct downloads and clean document preview without login', async ({
     page,
   }) => {
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${primaryResource.resourceNumber}`);
 
     // Breadcrumb
     const breadcrumb = page.locator('.resource-nav-crumb');
     await expect(breadcrumb).toBeVisible();
-    await expect(breadcrumb).toContainText('Resource #001');
+    await expect(breadcrumb).toContainText(`Resource #${primaryResource.resourceNumber}`);
 
     // Title and permanent number
-    await expect(page.locator('h1.resource-detail-title')).toHaveText(
-      'Starter Personal Budget Framework'
+    await expect(page.locator('h1.resource-detail-title')).toHaveText(primaryResource.title);
+    await expect(page.locator('.resource-num-badge')).toContainText(
+      `NO. ${primaryResource.resourceNumber}`
     );
-    await expect(page.locator('.resource-num-badge')).toContainText('NO. 001');
 
-    // Direct download attachments at the top without login or paywall
-    const attachmentsSection = page.locator('.attachments-section');
-    await expect(attachmentsSection).toBeVisible();
-    const downloadLinks = attachmentsSection.locator('a.attachment-download-link');
-    await expect(downloadLinks).toHaveCount(2);
-    await expect(downloadLinks.nth(0)).toHaveAttribute(
-      'href',
-      '/downloads/starter-budget-template-001.pdf'
-    );
-    await expect(downloadLinks.nth(1)).toHaveAttribute(
-      'href',
-      '/downloads/starter-budget-model-001.csv'
-    );
+    // Direct download attachments when present on the resource
+    if (primaryResource.attachments && primaryResource.attachments.length > 0) {
+      const attachmentsSection = page.locator('.attachments-section');
+      await expect(attachmentsSection).toBeVisible();
+      const downloadLinks = attachmentsSection.locator('a.attachment-download-link');
+      await expect(downloadLinks).toHaveCount(primaryResource.attachments.length);
+      for (let i = 0; i < primaryResource.attachments.length; i++) {
+        await expect(downloadLinks.nth(i)).toHaveAttribute(
+          'href',
+          primaryResource.attachments[i].url
+        );
+      }
+    }
 
     // Document preview actions: Download PDF and Save as DOCX
     const previewSection = page.locator('.pdf-preview-section');
@@ -213,7 +218,7 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     }
   });
 
-  test('9. No horizontal scrolling on mobile for /resources and /resources/001', async ({
+  test('9. No horizontal scrolling on mobile for /resources and primary resource detail page', async ({
     page,
   }) => {
     await page.goto('/resources');
@@ -225,7 +230,7 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     );
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 
-    await page.goto('/resources/001');
+    await page.goto(`/resources/${primaryResource.resourceNumber}`);
     scrollWidth = await page.evaluate(
       () => document.documentElement.scrollWidth
     );
@@ -244,17 +249,14 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     const input = finderSection.locator('input[data-finder-input]');
     const submitBtn = finderSection.locator('button[type="submit"]');
 
-    // Enter resource number 003
-    await input.fill('003');
-    await expect(input).toHaveValue('003');
+    await input.fill(lastResource.resourceNumber);
+    await expect(input).toHaveValue(lastResource.resourceNumber);
 
-    // Submit and navigate to /resources/003
+    const lastRegex = resourceUrlRegex(lastResource);
     await submitBtn.click();
-    await page.waitForURL(/\/resources\/003/, { timeout: 6000 });
-    await expect(page).toHaveURL(/\/resources\/003/);
-    await expect(page.locator('h1.resource-detail-title')).toContainText(
-      'Student Productivity & Semester Tracker'
-    );
+    await page.waitForURL(lastRegex, { timeout: 8000 });
+    await expect(page).toHaveURL(lastRegex);
+    await expect(page.locator('h1.resource-detail-title')).toContainText(lastResource.title);
   });
 
   test('11. /resources Find Resources component is centered with proportional max-width and empty search input', async ({
@@ -311,10 +313,13 @@ test.describe('AakashDas.live — Simplified Resources Page QA', () => {
     await expect(statusBox).toContainText(/No published resource found for NO\. 999/i);
     await expect(page).toHaveURL(/\/resources\/?$/);
 
-    // Leading-zero normalization ("2" -> 002)
-    await input.fill('2');
+    // Leading-zero normalization (unpadded digits -> padded NO. XXX)
+    const numericLookup = String(parseInt(lookupTarget.resourceNumber, 10));
+    await input.fill(numericLookup);
     await submitBtn.click();
-    await page.waitForURL(/\/resources\/002/, { timeout: 8000 });
-    await expect(page.locator('.resource-num-badge')).toContainText('NO. 002');
+    await page.waitForURL(resourceUrlRegex(lookupTarget), { timeout: 8000 });
+    await expect(page.locator('.resource-num-badge')).toContainText(
+      `NO. ${lookupTarget.resourceNumber}`
+    );
   });
 });

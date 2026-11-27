@@ -73,6 +73,10 @@ export function sanitizeHttpVideoUrl(rawUrl: unknown): string | null {
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return null;
     }
+    const host = parsed.hostname.toLowerCase();
+    if (!host || (!host.includes('.') && host !== 'localhost')) {
+      return null;
+    }
     return parsed.toString();
   } catch {
     return null;

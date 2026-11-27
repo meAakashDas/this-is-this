@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { getPublicResources, getPublicJournalArticles } from '../src/lib/cms/contentLoader';
 
 /**
  * Production Verification Suite:
@@ -9,15 +10,17 @@ import { test, expect } from '@playwright/test';
  * - Inline PDF Data URI conversion helper works cleanly if Data URI PDFs exist
  */
 
+const publishedResources = getPublicResources();
+const publishedArticles = getPublicJournalArticles();
+const primaryResourceNumber = publishedResources[0]?.resourceNumber || '001';
+
 const PUBLIC_ROUTES = [
   '/',
   '/about',
   '/resources',
-  '/resources/001',
-  '/resources/002',
-  '/resources/003',
+  ...publishedResources.map((r) => `/resources/${r.resourceNumber}`),
   '/journal',
-  '/journal/why-i-believe-in-learning-in-public',
+  ...(publishedArticles[0]?.slug ? [`/journal/${publishedArticles[0].slug}`] : []),
 ];
 
 test.describe('RisePaisa Production Integrity & Synchronization QA', () => {
@@ -61,7 +64,10 @@ test.describe('RisePaisa Production Integrity & Synchronization QA', () => {
   test('2. Every published resource attachment and preview PDF URL resolves with HTTP 200', async ({
     page,
   }) => {
-    for (const id of ['001', '002', '003']) {
+    expect(publishedResources.length).toBeGreaterThanOrEqual(1);
+
+    for (const res of publishedResources) {
+      const id = res.resourceNumber;
       await page.goto(`/resources/${id}`, { waitUntil: 'load' });
       await page.waitForTimeout(1200);
 
@@ -84,9 +90,9 @@ test.describe('RisePaisa Production Integrity & Synchronization QA', () => {
       expect(assetUrls.length, `Resource #${id} downloadable URLs`).toBeGreaterThanOrEqual(2);
 
       for (const url of assetUrls) {
-        const res = await page.request.get(url);
-        expect(res.status(), `Asset ${url} HTTP status`).toBe(200);
-        const body = await res.body();
+        const resAsset = await page.request.get(url);
+        expect(resAsset.status(), `Asset ${url} HTTP status`).toBe(200);
+        const body = await resAsset.body();
         expect(body.byteLength, `Asset ${url} non-empty`).toBeGreaterThan(50);
         if (url.endsWith('.pdf')) {
           expect(body.subarray(0, 4).toString('utf-8')).toBe('%PDF');
@@ -113,7 +119,7 @@ test.describe('RisePaisa Production Integrity & Synchronization QA', () => {
   test('4. Client-side live sync updates DOM dynamically when Firestore resource response changes', async ({
     page,
   }) => {
-    await page.goto('/resources/001', { waitUntil: 'load' });
+    await page.goto(`/resources/${primaryResourceNumber}`, { waitUntil: 'load' });
     await page.waitForTimeout(1500);
     const titleText = await page.locator('.resource-title').textContent();
     expect(titleText?.trim().length).toBeGreaterThan(5);

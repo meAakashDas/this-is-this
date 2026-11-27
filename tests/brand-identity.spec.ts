@@ -1,16 +1,27 @@
 import { test, expect } from '@playwright/test';
+import { getPublicResources, getPublicJournalArticles } from '../src/lib/cms/contentLoader';
+
+const publishedResources = getPublicResources();
+const publishedArticles = getPublicJournalArticles();
 
 test.describe('Brand Identity — Favicon, Browser Title & URL Architecture', () => {
   const routes = [
     { path: '/', name: 'Homepage' },
     { path: '/about', name: 'About' },
     { path: '/resources', name: 'Resources' },
-    { path: '/resources/001', name: 'Resource Detail 001' },
-    { path: '/resources/002', name: 'Resource Detail 002' },
-    { path: '/resources/003', name: 'Resource Detail 003' },
-    { path: '/resources/004', name: 'Resource Detail 004' },
+    ...publishedResources.flatMap((res) => {
+      const entries = [
+        { path: `/resources/${res.resourceNumber}`, name: `Resource Detail ${res.resourceNumber}` },
+      ];
+      if (res.id && res.id !== res.resourceNumber) {
+        entries.push({ path: `/resources/${res.id}`, name: `Resource Canonical ${res.id}` });
+      }
+      return entries;
+    }),
     { path: '/journal', name: 'Journal' },
-    { path: '/journal/why-i-believe-in-learning-in-public', name: 'Journal Article' },
+    ...(publishedArticles[0]?.slug
+      ? [{ path: `/journal/${publishedArticles[0].slug}`, name: 'Journal Article' }]
+      : []),
     { path: '/404', name: '404 Page' },
   ];
 

@@ -14,6 +14,17 @@ import {
   uploadBinaryPermanently,
   formatFileSizeBytes,
 } from '../lib/cms/storageUpload.ts';
+import {
+  extractVideoBlockInfo,
+  extractYouTubeVideosFromBlocks,
+  type ParsedVideoBlock,
+} from './youtube.ts';
+
+export interface ClientThumbnailAsset {
+  dataUrl: string;
+  bytes: Uint8Array;
+  type: 'JPEG';
+}
 
 const PDF_MIME = 'application/pdf';
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -36,7 +47,7 @@ export async function computeResourceContentVersion(
   resource: Partial<ResourceDocument>
 ): Promise<string> {
   const canonical = stableSerialize({
-    exportSchemaVersion: 2,
+    exportSchemaVersion: 3,
     resourceNumber: resource.resourceNumber || '',
     title: resource.title || '',
     shortDescription: resource.shortDescription || '',
@@ -163,11 +174,134 @@ function renderUnicodeLineToDataUrl(
   }
 }
 
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes).toString('base64');
+  }
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function base64ToUint8Array(b64: string): Uint8Array {
+  if (typeof Buffer !== 'undefined') {
+    return new Uint8Array(Buffer.from(b64, 'base64'));
+  }
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    out[i] = bin.charCodeAt(i);
+  }
+  return out;
+}
+
+async function compressThumbnailForExport(rawBytes: Uint8Array): Promise<ClientThumbnailAsset> {
+  if (typeof document !== 'undefined' && typeof Image !== 'undefined') {
+    try {
+      const copy = new Uint8Array(rawBytes.byteLength);
+      copy.set(rawBytes);
+      const blob = new Blob([copy.buffer], { type: 'image/jpeg' });
+      const blobUrl = URL.createObjectURL(blob);
+      try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = () => reject(new Error('Image decode failed'));
+          el.src = blobUrl;
+        });
+        const targetW = 320;
+        const targetH = 180;
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#09090B';
+          ctx.fillRect(0, 0, targetW, targetH);
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+          const b64Part = dataUrl.split(',')[1] || '';
+          if (b64Part) {
+            return {
+              dataUrl,
+              bytes: base64ToUint8Array(b64Part),
+              type: 'JPEG',
+            };
+          }
+        }
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch {
+      // Fall back to original JPEG bytes cleanly
+    }
+  }
+
+  return {
+    dataUrl: `data:image/jpeg;base64,${uint8ArrayToBase64(rawBytes)}`,
+    bytes: rawBytes,
+    type: 'JPEG',
+  };
+}
+
+/**
+ * Fetches YouTube video thumbnails (`hqdefault.jpg`) for all unique inline/legacy video IDs.
+ * Fails softly per video if offline or blocked so PDF/DOCX export always succeeds.
+ */
+export async function fetchYouTubeThumbnailsForClient(
+  doc: NormalizedResourceDocument
+): Promise<Record<string, ClientThumbnailAsset>> {
+  const inlineVideos = extractYouTubeVideosFromBlocks(
+    Array.isArray(doc.blocknoteJson) && doc.blocknoteJson.length > 0
+      ? doc.blocknoteJson
+      : doc.contentBlocks
+  );
+  const videoIds = new Set<string>(inlineVideos.map((v) => v.videoId));
+  if (doc.youtube?.videoId) {
+    videoIds.add(doc.youtube.videoId);
+  }
+
+  const map: Record<string, ClientThumbnailAsset> = {};
+  if (videoIds.size === 0 || typeof fetch !== 'function') {
+    return map;
+  }
+
+  await Promise.allSettled(
+    Array.from(videoIds).map(async (videoId) => {
+      try {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
+        try {
+          const res = await fetch(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`, {
+            signal: controller?.signal,
+          });
+          if (!res.ok) return;
+          const buf = await res.arrayBuffer();
+          if (!buf || buf.byteLength < 100) return;
+          map[videoId] = await compressThumbnailForExport(new Uint8Array(buf));
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      } catch {
+        // Missing/unreachable thumbnail must never abort document generation
+      }
+    })
+  );
+
+  return map;
+}
+
 /**
  * Generates an actual A4 vector PDF file in browser/Node with full typography,
- * wrapped tables, lists, checklists, blockquotes, links, page numbers, and images.
+ * wrapped tables, lists, checklists, blockquotes, links, page numbers, videos, and images.
  */
-export async function generateClientPdfBytes(doc: NormalizedResourceDocument): Promise<Uint8Array> {
+export async function generateClientPdfBytes(
+  doc: NormalizedResourceDocument,
+  videoThumbnails: Record<string, ClientThumbnailAsset> = {}
+): Promise<Uint8Array> {
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -616,6 +750,104 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
     drawTextBlock(doc.targetAudience, { fontSize: 10, spaceAfter: 3 });
   }
 
+  const renderedVideoIds = new Set<string>();
+
+  const drawVideoCard = (video: ParsedVideoBlock, indentMm: number = 0) => {
+    const thumb = video.kind === 'youtube' ? videoThumbnails[video.videoId] : undefined;
+    const hasThumb = Boolean(thumb?.dataUrl);
+    const thumbW = 68;
+    const thumbH = 38.25; // exact 16:9
+    const titleLabel = video.title || (video.kind === 'youtube' ? 'YouTube Video' : 'Video Resource');
+    const urlLines = pdf.splitTextToSize(
+      normalizeWinAnsi(video.originalUrl),
+      Math.max(40, contentWidth - indentMm - 8)
+    ) as string[];
+    const captionLines = video.caption
+      ? (pdf.splitTextToSize(
+          normalizeWinAnsi(video.caption),
+          Math.max(40, contentWidth - indentMm - 8)
+        ) as string[])
+      : [];
+
+    const estimatedHeight =
+      10 +
+      (captionLines.length > 0 ? captionLines.length * 4 + 2 : 0) +
+      (hasThumb ? thumbH + 4 : 0) +
+      6 +
+      urlLines.length * 3.8 +
+      5;
+
+    ensureSpace(Math.min(estimatedHeight + 3, bottomLimit - topY));
+
+    const cardX = marginX + indentMm;
+    const cardW = Math.max(40, contentWidth - indentMm);
+    const startY = y;
+
+    // Pre-draw soft container background & border after measuring exact height below
+    let innerY = startY + 5.5;
+
+    pdf.setFillColor(250, 250, 250);
+    pdf.setDrawColor(228, 228, 231);
+    pdf.roundedRect(cardX, startY, cardW, estimatedHeight, 1.8, 1.8, 'FD');
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(17, 17, 17);
+    const safeTitle = normalizeWinAnsi(titleLabel).slice(0, 82);
+    pdf.text(safeTitle, cardX + 4, innerY);
+    innerY += 5;
+
+    if (captionLines.length > 0) {
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(113, 113, 122);
+      for (const cLine of captionLines) {
+        pdf.text(cLine, cardX + 4, innerY);
+        innerY += 4;
+      }
+      innerY += 1.5;
+    }
+
+    if (hasThumb && thumb) {
+      try {
+        pdf.addImage(thumb.dataUrl, thumb.type, cardX + 4, innerY, thumbW, thumbH);
+        pdf.setDrawColor(212, 212, 216);
+        pdf.rect(cardX + 4, innerY, thumbW, thumbH, 'S');
+        pdf.link(cardX + 4, innerY, thumbW, thumbH, { url: video.originalUrl });
+        innerY += thumbH + 4.5;
+      } catch {
+        // Ignore broken image gracefully without empty gap
+      }
+    }
+
+    if (video.kind === 'youtube') {
+      renderedVideoIds.add(video.videoId);
+      const watchLabel = 'Watch on YouTube ->';
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(9, 105, 218);
+      pdf.textWithLink(watchLabel, cardX + 4, innerY, { url: video.originalUrl });
+      const linkW = pdf.getTextWidth(watchLabel);
+      pdf.setDrawColor(9, 105, 218);
+      pdf.line(cardX + 4, innerY + 0.6, cardX + 4 + linkW, innerY + 0.6);
+      innerY += 5;
+    }
+
+    pdf.setFont('courier', 'normal');
+    pdf.setFontSize(7.8);
+    pdf.setTextColor(82, 82, 91);
+    for (let uIdx = 0; uIdx < urlLines.length; uIdx++) {
+      if (uIdx === 0) {
+        pdf.textWithLink(urlLines[uIdx], cardX + 4, innerY, { url: video.originalUrl });
+      } else {
+        pdf.text(urlLines[uIdx], cardX + 4, innerY);
+      }
+      innerY += 3.8;
+    }
+
+    y = startY + estimatedHeight + 4;
+  };
+
   const renderBlockNoteListToPdf = (blocks: any[], depth: number = 0) => {
     let orderedIdx = 0;
     const indentBase = depth * 5;
@@ -751,6 +983,16 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
           }
           break;
         }
+        case 'video':
+        case 'youtube':
+        case 'youtubeEmbed':
+        case 'embed': {
+          const parsedVideo = extractVideoBlockInfo(block);
+          if (parsedVideo) {
+            drawVideoCard(parsedVideo, indentBase);
+          }
+          break;
+        }
         default: {
           if (text) {
             drawTextBlock(text, { fontSize: 10.5, indentMm: indentBase, spaceAfter: 2 });
@@ -805,24 +1047,28 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
         pdf.setDrawColor(228, 228, 231);
         pdf.line(marginX, y, pageWidth - marginX, y);
         y += 4;
+      } else if (block.type === 'video') {
+        const parsedVideo = extractVideoBlockInfo(block);
+        if (parsedVideo) {
+          drawVideoCard(parsedVideo, 0);
+        }
       }
     }
   }
 
-  // Video Walkthrough section (when configured)
-  if (doc.youtube) {
+  // Video Walkthrough section (legacy bottom embed, omitted if already rendered inline)
+  if (doc.youtube && !renderedVideoIds.has(doc.youtube.videoId)) {
     drawSectionTitle('Video Walkthrough');
-    drawTextBlock(doc.youtube.title, { fontSize: 11, bold: true, color: [17, 17, 17], spaceAfter: 1.5 });
-    if (doc.youtube.caption) {
-      drawTextBlock(doc.youtube.caption, { fontSize: 9.5, color: [113, 113, 122], spaceAfter: 2 });
-    }
-    drawRichParagraph(
-      [
-        { text: 'Direct Streaming Link: ', bold: true, color: [63, 63, 70] },
-        { text: doc.youtube.watchUrl, linkUrl: doc.youtube.watchUrl, color: [9, 105, 218] },
-      ],
-      { fontSize: 9, spaceAfter: 5 }
-    );
+    drawVideoCard({
+      kind: 'youtube',
+      videoId: doc.youtube.videoId,
+      title: doc.youtube.title,
+      caption: doc.youtube.caption,
+      originalUrl: doc.youtube.watchUrl,
+      watchUrl: doc.youtube.watchUrl,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${doc.youtube.videoId}?rel=0`,
+      thumbnailUrl: doc.youtube.thumbnailUrl,
+    });
   }
 
   // Personal Branding End Block (matches Resource #001 .doc-end-branding)
@@ -871,9 +1117,19 @@ export async function generateClientPdfBytes(doc: NormalizedResourceDocument): P
 /**
  * Generates an actual Word (.docx) binary file cleanly in browser or Node.
  */
-export async function generateClientDocxBytes(doc: NormalizedResourceDocument): Promise<Uint8Array> {
+export async function generateClientDocxBytes(
+  doc: NormalizedResourceDocument,
+  videoThumbnails: Record<string, ClientThumbnailAsset> = {}
+): Promise<Uint8Array> {
   const inlineImages: Record<string, DocxImageAsset> = {};
-  const docx = generateResourceDocx(doc, undefined, inlineImages);
+  const thumbBytesMap: Record<string, Uint8Array> = {};
+  for (const [vid, asset] of Object.entries(videoThumbnails)) {
+    if (asset?.bytes?.byteLength) {
+      thumbBytesMap[vid] = asset.bytes;
+    }
+  }
+  const legacyThumbBytes = doc.youtube?.videoId ? thumbBytesMap[doc.youtube.videoId] : undefined;
+  const docx = generateResourceDocx(doc, legacyThumbBytes, inlineImages, thumbBytesMap);
   const arrayBuf = await Packer.toArrayBuffer(docx);
   return new Uint8Array(arrayBuf);
 }
@@ -928,11 +1184,14 @@ export async function generateAndStoreResourceExports(
     'docx'
   );
 
+  onStage?.('Loading video thumbnails for exports...');
+  const videoThumbnails = await fetchYouTubeThumbnailsForClient(normalized);
+
   onStage?.('Generating PDF from Resource Content...');
-  const pdfBytes = await generateClientPdfBytes(normalized);
+  const pdfBytes = await generateClientPdfBytes(normalized, videoThumbnails);
 
   onStage?.('Generating DOCX from Resource Content...');
-  const docxBytes = await generateClientDocxBytes(normalized);
+  const docxBytes = await generateClientDocxBytes(normalized, videoThumbnails);
 
   const docId = resource.id || resource.resourceNumber;
   const pdfStoragePath = `uploads/resources/${docId}/generated/${pdfFilename}`;

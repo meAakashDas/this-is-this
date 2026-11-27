@@ -1,4 +1,8 @@
 import type { ContentBlock } from '../types/index.ts';
+import {
+  extractVideoBlockInfo,
+  renderVideoBlockToHtml,
+} from './youtube.ts';
 
 export interface BlockNoteInlineItem {
   type: 'text' | 'link';
@@ -322,6 +326,21 @@ export function legacyBlocksToBlockNote(
         });
         break;
       }
+      case 'video': {
+        result.push({
+          id: generateBlockId(),
+          type: 'video',
+          props: {
+            url: block.url || (block.videoId ? `https://www.youtube.com/watch?v=${block.videoId}` : ''),
+            caption: block.caption || '',
+            name: block.title || '',
+            showPreview: true,
+          },
+          content: [],
+          children: [],
+        });
+        break;
+      }
       default:
         break;
     }
@@ -341,11 +360,19 @@ export function legacyBlocksToBlockNote(
   return result;
 }
 
+export interface BlockNoteToHtmlOptions {
+  pdfMode?: boolean;
+  videoThumbnails?: Record<string, string>;
+}
+
 /**
  * Pure Node & Browser safe HTML renderer for BlockNote blocks
  * Generates semantic HTML styled with Apple Editorial Minimal design.
  */
-export function blockNoteToHtml(blocks: any[] = []): string {
+export function blockNoteToHtml(
+  blocks: any[] = [],
+  options?: BlockNoteToHtmlOptions
+): string {
   if (!blocks || !Array.isArray(blocks) || blocks.length === 0) {
     return '';
   }
@@ -390,7 +417,7 @@ export function blockNoteToHtml(blocks: any[] = []): string {
       const innerHtml = renderInlineContentToHtml(block.content);
       const nestedHtml =
         Array.isArray(block.children) && block.children.length > 0
-          ? `\n<div class="mt-2 ml-4">${blockNoteToHtml(block.children)}</div>`
+          ? `\n<div class="mt-2 ml-4">${blockNoteToHtml(block.children, options)}</div>`
           : '';
 
       if (block.type === 'checkListItem') {
@@ -484,6 +511,17 @@ export function blockNoteToHtml(blocks: any[] = []): string {
           htmlChunks.push(
             `<figure class="editorial-figure my-8 text-center"><img src="${escapeHtml(url)}" alt="${escapeHtml(caption || 'Resource illustration')}" loading="lazy" decoding="async" class="max-w-full h-auto rounded-lg border border-border mx-auto shadow-xs block" />${caption ? `<figcaption class="text-xs text-muted-foreground mt-2 font-mono">${escapeHtml(caption)}</figcaption>` : ''}</figure>`
           );
+        }
+        break;
+      }
+
+      case 'video':
+      case 'youtube':
+      case 'youtubeEmbed':
+      case 'embed': {
+        const parsedVideo = extractVideoBlockInfo(block);
+        if (parsedVideo) {
+          htmlChunks.push(renderVideoBlockToHtml(parsedVideo, options));
         }
         break;
       }
@@ -680,6 +718,23 @@ export function blockNoteToContentBlocks(blocks: any[] = []): ContentBlock[] {
           };
           if (caption) imgBlock.caption = caption;
           result.push(imgBlock);
+        }
+        break;
+      }
+      case 'video':
+      case 'youtube':
+      case 'youtubeEmbed':
+      case 'embed': {
+        const parsedVideo = extractVideoBlockInfo(block);
+        if (parsedVideo) {
+          const vidBlock: any = {
+            type: 'video',
+            url: parsedVideo.originalUrl,
+          };
+          if (parsedVideo.kind === 'youtube') vidBlock.videoId = parsedVideo.videoId;
+          if (parsedVideo.title) vidBlock.title = parsedVideo.title;
+          if (parsedVideo.caption) vidBlock.caption = parsedVideo.caption;
+          result.push(vidBlock);
         }
         break;
       }

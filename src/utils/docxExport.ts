@@ -16,6 +16,11 @@ import {
   AlignmentType,
 } from 'docx';
 import { isMeaningfulDescription, type NormalizedResourceDocument } from './documentExport.ts';
+import {
+  extractVideoBlockInfo,
+  extractYouTubeVideosFromBlocks,
+  type ParsedVideoBlock,
+} from './youtube.ts';
 
 export interface DocxImageAsset {
   data: Uint8Array;
@@ -175,11 +180,130 @@ function buildInlineRuns(
   return runs;
 }
 
+function detectDocxImageType(bytes: Uint8Array): 'jpg' | 'png' {
+  if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return 'png';
+  }
+  return 'jpg';
+}
+
+function renderVideoBlockToDocx(
+  video: ParsedVideoBlock,
+  children: Array<Paragraph | Table>,
+  videoThumbnails?: Record<string, Uint8Array>,
+  baseIndent: number = 0
+): void {
+  const headingTitle = video.title || (video.kind === 'youtube' ? 'YouTube Video' : 'Video Resource');
+
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: headingTitle,
+          bold: true,
+          size: 22,
+          color: '111111',
+        }),
+      ],
+      spacing: { before: 180, after: video.caption ? 60 : 80 },
+      indent: baseIndent > 0 ? { left: baseIndent } : undefined,
+    })
+  );
+
+  if (video.caption) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: video.caption,
+            italics: true,
+            size: 19,
+            color: '52525B',
+          }),
+        ],
+        spacing: { after: 100 },
+        indent: baseIndent > 0 ? { left: baseIndent } : undefined,
+      })
+    );
+  }
+
+  if (video.kind === 'youtube') {
+    const thumbBytes = videoThumbnails?.[video.videoId];
+    if (thumbBytes && thumbBytes.byteLength > 0) {
+      try {
+        children.push(
+          new Paragraph({
+            children: [
+              new ExternalHyperlink({
+                link: video.originalUrl,
+                children: [
+                  new ImageRun({
+                    data: thumbBytes,
+                    transformation: { width: 320, height: 180 },
+                    type: detectDocxImageType(thumbBytes),
+                  }),
+                ],
+              }),
+            ],
+            spacing: { before: 40, after: 80 },
+            indent: baseIndent > 0 ? { left: baseIndent } : undefined,
+          })
+        );
+      } catch {
+        // Skip broken thumbnail cleanly without interrupting DOCX generation
+      }
+    }
+
+    children.push(
+      new Paragraph({
+        children: [
+          new ExternalHyperlink({
+            link: video.originalUrl,
+            children: [
+              new TextRun({
+                text: 'Watch on YouTube →',
+                bold: true,
+                size: 20,
+                color: '0969DA',
+                underline: {},
+              }),
+            ],
+          }),
+        ],
+        spacing: { after: 40 },
+        indent: baseIndent > 0 ? { left: baseIndent } : undefined,
+      })
+    );
+  }
+
+  children.push(
+    new Paragraph({
+      children: [
+        new ExternalHyperlink({
+          link: video.originalUrl,
+          children: [
+            new TextRun({
+              text: video.originalUrl,
+              font: 'Consolas',
+              size: 18,
+              color: '52525B',
+              underline: {},
+            }),
+          ],
+        }),
+      ],
+      spacing: { after: 180 },
+      indent: baseIndent > 0 ? { left: baseIndent } : undefined,
+    })
+  );
+}
+
 function renderBlockNoteBlocksToDocx(
   blocks: any[],
   children: Array<Paragraph | Table>,
   inlineImages?: Record<string, DocxImageAsset>,
-  depth: number = 0
+  depth: number = 0,
+  videoThumbnails?: Record<string, Uint8Array>
 ): void {
   let orderedCounter = 0;
   const baseIndent = depth * 360;
@@ -454,6 +578,17 @@ function renderBlockNoteBlocksToDocx(
         break;
       }
 
+      case 'video':
+      case 'youtube':
+      case 'youtubeEmbed':
+      case 'embed': {
+        const parsedVideo = extractVideoBlockInfo(block);
+        if (parsedVideo) {
+          renderVideoBlockToDocx(parsedVideo, children, videoThumbnails, baseIndent);
+        }
+        break;
+      }
+
       default: {
         const runs = buildInlineRuns(block.content);
         if (runs.length > 0) {
@@ -464,7 +599,7 @@ function renderBlockNoteBlocksToDocx(
     }
 
     if (Array.isArray(block.children) && block.children.length > 0) {
-      renderBlockNoteBlocksToDocx(block.children, children, inlineImages, depth + 1);
+      renderBlockNoteBlocksToDocx(block.children, children, inlineImages, depth + 1, videoThumbnails);
     }
   }
 }
@@ -472,7 +607,8 @@ function renderBlockNoteBlocksToDocx(
 export function generateResourceDocx(
   doc: NormalizedResourceDocument,
   thumbnailBytes?: Uint8Array,
-  inlineImages?: Record<string, DocxImageAsset>
+  inlineImages?: Record<string, DocxImageAsset>,
+  videoThumbnails?: Record<string, Uint8Array>
 ): Document {
   const children: Array<Paragraph | Table> = [];
 
@@ -689,7 +825,7 @@ export function generateResourceDocx(
   }
 
   if (doc.blocknoteJson && Array.isArray(doc.blocknoteJson) && doc.blocknoteJson.length > 0) {
-    renderBlockNoteBlocksToDocx(doc.blocknoteJson, children, inlineImages);
+    renderBlockNoteBlocksToDocx(doc.blocknoteJson, children, inlineImages, 0, videoThumbnails);
   } else {
     for (const block of doc.contentBlocks) {
       if (block.type === 'heading') {
@@ -782,6 +918,11 @@ export function generateResourceDocx(
             spacing: { before: 160, after: 160 },
           })
         );
+      } else if (block.type === 'video') {
+        const parsedVideo = extractVideoBlockInfo(block);
+        if (parsedVideo) {
+          renderVideoBlockToDocx(parsedVideo, children, videoThumbnails);
+        }
       } else if (block.type === 'image') {
         const asset = (block.src && inlineImages?.[block.src]) || (block.src ? decodeDataImageUri(block.src) : null);
         if (asset) {
@@ -890,9 +1031,16 @@ export function generateResourceDocx(
   }
 
   // =========================================================================
-  // 4. Video Walkthrough Section (YouTube Integration)
+  // 4. Video Walkthrough Section (YouTube Integration - avoid duplicating inline videos)
   // =========================================================================
-  if (doc.youtube) {
+  const inlineVideoIds = new Set(
+    extractYouTubeVideosFromBlocks(
+      Array.isArray(doc.blocknoteJson) && doc.blocknoteJson.length > 0
+        ? doc.blocknoteJson
+        : doc.contentBlocks
+    ).map((v) => v.videoId)
+  );
+  if (doc.youtube && !inlineVideoIds.has(doc.youtube.videoId)) {
     children.push(
       new Paragraph({
         text: 'Video Walkthrough',

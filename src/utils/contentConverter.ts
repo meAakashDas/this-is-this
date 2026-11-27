@@ -1,5 +1,6 @@
 import type { ContentBlock } from '../types/index.ts';
 import type { JournalContentStructure, JournalContentBlock } from '../types/cms/journal.ts';
+import { extractYouTubeVideoId } from './youtube.ts';
 
 /**
  * Converts legacy ContentBlock[] into clean semantic HTML suitable for Tiptap/Notion editor.
@@ -236,6 +237,7 @@ export function htmlToContentBlocks(html: string): ContentBlock[] {
         });
       } else if (tagName === 'figure') {
         const img = node.querySelector('img');
+        const iframe = node.querySelector('iframe');
         const figcaption = node.querySelector('figcaption');
         if (img) {
           blocks.push({
@@ -244,6 +246,18 @@ export function htmlToContentBlocks(html: string): ContentBlock[] {
             alt: img.getAttribute('alt') || '',
             caption: figcaption?.textContent?.trim() || '',
           });
+        } else if (iframe) {
+          const src = iframe.getAttribute('src') || '';
+          const videoId = extractYouTubeVideoId(src);
+          if (src) {
+            blocks.push({
+              type: 'video',
+              url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : src,
+              ...(videoId ? { videoId } : {}),
+              title: iframe.getAttribute('title') || undefined,
+              caption: figcaption?.textContent?.trim() || undefined,
+            });
+          }
         }
       } else if (tagName === 'hr') {
         blocks.push({ type: 'separator' });

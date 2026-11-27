@@ -9,6 +9,7 @@ import {
   generateResourcePdfHtml,
 } from '../src/utils/documentExport.ts';
 import { generateResourceDocx } from '../src/utils/docxExport.ts';
+import { extractYouTubeVideosFromBlocks } from '../src/utils/youtube.ts';
 
 let resourcesToExport = resourcesData;
 let activeSiteConfig = siteConfig;
@@ -102,19 +103,37 @@ async function buildAllDocuments() {
     const doc = normalizeResourceDocument(res, activeSiteConfig);
     console.log(`\nProcessing Resource #${doc.resourceNumber}: "${doc.title}"...`);
 
-    // 1. YouTube Thumbnail handling
+    // 1. YouTube Thumbnail handling (for both inline BlockNote videos & legacy youtubeEmbed)
     let thumbnailBuffer = null;
     let thumbnailBase64 = undefined;
+    const inlineThumbBase64Map = {};
+    const inlineThumbBytesMap = {};
 
+    const inlineVideos = extractYouTubeVideosFromBlocks(
+      Array.isArray(doc.blocknoteJson) && doc.blocknoteJson.length > 0
+        ? doc.blocknoteJson
+        : doc.contentBlocks
+    );
+    const uniqueVideoIds = new Set(inlineVideos.map((v) => v.videoId));
     if (doc.youtube && doc.youtube.videoId) {
-      thumbnailBuffer = await ensureThumbnail(doc.youtube.videoId);
-      if (thumbnailBuffer) {
-        thumbnailBase64 = `data:image/jpeg;base64,${thumbnailBuffer.toString('base64')}`;
+      uniqueVideoIds.add(doc.youtube.videoId);
+    }
+
+    for (const vId of uniqueVideoIds) {
+      const buf = await ensureThumbnail(vId);
+      if (buf) {
+        inlineThumbBytesMap[vId] = buf;
+        inlineThumbBase64Map[vId] = `data:image/jpeg;base64,${buf.toString('base64')}`;
       }
     }
 
+    if (doc.youtube && doc.youtube.videoId && inlineThumbBytesMap[doc.youtube.videoId]) {
+      thumbnailBuffer = inlineThumbBytesMap[doc.youtube.videoId];
+      thumbnailBase64 = inlineThumbBase64Map[doc.youtube.videoId];
+    }
+
     // 2. Generate PDF via Playwright
-    const pdfHtml = generateResourcePdfHtml(doc, thumbnailBase64);
+    const pdfHtml = generateResourcePdfHtml(doc, thumbnailBase64, inlineThumbBase64Map);
     const page = await browser.newPage();
     await page.setContent(pdfHtml, { waitUntil: 'load' });
 
@@ -144,7 +163,12 @@ async function buildAllDocuments() {
     await page.close();
 
     // 3. Generate Genuine DOCX via docx library
-    const docxDoc = generateResourceDocx(doc, thumbnailBuffer || undefined);
+    const docxDoc = generateResourceDocx(
+      doc,
+      thumbnailBuffer || undefined,
+      undefined,
+      inlineThumbBytesMap
+    );
     const docxBuffer = await Packer.toBuffer(docxDoc);
 
     const primaryDocxPath = path.join(outputDir, doc.docxFilename);

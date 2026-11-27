@@ -10,8 +10,10 @@ import {
   getPublicResourceByNumber,
   getAllPublicResourceNumbers,
   getAdjacentPublicResources,
+  getPublishingMeta,
 } from '../../lib/cms/contentLoader';
 import { getResourceExportFilename, isMeaningfulDescription } from '../../utils/documentExport';
+import { extractYouTubeVideosFromBlocks } from '../../utils/youtube';
 
 export function getStaticPaths() {
   const published = getAllPublicResourceNumbers();
@@ -66,6 +68,27 @@ function isDocxAssetUrl(url?: string): boolean {
   return trimmed.split(/[?#]/)[0].toLowerCase().endsWith('.docx');
 }
 
+const inlineYouTubeIds = isPublished
+  ? new Set([
+      ...extractYouTubeVideosFromBlocks(
+        Array.isArray(resource!.blocknoteJson) ? resource!.blocknoteJson : []
+      ).map((v) => v.videoId),
+      ...extractYouTubeVideosFromBlocks(
+        Array.isArray(resource!.contentBlocks) ? resource!.contentBlocks : []
+      ).map((v) => v.videoId),
+    ])
+  : new Set<string>();
+const showLegacyBottomYoutube = Boolean(
+  isPublished &&
+    resource!.youtubeEmbed?.videoId &&
+    !inlineYouTubeIds.has(resource!.youtubeEmbed.videoId)
+);
+
+const snapshotMeta = getPublishingMeta();
+const snapshotBuiltAtMs = Date.parse(snapshotMeta.generatedAt || '') || 0;
+const pdfGeneratedAtMs = isPublished ? Date.parse(resource!.generatedPdf?.generatedAt || '') || 0 : 0;
+const docxGeneratedAtMs = isPublished ? Date.parse(resource!.generatedDocx?.generatedAt || '') || 0 : 0;
+
 const pdfDownloadFilename = isPublished
   ? getResourceExportFilename(resource!.resourceNumber, resource!.title, 'pdf')
   : '';
@@ -80,15 +103,31 @@ const staticGeneratedDocxPath =
   isPublished && fs.existsSync(path.resolve('public/downloads', docxDownloadFilename))
     ? `/downloads/${docxDownloadFilename}`
     : '';
+const preferStaticPdf = Boolean(
+  staticGeneratedPdfPath &&
+    inlineYouTubeIds.size > 0 &&
+    snapshotBuiltAtMs > 0 &&
+    pdfGeneratedAtMs > 0 &&
+    pdfGeneratedAtMs <= snapshotBuiltAtMs
+);
+const preferStaticDocx = Boolean(
+  staticGeneratedDocxPath &&
+    inlineYouTubeIds.size > 0 &&
+    snapshotBuiltAtMs > 0 &&
+    docxGeneratedAtMs > 0 &&
+    docxGeneratedAtMs <= snapshotBuiltAtMs
+);
 const effectivePdfUrl = isPublished
-  ? [resource!.generatedPdf?.url, resource!.pdfPreviewUrl, resource!.downloadUrl, staticGeneratedPdfPath].find(
-      (u) => isPdfAssetUrl(u)
-    ) || ''
+  ? (preferStaticPdf
+      ? [staticGeneratedPdfPath, resource!.generatedPdf?.url, resource!.pdfPreviewUrl, resource!.downloadUrl]
+      : [resource!.generatedPdf?.url, resource!.pdfPreviewUrl, resource!.downloadUrl, staticGeneratedPdfPath]
+    ).find((u) => isPdfAssetUrl(u)) || ''
   : '';
 const effectiveDocxUrl = isPublished
-  ? [resource!.generatedDocx?.url, resource!.docxUrl, staticGeneratedDocxPath].find((u) =>
-      isDocxAssetUrl(u)
-    ) || ''
+  ? (preferStaticDocx
+      ? [staticGeneratedDocxPath, resource!.generatedDocx?.url, resource!.docxUrl]
+      : [resource!.generatedDocx?.url, resource!.docxUrl, staticGeneratedDocxPath]
+    ).find((u) => isDocxAssetUrl(u)) || ''
   : '';
 const displayShortDescription = isPublished
   ? resource!.shortDescription?.trim() ||
@@ -126,7 +165,7 @@ function getFileExtension(format?: string, url?: string): string {
       /* =======================================================================
          Published Resource View
          ======================================================================= */
-      <article class="resource-article space-y-8 sm:space-y-10" data-resource-id={resource!.resourceNumber}>
+      <article class="resource-article space-y-8 sm:space-y-10" data-resource-id={resource!.resourceNumber} data-snapshot-at={snapshotMeta.generatedAt}>
         <!-- 1. Breadcrumb Navigation -->
         <nav class="resource-nav-crumb flex items-center gap-2 text-xs text-muted-foreground" aria-label="Breadcrumb">
           <a href="/resources" class="crumb-link inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors no-underline">
@@ -332,7 +371,7 @@ function getFileExtension(format?: string, url?: string): string {
                 blocks={resource!.contentBlocks}
               />
 
-              {resource!.youtubeEmbed && (
+              {showLegacyBottomYoutube && (
                 <div class="video-section video-embed-container pt-4">
                   <YouTubeEmbed
                     data={resource!.youtubeEmbed}

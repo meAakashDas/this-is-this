@@ -85,7 +85,8 @@ export type ContentBlock =
       variant?: 'info' | 'tip' | 'warning';
     }
   | { type: 'separator' }
-  | { type: 'image'; src: string; alt: string; caption?: string };
+  | { type: 'image'; src: string; alt: string; caption?: string }
+  | { type: 'video'; url: string; videoId?: string; title?: string; caption?: string };
 
 export interface YouTubeEmbedData {
   videoId: string;

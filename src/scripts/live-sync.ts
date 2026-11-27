@@ -20,6 +20,13 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { getFirebaseConfig } from '../lib/firebase/config.ts';
+import { restoreBlocksFromFirestore } from '../lib/cms/sanitize.ts';
+import { blockNoteToHtml } from '../utils/blockNoteMigration.ts';
+import {
+  extractYouTubeVideosFromBlocks,
+  extractYouTubeVideoId,
+  renderVideoBlockToHtml,
+} from '../utils/youtube.ts';
 import { normalizeResourceNumberString } from '../utils/resourceSearch.ts';
 
 const CACHE_KEY_RESOURCES = 'risepaisa_live_resources';
@@ -292,18 +299,43 @@ function isDocxAssetUrl(url: unknown): url is string {
   return trimmed.split(/[?#]/)[0].toLowerCase().endsWith('.docx');
 }
 
-function resolveGeneratedPdfUrl(data: any, ssrFallback = ''): string {
-  return (
-    [data?.generatedPdf?.url, data?.pdfPreviewUrl, data?.downloadUrl, ssrFallback].find((u) =>
-      isPdfAssetUrl(u)
-    ) || ''
-  );
+function hasInlineYouTubeVideos(data: any): boolean {
+  const restored = restoreBlocksFromFirestore(data?.blocknoteJson);
+  const blocks =
+    Array.isArray(restored) && restored.length > 0
+      ? restored
+      : Array.isArray(data?.contentBlocks)
+        ? data.contentBlocks
+        : [];
+  return extractYouTubeVideosFromBlocks(blocks).length > 0;
 }
 
-function resolveGeneratedDocxUrl(data: any, ssrFallback = ''): string {
-  return (
-    [data?.generatedDocx?.url, data?.docxUrl, ssrFallback].find((u) => isDocxAssetUrl(u)) || ''
-  );
+function resolveGeneratedPdfUrl(data: any, ssrFallback = '', snapshotBuiltAtMs = 0): string {
+  const docGenAt = Date.parse(data?.generatedPdf?.generatedAt || '') || 0;
+  const preferSsr =
+    Boolean(ssrFallback && isPdfAssetUrl(ssrFallback) && ssrFallback.startsWith('/downloads/')) &&
+    hasInlineYouTubeVideos(data) &&
+    snapshotBuiltAtMs > 0 &&
+    docGenAt > 0 &&
+    docGenAt <= snapshotBuiltAtMs;
+  const candidates = preferSsr
+    ? [ssrFallback, data?.generatedPdf?.url, data?.pdfPreviewUrl, data?.downloadUrl]
+    : [data?.generatedPdf?.url, data?.pdfPreviewUrl, data?.downloadUrl, ssrFallback];
+  return candidates.find((u) => isPdfAssetUrl(u)) || '';
+}
+
+function resolveGeneratedDocxUrl(data: any, ssrFallback = '', snapshotBuiltAtMs = 0): string {
+  const docGenAt = Date.parse(data?.generatedDocx?.generatedAt || '') || 0;
+  const preferSsr =
+    Boolean(ssrFallback && isDocxAssetUrl(ssrFallback) && ssrFallback.startsWith('/downloads/')) &&
+    hasInlineYouTubeVideos(data) &&
+    snapshotBuiltAtMs > 0 &&
+    docGenAt > 0 &&
+    docGenAt <= snapshotBuiltAtMs;
+  const candidates = preferSsr
+    ? [ssrFallback, data?.generatedDocx?.url, data?.docxUrl]
+    : [data?.generatedDocx?.url, data?.docxUrl, ssrFallback];
+  return candidates.find((u) => isDocxAssetUrl(u)) || '';
 }
 
 function dataPdfUriToBlobUrl(dataUri: string): string {
@@ -460,6 +492,51 @@ function renderGeneratedDocumentSectionHtml(
   `;
 }
 
+function resolveResourceBodyHtml(data: any): string {
+  const restoredBlocks = restoreBlocksFromFirestore(data?.blocknoteJson);
+  if (Array.isArray(restoredBlocks) && restoredBlocks.length > 0) {
+    return blockNoteToHtml(restoredBlocks);
+  }
+  if (typeof data?.blocknoteHtml === 'string' && data.blocknoteHtml.trim()) {
+    return data.blocknoteHtml;
+  }
+  if (typeof data?.contentHtml === 'string' && data.contentHtml.trim()) {
+    return data.contentHtml;
+  }
+  return '';
+}
+
+function resolveLegacyBottomYoutubeHtml(data: any): string {
+  const rawVid = data?.youtubeEmbed?.videoId;
+  const videoId = extractYouTubeVideoId(
+    rawVid ? `https://www.youtube.com/watch?v=${rawVid}` : ''
+  );
+  if (!videoId) return '';
+
+  const restoredBlocks = restoreBlocksFromFirestore(data?.blocknoteJson);
+  const inlineIds = new Set(
+    extractYouTubeVideosFromBlocks(
+      Array.isArray(restoredBlocks) && restoredBlocks.length > 0
+        ? restoredBlocks
+        : Array.isArray(data?.contentBlocks)
+          ? data.contentBlocks
+          : []
+    ).map((v) => v.videoId)
+  );
+  if (inlineIds.has(videoId)) return '';
+
+  return `<div class="video-section video-embed-container pt-4">${renderVideoBlockToHtml({
+    kind: 'youtube',
+    videoId,
+    title: data.youtubeEmbed?.title || 'Educational Video Resource',
+    caption: data.youtubeEmbed?.caption,
+    originalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`,
+    thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+  })}</div>`;
+}
+
 function renderDynamicResourceDetail(container: HTMLElement, data: any) {
   const num = escapeHtml(data.resourceNumber || '001');
   const title = escapeHtml(data.title || 'Untitled Resource');
@@ -472,7 +549,7 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
   const pdfUrl = resolveGeneratedPdfUrl(data);
   const docxUrl = resolveGeneratedDocxUrl(data);
   const shortDesc = getDisplayShortDescription(data);
-  const bodyHtml = data.blocknoteHtml || data.contentHtml || '';
+  const bodyHtml = resolveResourceBodyHtml(data);
   const generatedSectionInner = renderGeneratedDocumentSectionHtml(data, pdfUrl, docxUrl, num);
   const dynamicSlug = String(data.title || 'resource')
     .toLowerCase()
@@ -539,7 +616,7 @@ function renderDynamicResourceDetail(container: HTMLElement, data: any) {
           </section>
         ` : ''}
 
-        ${bodyHtml ? `<section class="resource-section written-content-section space-y-6"><div class="main-educational-content space-y-6"><div class="resource-document-content resource-content editorial-reading-container max-w-none space-y-4">${bodyHtml}</div></div></section>` : ''}
+        ${bodyHtml ? `<section class="resource-section written-content-section space-y-6"><div class="main-educational-content space-y-6"><div class="resource-document-content resource-content editorial-reading-container max-w-none space-y-4">${bodyHtml}</div>${resolveLegacyBottomYoutubeHtml(data)}</div></section>` : ''}
 
         ${generatedSectionInner ? `<section class="resource-section generated-documents-section space-y-4" aria-labelledby="generated-documents-heading">${generatedSectionInner}</section>` : ''}
 
@@ -862,8 +939,9 @@ async function syncResourceDetail(db: any, resourceId: string) {
         articleEl.querySelector<HTMLAnchorElement>('a.generated-docx-download-link')?.getAttribute('href'),
         articleEl.querySelector<HTMLAnchorElement>('a.btn-save-docx')?.getAttribute('href'),
       ].find((u) => isDocxAssetUrl(u)) || '';
-    const pdfUrl = resolveGeneratedPdfUrl(data, ssrPdfUrl);
-    const docxUrl = resolveGeneratedDocxUrl(data, ssrDocxUrl);
+    const snapshotBuiltAtMs = Date.parse(articleEl.getAttribute('data-snapshot-at') || '') || 0;
+    const pdfUrl = resolveGeneratedPdfUrl(data, ssrPdfUrl, snapshotBuiltAtMs);
+    const docxUrl = resolveGeneratedDocxUrl(data, ssrDocxUrl, snapshotBuiltAtMs);
 
     const genSection = articleEl.querySelector<HTMLElement>('.generated-documents-section');
     const genHtml = renderGeneratedDocumentSectionHtml(
@@ -1031,12 +1109,8 @@ async function syncResourceDetail(db: any, resourceId: string) {
       existingExtSec.remove();
     }
 
-    // Written content HTML sync
-    const bodyHtml = typeof data.blocknoteHtml === 'string' && data.blocknoteHtml.trim()
-      ? data.blocknoteHtml
-      : typeof data.contentHtml === 'string'
-      ? data.contentHtml
-      : '';
+    // Written content HTML sync (re-renders live BlockNote JSON so video embeds stay in sync)
+    const bodyHtml = resolveResourceBodyHtml(data);
     let contentSection = articleEl.querySelector<HTMLElement>('.written-content-section');
     let contentEl = articleEl.querySelector<HTMLElement>('.resource-document-content, .resource-content');
 
@@ -1056,6 +1130,16 @@ async function syncResourceDetail(db: any, resourceId: string) {
       contentSection.style.display = '';
       if (contentEl && contentEl.innerHTML !== bodyHtml) {
         contentEl.innerHTML = bodyHtml;
+      }
+      const mainEduEl = contentSection.querySelector<HTMLElement>('.main-educational-content');
+      const existingLegacyVideo = contentSection.querySelector<HTMLElement>('.video-embed-container');
+      const legacyBottomHtml = resolveLegacyBottomYoutubeHtml(data);
+      if (!legacyBottomHtml && existingLegacyVideo) {
+        existingLegacyVideo.remove();
+      } else if (legacyBottomHtml && mainEduEl && !existingLegacyVideo) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = legacyBottomHtml;
+        if (wrapper.firstElementChild) mainEduEl.appendChild(wrapper.firstElementChild);
       }
     } else if (contentSection) {
       contentSection.style.display = 'none';

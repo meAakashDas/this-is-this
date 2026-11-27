@@ -29,6 +29,30 @@ function sanitizeBlocksForBlockNote(blocks: any[]): any[] {
   if (!Array.isArray(blocks)) return [];
   return blocks.map((b) => {
     if (!b || typeof b !== 'object') return b;
+    const lowerType = String(b.type || '').toLowerCase();
+    if (lowerType === 'youtube' || lowerType === 'youtubeembed' || lowerType === 'embed') {
+      const url =
+        b.props?.url ||
+        b.props?.src ||
+        b.props?.href ||
+        b.url ||
+        b.src ||
+        (b.props?.videoId ? `https://www.youtube.com/watch?v=${b.props.videoId}` : '') ||
+        (b.videoId ? `https://www.youtube.com/watch?v=${b.videoId}` : '');
+      return {
+        id: b.id || generateBlockId(),
+        type: 'video',
+        props: {
+          textAlignment: 'left',
+          backgroundColor: 'default',
+          name: b.props?.title || b.props?.name || b.title || '',
+          url: String(url || ''),
+          caption: b.props?.caption || b.caption || '',
+          showPreview: true,
+        },
+        children: Array.isArray(b.children) ? b.children : [],
+      };
+    }
     if (!VALID_BLOCKNOTE_TYPES.has(b.type)) {
       const text = blockNoteInlineToPlainText(b.content);
       const title = b.props?.title ? `[${b.props.title}] ` : '';

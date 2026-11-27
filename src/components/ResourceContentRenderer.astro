@@ -1,7 +1,9 @@
 ---
 import type { ContentBlock } from '../types';
 import Icon from './Icon.astro';
+import YouTubeEmbed from './YouTubeEmbed.astro';
 import { blockNoteToHtml } from '../utils/blockNoteMigration';
+import { extractYouTubeVideoId } from '../utils/youtube';
 
 interface Props {
   blocks?: ContentBlock[];
@@ -26,8 +28,9 @@ const parsedBlocknoteJson = (() => {
 })();
 
 const renderedHtml =
-  blocknoteHtml ||
-  (parsedBlocknoteJson.length > 0 ? blockNoteToHtml(parsedBlocknoteJson) : contentHtml);
+  parsedBlocknoteJson.length > 0
+    ? blockNoteToHtml(parsedBlocknoteJson)
+    : blocknoteHtml || contentHtml;
 
 function isSafeUrl(url?: string): boolean {
   if (!url) return false;
@@ -198,6 +201,41 @@ function isSafeUrl(url?: string): boolean {
             )}
           </figure>
         );
+      }
+
+      if (block.type === 'video') {
+        const videoId = block.videoId || extractYouTubeVideoId(block.url);
+        if (videoId) {
+          return (
+            <YouTubeEmbed
+              data={{
+                videoId,
+                title: block.title || 'Educational Video Resource',
+                caption: block.caption,
+              }}
+            />
+          );
+        }
+        if (isSafeUrl(block.url)) {
+          return (
+            <div class="inline-video-card video-external-fallback my-5 p-4 rounded-xl border border-border bg-card flex flex-col gap-1.5">
+              {block.title && (
+                <div class="text-sm font-semibold text-foreground">{block.title}</div>
+              )}
+              {block.caption && (
+                <div class="text-xs text-muted-foreground">{block.caption}</div>
+              )}
+              <a
+                href={block.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs font-medium text-primary underline break-all"
+              >
+                Watch Video → ({block.url})
+              </a>
+            </div>
+          );
+        }
       }
 
       return null;

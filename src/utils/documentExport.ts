@@ -1,6 +1,11 @@
 import type { Resource, ContentBlock, SiteConfig } from '../types';
 import { htmlToContentBlocks } from './contentConverter.ts';
 import { blockNoteToContentBlocks, blockNoteToHtml } from './blockNoteMigration.ts';
+import {
+  extractVideoBlockInfo,
+  extractYouTubeVideosFromBlocks,
+  renderVideoBlockToHtml,
+} from './youtube.ts';
 
 export interface NormalizedAttachment {
   id: string;
@@ -178,10 +183,21 @@ export function normalizeResourceDocument(
     contentBlocks = htmlToContentBlocks(resource.contentHtml);
   }
 
-  const effectiveHtml =
-    resource.blocknoteHtml ||
-    resource.contentHtml ||
-    (hasCanvasJson ? blockNoteToHtml(resource.blocknoteJson) : undefined);
+  // Always prefer fresh rendering from blocknoteJson when present so previously saved
+  // documents immediately include inline video blocks and updated semantics.
+  const effectiveHtml = hasCanvasJson
+    ? blockNoteToHtml(resource.blocknoteJson)
+    : resource.blocknoteHtml || resource.contentHtml;
+
+  // Skip legacy bottom youtube metadata section when that video is already embedded inline
+  const inlineVideoIds = new Set(
+    extractYouTubeVideosFromBlocks(hasCanvasJson ? resource.blocknoteJson : contentBlocks).map(
+      (v) => v.videoId
+    )
+  );
+  if (youtube && inlineVideoIds.has(youtube.videoId)) {
+    youtube = undefined;
+  }
 
   // Avoid duplicating legacy summaryPoints / targetAudience when rich Document Canvas
   // content already serves as the single source of truth.
@@ -237,12 +253,22 @@ function escapeHtml(str: string): string {
  */
 export function generateResourcePdfHtml(
   doc: NormalizedResourceDocument,
-  thumbnailBase64?: string
+  thumbnailBase64?: string,
+  videoThumbnails?: Record<string, string>
 ): string {
-  // Content blocks rendering or continuous HTML
+  // Content blocks rendering or continuous HTML (using static video cards for PDFs, never playable iframes)
   let contentHtml = '';
+  const hasBlockNoteJson = Array.isArray(doc.blocknoteJson) && doc.blocknoteJson.length > 0;
 
-  if (doc.contentHtml && doc.contentHtml.trim()) {
+  if (hasBlockNoteJson) {
+    const renderedPdfContent = blockNoteToHtml(doc.blocknoteJson, {
+      pdfMode: true,
+      videoThumbnails,
+    });
+    if (renderedPdfContent.trim()) {
+      contentHtml = `<div class="notion-document-content">${renderedPdfContent}</div>`;
+    }
+  } else if (doc.contentHtml && doc.contentHtml.trim()) {
     contentHtml = `<div class="notion-document-content">${doc.contentHtml}</div>`;
   } else {
     for (const block of doc.contentBlocks) {
@@ -308,6 +334,14 @@ export function generateResourcePdfHtml(
             </table>
           </div>
         `;
+      } else if (block.type === 'video') {
+        const parsedVideo = extractVideoBlockInfo(block);
+        if (parsedVideo) {
+          contentHtml += renderVideoBlockToHtml(parsedVideo, {
+            pdfMode: true,
+            videoThumbnails,
+          });
+        }
       }
     }
   }
@@ -750,6 +784,19 @@ export function generateResourcePdfHtml(
       color: #0969DA;
       text-decoration: underline;
       margin-left: 6px;
+    }
+    .inline-video-card {
+      margin: 16px 0;
+    }
+    .inline-video-url {
+      margin-top: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 8pt;
+      word-break: break-all;
+    }
+    .direct-youtube-url {
+      color: #52525B;
+      text-decoration: underline;
     }
 
     /* Document End Branding Strip */

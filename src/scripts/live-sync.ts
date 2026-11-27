@@ -1646,12 +1646,20 @@ async function syncGlobalSiteSettings(db: any) {
       if (siteNameMeta) siteNameMeta.content = settings.fullName;
     }
 
+    const canonicalOrigin = (() => {
+      try {
+        return new URL(settings.seo?.canonicalUrl || 'https://aakashdas.live').origin;
+      } catch {
+        return 'https://aakashdas.live';
+      }
+    })();
+
     const toPublicSocialImageUrl = (raw?: string): string | null => {
       if (typeof raw !== 'string') return null;
       const trimmed = raw.trim();
       if (!trimmed || /^(data|blob|javascript|vbscript):/i.test(trimmed)) return null;
       if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
-        return `${window.location.origin}${trimmed}`;
+        return `${canonicalOrigin}${trimmed}`;
       }
       if (/^https?:\/\//i.test(trimmed)) {
         return trimmed;

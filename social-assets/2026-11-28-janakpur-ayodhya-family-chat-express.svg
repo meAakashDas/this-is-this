@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" role="img" aria-labelledby="title desc">
+<title id="title">Janakpur to Ayodhya family group chat express meme</title>
+<desc id="desc">A colourful editorial vector meme showing a train on the Janakpur to Ayodhya route and a passenger overwhelmed by family messages asking whether the train has arrived.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#101a2e"/>
+    <stop offset="1" stop-color="#243a5a"/>
+  </linearGradient>
+  <linearGradient id="train" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f8fafc"/>
+    <stop offset="1" stop-color="#dbe6f2"/>
+  </linearGradient>
+  <linearGradient id="yellow" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#ffd447"/>
+    <stop offset="1" stop-color="#ffad32"/>
+  </linearGradient>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+    <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#050b15" flood-opacity=".38"/>
+  </filter>
+  <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="2" fill="#ffffff" opacity=".12"/>
+  </pattern>
+</defs>
+<rect width="1200" height="1200" fill="url(#bg)"/>
+<rect width="1200" height="1200" fill="url(#dots)"/>
+<circle cx="1080" cy="95" r="180" fill="#ffcc43" opacity=".08"/>
+<circle cx="60" cy="840" r="230" fill="#38bdf8" opacity=".08"/>
+
+<g font-family="Arial, Helvetica, sans-serif">
+  <rect x="66" y="56" width="410" height="54" rx="27" fill="#ffffff" opacity=".12"/>
+  <text x="92" y="92" fill="#dbeafe" font-size="25" font-weight="700" letter-spacing="2">JANAKPUR  ↔  AYODHYA</text>
+
+  <text x="66" y="202" fill="#ffffff" font-size="77" font-weight="900" letter-spacing="-2">19 HOURS ON</text>
+  <text x="66" y="292" fill="#ffffff" font-size="77" font-weight="900" letter-spacing="-2">THE TRAIN.</text>
+  <rect x="58" y="320" width="1082" height="112" rx="18" fill="url(#yellow)" transform="rotate(-1 600 376)"/>
+  <text x="86" y="397" fill="#172033" font-size="66" font-weight="900" letter-spacing="-2">FAMILY CHAT: NONSTOP.</text>
+
+  <text x="70" y="485" fill="#cbd5e1" font-size="30" font-weight="600">Saryu-Kamala Express starts regular service today.</text>
+
+  <!-- Track and motion -->
+  <path d="M30 1000 C310 930 620 1030 1170 930" fill="none" stroke="#93a4bb" stroke-width="18" opacity=".6"/>
+  <path d="M25 1040 C340 970 680 1080 1180 980" fill="none" stroke="#e5e7eb" stroke-width="9" opacity=".65"/>
+  <g stroke="#d7e0eb" stroke-width="9" opacity=".7">
+    <path d="M120 1000 l-10 58"/><path d="M220 984 l-7 58"/><path d="M320 980 l-3 58"/><path d="M420 986 l2 58"/><path d="M520 1000 l8 58"/><path d="M620 1011 l13 58"/><path d="M720 1015 l18 58"/><path d="M820 1007 l23 58"/><path d="M920 988 l28 58"/><path d="M1020 970 l32 58"/>
+  </g>
+
+  <!-- Train -->
+  <g filter="url(#shadow)" transform="translate(48 640)">
+    <path d="M18 160 Q18 105 72 105 H570 Q622 105 622 160 V300 H18 Z" fill="url(#train)" stroke="#0b1220" stroke-width="8"/>
+    <path d="M18 245 H622 V300 H18 Z" fill="#d62839"/>
+    <path d="M40 123 H598" stroke="#d62839" stroke-width="16"/>
+    <rect x="50" y="145" width="135" height="84" rx="13" fill="#173452" stroke="#94a3b8" stroke-width="7"/>
+    <rect x="208" y="145" width="135" height="84" rx="13" fill="#173452" stroke="#94a3b8" stroke-width="7"/>
+    <rect x="366" y="145" width="135" height="84" rx="13" fill="#173452" stroke="#94a3b8" stroke-width="7"/>
+    <rect x="522" y="153" width="70" height="75" rx="10" fill="#173452" stroke="#94a3b8" stroke-width="7"/>
+    <path d="M18 160 Q-8 164 -8 212 V244 H18 Z" fill="#d62839"/>
+    <rect x="6" y="188" width="32" height="44" rx="7" fill="#ffdb62"/>
+    <g fill="#172033" stroke="#0b1220" stroke-width="6">
+      <circle cx="130" cy="305" r="36"/><circle cx="470" cy="305" r="36"/>
+    </g>
+    <g fill="#9ca3af">
+      <circle cx="130" cy="305" r="13"/><circle cx="470" cy="305" r="13"/>
+    </g>
+    <text x="70" y="280" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="900" fill="#fff">SARYU–KAMALA</text>
+    <text x="68" y="72" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="800" fill="#f8fafc">JANAKPUR DHAM</text>
+    <text x="420" y="72" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="800" fill="#f8fafc">AYODHYA</text>
+  </g>
+
+  <!-- Phone with chat -->
+  <g filter="url(#shadow)" transform="translate(720 520)">
+    <rect x="0" y="0" width="400" height="570" rx="48" fill="#0b1220" stroke="#94a3b8" stroke-width="8"/>
+    <rect x="18" y="20" width="364" height="530" rx="34" fill="#f1f5f9"/>
+    <rect x="130" y="34" width="140" height="14" rx="7" fill="#64748b"/>
+    <rect x="18" y="66" width="364" height="74" fill="#166534"/>
+    <circle cx="58" cy="102" r="22" fill="#dcfce7"/>
+    <text x="92" y="98" font-size="24" font-weight="800" fill="#fff">Family Group</text>
+    <text x="92" y="123" font-size="16" font-weight="600" fill="#dcfce7">17 members online</text>
+
+    <rect x="38" y="166" width="255" height="70" rx="20" fill="#fff" stroke="#d1d5db" stroke-width="2"/>
+    <text x="58" y="210" font-size="27" font-weight="700" fill="#172033">Niskyo ki?</text>
+    <text x="305" y="224" font-size="15" fill="#64748b">1:12</text>
+
+    <rect x="112" y="250" width="250" height="70" rx="20" fill="#bbf7d0"/>
+    <text x="134" y="294" font-size="27" font-weight="700" fill="#14532d">Pugyo?</text>
+    <text x="319" y="307" font-size="15" fill="#64748b">1:14</text>
+
+    <rect x="38" y="335" width="286" height="70" rx="20" fill="#fff" stroke="#d1d5db" stroke-width="2"/>
+    <text x="58" y="379" font-size="26" font-weight="700" fill="#172033">Khana khayau?</text>
+
+    <rect x="112" y="420" width="250" height="82" rx="20" fill="#bbf7d0"/>
+    <text x="132" y="454" font-size="24" font-weight="700" fill="#14532d">Live location</text>
+    <text x="132" y="482" font-size="24" font-weight="700" fill="#14532d">pathau!</text>
+
+    <circle cx="340" cy="82" r="24" fill="#ef4444"/>
+    <text x="340" y="91" text-anchor="middle" font-size="24" font-weight="900" fill="#fff">9+</text>
+  </g>
+
+  <rect x="66" y="1120" width="1068" height="2" fill="#ffffff" opacity=".24"/>
+  <text x="68" y="1166" fill="#cbd5e1" font-size="22" font-weight="700" letter-spacing="1">THE TRAIN IS MOVING. THE FAMILY CHAT IS FASTER.</text>
+</g>
+</svg>
